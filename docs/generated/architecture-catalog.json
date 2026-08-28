@@ -28,6 +28,7 @@
     { "id": "collection.read", "owner": "collection" },
     { "id": "datasets.read", "owner": "datasets" },
     { "id": "datasets.snapshot", "owner": "datasets" },
+    { "id": "outputs.service", "owner": "outputs" },
     { "id": "platform.repository", "owner": "platform" },
     { "id": "preferences.service", "owner": "preferences" }
   ],
@@ -55,6 +56,12 @@
       "owner": "analytics",
       "method": "POST",
       "path": "/api/v2/analytics/recipes"
+    },
+    {
+      "id": "createApiToken",
+      "owner": "outputs",
+      "method": "POST",
+      "path": "/api/v2/api-tokens"
     },
     {
       "id": "createCorpus",
@@ -105,6 +112,12 @@
       "path": "/api/v2/tasks"
     },
     {
+      "id": "deleteOutputDestination",
+      "owner": "outputs",
+      "method": "DELETE",
+      "path": "/api/v2/output-destinations/{destinationId}"
+    },
+    {
       "id": "deletePreferenceSignal",
       "owner": "preferences",
       "method": "DELETE",
@@ -151,6 +164,12 @@
       "owner": "platform",
       "method": "GET",
       "path": "/health"
+    },
+    {
+      "id": "getOutputDestination",
+      "owner": "outputs",
+      "method": "GET",
+      "path": "/api/v2/output-destinations/{destinationId}"
     },
     {
       "id": "getPreferenceProfile",
@@ -213,6 +232,12 @@
       "path": "/api/v2/analytics/recipes"
     },
     {
+      "id": "listApiTokens",
+      "owner": "outputs",
+      "method": "GET",
+      "path": "/api/v2/api-tokens"
+    },
+    {
       "id": "listCorpora",
       "owner": "corpus",
       "method": "GET",
@@ -267,6 +292,12 @@
       "path": "/api/v2/trends"
     },
     {
+      "id": "revokeApiToken",
+      "owner": "outputs",
+      "method": "DELETE",
+      "path": "/api/v2/api-tokens/{tokenId}"
+    },
+    {
       "id": "streamDomainEvents",
       "owner": "platform",
       "method": "GET",
@@ -277,6 +308,12 @@
       "owner": "platform",
       "method": "GET",
       "path": "/api/v2/events/realtime"
+    },
+    {
+      "id": "updateOutputDestination",
+      "owner": "outputs",
+      "method": "PUT",
+      "path": "/api/v2/output-destinations/{destinationId}"
     },
     {
       "id": "updateTask",
@@ -302,8 +339,11 @@
     { "id": "corpus.version.created", "owner": "corpus" },
     { "id": "dataset.projected", "owner": "datasets" },
     { "id": "dataset.snapshot.created", "owner": "datasets" },
+    { "id": "outputs.api-token.updated", "owner": "outputs" },
+    { "id": "outputs.bindings.updated", "owner": "outputs" },
     { "id": "outputs.delivery.failed", "owner": "outputs" },
     { "id": "outputs.delivery.succeeded", "owner": "outputs" },
+    { "id": "outputs.destination.updated", "owner": "outputs" },
     { "id": "platform.job.created", "owner": "platform" },
     { "id": "platform.job.dead-lettered", "owner": "platform" },
     { "id": "platform.job.interrupted", "owner": "platform" },

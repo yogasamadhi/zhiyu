@@ -1,4 +1,13 @@
-import type { PluginDescriptor } from '@zhiyun/kernel';
+import { createServiceToken, type PluginDescriptor } from '@zhiyun/kernel';
+import type { OutputsServiceContract } from './contracts/index.js';
+import { outputsRoutes } from './http/index.js';
+import { outputsUiContributions } from './ui/index.js';
+
+export const outputsService = createServiceToken<OutputsServiceContract>(
+  'outputs.service',
+  '1.0.0',
+  'outputs',
+);
 
 export const outputsPlugin: PluginDescriptor = {
   id: 'outputs',
@@ -7,13 +16,13 @@ export const outputsPlugin: PluginDescriptor = {
     { id: 'collection', range: '^1.0.0' },
     { id: 'datasets', range: '^1.0.0' },
   ],
+  providedServices: [outputsService],
   optionalCapabilities: ['credential.store', 'artifact.store'],
-  routes: [
-    { operationId: 'listOutputDestinations', method: 'GET', path: '/api/v2/output-destinations' },
-    { operationId: 'createOutputDestination', method: 'POST', path: '/api/v2/output-destinations' },
-    { operationId: 'listDeliveryAttempts', method: 'GET', path: '/api/v2/delivery-attempts' },
-  ],
+  routes: outputsRoutes,
   events: [
+    { type: 'outputs.destination.updated', durable: true },
+    { type: 'outputs.bindings.updated', durable: true },
+    { type: 'outputs.api-token.updated', durable: true },
     { type: 'outputs.delivery.succeeded', durable: true },
     { type: 'outputs.delivery.failed', durable: true },
   ],
@@ -23,10 +32,15 @@ export const outputsPlugin: PluginDescriptor = {
       tables: ['output_destinations', 'task_output_bindings', 'delivery_attempts', 'api_tokens'],
     },
   ],
-  uiContributions: [
-    { id: 'outputs.route', kind: 'route' },
-    { id: 'outputs.navigation', kind: 'navigation' },
-  ],
+  uiContributions: outputsUiContributions,
   backgroundHandlers: [{ type: 'outputs.delivery.execute', resourceClass: 'delivery' }],
   activate() {},
 };
+
+export * from './application/index.js';
+export * from './contracts/index.js';
+export * from './domain/index.js';
+export * from './http/index.js';
+export * from './persistence/postgres/index.js';
+export * from './persistence/sqlite/index.js';
+export * from './ui/index.js';
