@@ -16,6 +16,22 @@ const SettingsPage = lazy(() => import('../pages/SettingsPage.js').then(moduleOf
 const PreferencesPage = lazy(() =>
   import('../pages/PreferencesPage.js').then(moduleOf('PreferencesPage')),
 );
+const AnalyticsPage = lazy(() =>
+  import('../pages/AnalyticsPage.js').then(moduleOf('AnalyticsPage')),
+);
+const AnalyticsRecipePage = lazy(() =>
+  import('../pages/AnalyticsRecipePage.js').then(moduleOf('AnalyticsRecipePage')),
+);
+const AnalysisJobPage = lazy(() =>
+  import('../pages/AnalysisJobPage.js').then(moduleOf('AnalysisJobPage')),
+);
+const CorporaPage = lazy(() => import('../pages/CorporaPage.js').then(moduleOf('CorporaPage')));
+const CorpusDetailPage = lazy(() =>
+  import('../pages/CorpusDetailPage.js').then(moduleOf('CorpusDetailPage')),
+);
+const CorpusVersionPage = lazy(() =>
+  import('../pages/CorpusVersionPage.js').then(moduleOf('CorpusVersionPage')),
+);
 
 export interface ShellRouteContribution {
   id: string;
@@ -55,6 +71,22 @@ export const routeContributionRegistry: readonly ShellRouteContribution[] = [
     id: 'platform.settings-route',
     routes: [{ path: '/settings', component: SettingsPage }],
   },
+  {
+    id: 'analytics.route',
+    routes: [
+      { path: '/analytics', component: AnalyticsPage },
+      { path: '/analytics/recipes/:recipeId', component: AnalyticsRecipePage },
+      { path: '/analytics/jobs/:jobId', component: AnalysisJobPage },
+    ],
+  },
+  {
+    id: 'corpus.route',
+    routes: [
+      { path: '/corpora', component: CorporaPage },
+      { path: '/corpora/:corpusId', component: CorpusDetailPage },
+      { path: '/corpora/:corpusId/versions/:versionId', component: CorpusVersionPage },
+    ],
+  },
 ];
 
 export const navigationContributionRegistry: readonly ShellNavigationContribution[] = [
@@ -65,6 +97,8 @@ export const navigationContributionRegistry: readonly ShellNavigationContributio
     labelKey: 'preferencesAndTrends',
   },
   { id: 'outputs.navigation', to: '/outputs', labelKey: 'outputs' },
+  { id: 'analytics.navigation', to: '/analytics', labelKey: 'analytics.title' },
+  { id: 'corpus.navigation', to: '/corpora', labelKey: 'corpus.title' },
   { id: 'platform.settings-navigation', to: '/settings', labelKey: 'settings' },
 ];
 

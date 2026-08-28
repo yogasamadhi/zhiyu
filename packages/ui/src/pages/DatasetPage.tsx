@@ -139,6 +139,23 @@ export function DatasetPage() {
           <h1>{task?.name ?? 'Dataset'}</h1>
           <p>当前数据、删除标记与最近变更历史</p>
         </div>
+        <div className="heading-actions">
+          <Link
+            className="button button-secondary"
+            to={`/analytics?datasetId=${encodeURIComponent(id ?? '')}`}
+          >
+            开始分析
+          </Link>
+          <Link
+            className="button button-secondary"
+            to={`/analytics?datasetId=${encodeURIComponent(id ?? '')}`}
+          >
+            使用 Recipe
+          </Link>
+          <Link className="button" to={`/corpora?datasetId=${encodeURIComponent(id ?? '')}`}>
+            构建语料库
+          </Link>
+        </div>
       </div>
       <ErrorNotice message={error} />
       <div className="stats">
