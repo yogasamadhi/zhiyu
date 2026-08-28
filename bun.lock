@@ -89,6 +89,58 @@
         "vite": "^8.0.0",
       },
     },
+    "capabilities/artifact-store": {
+      "name": "@zhiyun/artifact-store",
+      "version": "1.0.0",
+      "dependencies": {
+        "@zhiyun/platform-core": "workspace:*",
+      },
+    },
+    "capabilities/queue-local": {
+      "name": "@zhiyun/queue-local-v1",
+      "version": "1.0.0",
+      "dependencies": {
+        "@zhiyun/platform-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@zhiyun/storage-sqlite-v1": "workspace:*",
+      },
+    },
+    "capabilities/queue-redis": {
+      "name": "@zhiyun/queue-redis-v1",
+      "version": "1.0.0",
+      "dependencies": {
+        "@zhiyun/platform-core": "workspace:*",
+        "bullmq": "^6.3.1",
+        "ioredis": "^5.8.2",
+      },
+      "devDependencies": {
+        "@zhiyun/storage-sqlite-v1": "workspace:*",
+      },
+    },
+    "capabilities/storage-postgres": {
+      "name": "@zhiyun/storage-postgres-v1",
+      "version": "1.0.0",
+      "dependencies": {
+        "@zhiyun/platform-core": "workspace:*",
+        "postgres": "^3.4.7",
+      },
+      "devDependencies": {
+        "@zhiyun/platform-testkit": "workspace:*",
+      },
+    },
+    "capabilities/storage-sqlite": {
+      "name": "@zhiyun/storage-sqlite-v1",
+      "version": "1.0.0",
+      "dependencies": {
+        "@zhiyun/platform-core": "workspace:*",
+        "better-sqlite3": "13.0.3",
+      },
+      "devDependencies": {
+        "@types/better-sqlite3": "^9.6.0",
+        "@zhiyun/platform-testkit": "workspace:*",
+      },
+    },
     "fixtures": {
       "name": "@zhiyun/fixtures",
       "version": "0.1.0",
@@ -194,6 +246,20 @@
       "version": "0.2.0",
       "dependencies": {
         "@zhiyun/contracts": "workspace:*",
+      },
+    },
+    "packages/platform-core": {
+      "name": "@zhiyun/platform-core",
+      "version": "1.0.0",
+    },
+    "packages/platform-testkit": {
+      "name": "@zhiyun/platform-testkit",
+      "version": "1.0.0",
+      "dependencies": {
+        "@zhiyun/platform-core": "workspace:*",
+      },
+      "devDependencies": {
+        "vitest": "^4.1.0",
       },
     },
     "packages/preferences": {
@@ -352,6 +418,14 @@
         "@zhiyun/kernel": "workspace:*",
       },
     },
+    "plugins/platform": {
+      "name": "@zhiyun/plugin-platform",
+      "version": "1.0.0",
+      "dependencies": {
+        "@zhiyun/kernel": "workspace:*",
+        "@zhiyun/platform-core": "workspace:*",
+      },
+    },
     "plugins/preferences": {
       "name": "@zhiyun/plugin-preferences",
       "version": "1.0.0",
@@ -371,6 +445,7 @@
         "@zhiyun/plugin-datasets": "workspace:*",
         "@zhiyun/plugin-legacy-runtime": "workspace:*",
         "@zhiyun/plugin-outputs": "workspace:*",
+        "@zhiyun/plugin-platform": "workspace:*",
         "@zhiyun/plugin-preferences": "workspace:*",
       },
       "devDependencies": {
@@ -980,6 +1055,8 @@
 
     "@zhiyun/api": ["@zhiyun/api@workspace:apps/api"],
 
+    "@zhiyun/artifact-store": ["@zhiyun/artifact-store@workspace:capabilities/artifact-store"],
+
     "@zhiyun/browser-runtime": ["@zhiyun/browser-runtime@workspace:packages/browser-runtime"],
 
     "@zhiyun/client": ["@zhiyun/client@workspace:packages/client"],
@@ -1004,6 +1081,10 @@
 
     "@zhiyun/platform": ["@zhiyun/platform@workspace:packages/platform"],
 
+    "@zhiyun/platform-core": ["@zhiyun/platform-core@workspace:packages/platform-core"],
+
+    "@zhiyun/platform-testkit": ["@zhiyun/platform-testkit@workspace:packages/platform-testkit"],
+
     "@zhiyun/plugin-ai-assistance": ["@zhiyun/plugin-ai-assistance@workspace:plugins/ai-assistance"],
 
     "@zhiyun/plugin-analytics": ["@zhiyun/plugin-analytics@workspace:plugins/analytics"],
@@ -1018,11 +1099,17 @@
 
     "@zhiyun/plugin-outputs": ["@zhiyun/plugin-outputs@workspace:plugins/outputs"],
 
+    "@zhiyun/plugin-platform": ["@zhiyun/plugin-platform@workspace:plugins/platform"],
+
     "@zhiyun/plugin-preferences": ["@zhiyun/plugin-preferences@workspace:plugins/preferences"],
 
     "@zhiyun/preferences": ["@zhiyun/preferences@workspace:packages/preferences"],
 
     "@zhiyun/product-profiles": ["@zhiyun/product-profiles@workspace:profiles/catalog"],
+
+    "@zhiyun/queue-local-v1": ["@zhiyun/queue-local-v1@workspace:capabilities/queue-local"],
+
+    "@zhiyun/queue-redis-v1": ["@zhiyun/queue-redis-v1@workspace:capabilities/queue-redis"],
 
     "@zhiyun/rules": ["@zhiyun/rules@workspace:packages/rules"],
 
@@ -1035,6 +1122,10 @@
     "@zhiyun/sqlite-storage": ["@zhiyun/sqlite-storage@workspace:packages/sqlite-storage"],
 
     "@zhiyun/storage": ["@zhiyun/storage@workspace:packages/storage"],
+
+    "@zhiyun/storage-postgres-v1": ["@zhiyun/storage-postgres-v1@workspace:capabilities/storage-postgres"],
+
+    "@zhiyun/storage-sqlite-v1": ["@zhiyun/storage-sqlite-v1@workspace:capabilities/storage-sqlite"],
 
     "@zhiyun/ui": ["@zhiyun/ui@workspace:packages/ui"],
 

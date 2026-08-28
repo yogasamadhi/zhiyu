@@ -1,5 +1,5 @@
 {
-  "graphRevision": "32424c915a02158ae2667af8ec3aa7014e4de7613a72107ef16b711ea01c41fd",
+  "graphRevision": "bed2f26e70070f15ffadc2d00577c37050648622a6bf393ba1255018eb92065a",
   "profileId": "desktop-studio",
   "plugins": [
     { "id": "datasets", "version": "1.0.0", "dependencies": [] },
@@ -16,6 +16,7 @@
       "version": "1.0.0",
       "dependencies": ["collection", "datasets"]
     },
+    { "id": "platform", "version": "1.0.0", "dependencies": [] },
     {
       "id": "preferences",
       "version": "1.0.0",
@@ -23,9 +24,11 @@
     }
   ],
   "services": [
+    { "id": "artifact.store", "owner": "platform" },
     { "id": "collection.read", "owner": "collection" },
     { "id": "datasets.read", "owner": "datasets" },
-    { "id": "datasets.snapshot", "owner": "datasets" }
+    { "id": "datasets.snapshot", "owner": "datasets" },
+    { "id": "platform.repository", "owner": "platform" }
   ],
   "routes": [
     {
@@ -77,6 +80,12 @@
       "path": "/api/v2/tasks/{taskId}/runs"
     },
     {
+      "id": "createSession",
+      "owner": "platform",
+      "method": "POST",
+      "path": "/api/v2/session"
+    },
+    {
       "id": "createTask",
       "owner": "collection",
       "method": "POST",
@@ -93,6 +102,12 @@
       "owner": "analytics",
       "method": "GET",
       "path": "/api/v2/analytics/results/{resultId}"
+    },
+    {
+      "id": "getCapabilities",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/capabilities"
     },
     {
       "id": "getCorpus",
@@ -113,10 +128,22 @@
       "path": "/api/v2/datasets/{datasetId}"
     },
     {
+      "id": "getHealth",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/health"
+    },
+    {
       "id": "getPreferenceProfile",
       "owner": "preferences",
       "method": "GET",
       "path": "/api/v2/preferences/profile"
+    },
+    {
+      "id": "getProductOpenApi",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/openapi.json"
     },
     {
       "id": "getRun",
@@ -125,10 +152,28 @@
       "path": "/api/v2/runs/{runId}"
     },
     {
+      "id": "getRuntime",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/runtime"
+    },
+    {
+      "id": "getRuntimeGraph",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/runtime/graph"
+    },
+    {
       "id": "getTask",
       "owner": "collection",
       "method": "GET",
       "path": "/api/v2/tasks/{taskId}"
+    },
+    {
+      "id": "getVersion",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/version"
     },
     {
       "id": "listAnalysisJobs",
@@ -203,6 +248,18 @@
       "path": "/api/v2/trends"
     },
     {
+      "id": "streamDomainEvents",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/events/domain"
+    },
+    {
+      "id": "streamRealtimeEvents",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/events/realtime"
+    },
+    {
       "id": "updateTask",
       "owner": "collection",
       "method": "PUT",
@@ -228,6 +285,9 @@
     { "id": "dataset.snapshot.created", "owner": "datasets" },
     { "id": "outputs.delivery.failed", "owner": "outputs" },
     { "id": "outputs.delivery.succeeded", "owner": "outputs" },
+    { "id": "platform.job.created", "owner": "platform" },
+    { "id": "platform.job.dead-lettered", "owner": "platform" },
+    { "id": "platform.job.interrupted", "owner": "platform" },
     { "id": "preferences.signal.updated", "owner": "preferences" }
   ],
   "tables": [
@@ -245,7 +305,14 @@
     { "id": "dataset_snapshots", "owner": "datasets" },
     { "id": "datasets", "owner": "datasets" },
     { "id": "delivery_attempts", "owner": "outputs" },
+    { "id": "event_consumer_checkpoints", "owner": "platform" },
+    { "id": "event_dead_letters", "owner": "platform" },
+    { "id": "idempotency_keys", "owner": "platform" },
     { "id": "output_destinations", "owner": "outputs" },
+    { "id": "platform_artifacts", "owner": "platform" },
+    { "id": "platform_events", "owner": "platform" },
+    { "id": "platform_jobs", "owner": "platform" },
+    { "id": "plugin_migrations", "owner": "platform" },
     { "id": "preference_signals", "owner": "preferences" },
     { "id": "record_changes", "owner": "datasets" },
     { "id": "records", "owner": "datasets" },
@@ -255,10 +322,12 @@
     { "id": "run_logs", "owner": "collection" },
     { "id": "run_requests", "owner": "collection" },
     { "id": "runs", "owner": "collection" },
+    { "id": "runtime_settings", "owner": "platform" },
     { "id": "task_output_bindings", "owner": "outputs" },
     { "id": "task_schedules", "owner": "collection" },
     { "id": "tasks", "owner": "collection" },
-    { "id": "trend_sources", "owner": "preferences" }
+    { "id": "trend_sources", "owner": "preferences" },
+    { "id": "zhiyun_meta", "owner": "platform" }
   ],
   "migrations": [
     { "id": "001-initial", "owner": "datasets" },
@@ -266,6 +335,7 @@
     { "id": "001-initial", "owner": "analytics" },
     { "id": "001-initial", "owner": "corpus" },
     { "id": "001-initial", "owner": "outputs" },
+    { "id": "001-initial", "owner": "platform" },
     { "id": "001-initial", "owner": "preferences" }
   ],
   "uiContributions": [

@@ -11,10 +11,12 @@ import { corpusPlugin } from '@zhiyun/plugin-corpus';
 import { datasetsPlugin } from '@zhiyun/plugin-datasets';
 import { legacyRuntimePlugin } from '@zhiyun/plugin-legacy-runtime';
 import { outputsPlugin } from '@zhiyun/plugin-outputs';
+import { platformPlugin } from '@zhiyun/plugin-platform';
 import { preferencesPlugin } from '@zhiyun/plugin-preferences';
 
 export const productPlugins: readonly PluginDescriptor[] = [
   legacyRuntimePlugin,
+  platformPlugin,
   datasetsPlugin,
   collectionPlugin,
   outputsPlugin,
@@ -29,14 +31,18 @@ export const productBundles: readonly BundleDescriptor[] = [
   {
     id: 'core-data',
     version: '1.0.0',
-    pluginIds: ['datasets', 'collection', 'outputs', 'preferences'],
+    pluginIds: ['platform', 'datasets', 'collection', 'outputs', 'preferences'],
   },
   {
     id: 'intelligence',
     version: '1.0.0',
     pluginIds: ['analytics', 'corpus', 'ai-assistance'],
   },
-  { id: 'safe-core', version: '1.0.0', pluginIds: ['datasets', 'collection', 'preferences'] },
+  {
+    id: 'safe-core',
+    version: '1.0.0',
+    pluginIds: ['platform', 'datasets', 'collection', 'preferences'],
+  },
 ];
 
 export const productProfiles: readonly ProductProfile[] = [

@@ -1,0 +1,23 @@
+{
+  "name": "@zhiyun/storage-postgres-v1",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "development": "./src/index.ts",
+    "bun": "./src/index.ts",
+    "types": "./src/index.ts",
+    "default": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zhiyun/platform-core": "workspace:*",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "@zhiyun/platform-testkit": "workspace:*"
+  }
+}

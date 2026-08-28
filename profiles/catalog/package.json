@@ -24,6 +24,7 @@
     "@zhiyun/plugin-datasets": "workspace:*",
     "@zhiyun/plugin-legacy-runtime": "workspace:*",
     "@zhiyun/plugin-outputs": "workspace:*",
+    "@zhiyun/plugin-platform": "workspace:*",
     "@zhiyun/plugin-preferences": "workspace:*"
   },
   "devDependencies": {
