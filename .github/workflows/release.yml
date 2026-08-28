@@ -22,7 +22,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: 1.4.0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m pip install uv==0.11.14
       - run: bun install --frozen-lockfile
+      - run: bun run worker:sync
+      - run: bun run worker:build
+      - run: bun run worker:smoke
       - name: Require macOS signing and notarization credentials
         if: runner.os == 'macOS'
         shell: bash

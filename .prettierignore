@@ -4,4 +4,6 @@ dist
 coverage
 bun.lock
 services/ai/uv.lock
+services/analytics-worker/openapi.json
+services/analytics-worker/uv.lock
 docs/ZhiYun（织云）项目初始化任务书.md

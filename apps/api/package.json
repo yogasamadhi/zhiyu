@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@zhiyun/analytics-worker-client": "workspace:*",
     "@zhiyun/ai-runtime": "workspace:*",
     "@zhiyun/config": "workspace:*",
     "@zhiyun/crawler-runtime": "workspace:*",

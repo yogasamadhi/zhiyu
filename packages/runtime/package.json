@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
+    "@zhiyun/analytics-worker-client": "workspace:*",
     "@zhiyun/ai-runtime": "workspace:*",
     "@zhiyun/browser-runtime": "workspace:*",
     "@zhiyun/contracts": "workspace:*",

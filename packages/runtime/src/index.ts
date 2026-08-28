@@ -139,6 +139,7 @@ export interface ZhiYunRuntime {
   listen(options?: { host?: string; port?: number }): Promise<string>;
   close(): Promise<void>;
   issueSessionNonce(nonce: string): void;
+  setAnalyticsWorkerStatus(status: RuntimeMetadata['analyticsWorkerStatus']): void;
   readonly token: string | null;
 }
 
@@ -3249,6 +3250,9 @@ export async function buildRuntime(
     },
     issueSessionNonce(nonce: string) {
       validSessionNonces.add(nonce);
+    },
+    setAnalyticsWorkerStatus(status) {
+      runtimeMetadata.analyticsWorkerStatus = status;
     },
   };
 }

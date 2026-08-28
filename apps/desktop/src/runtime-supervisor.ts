@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { utilityProcess, type UtilityProcess } from 'electron';
+import type { AnalyticsWorkerPrivateBootstrap } from '@zhiyun/analytics-worker-client';
 import type { RuntimeBootstrap } from '@zhiyun/contracts';
 import { createRuntimeEnvironment } from './runtime-environment.js';
 
@@ -10,6 +11,8 @@ interface SupervisorOptions {
   hostToken: string;
   browserResources?: string;
   rendererOrigin?: string;
+  analyticsWorker?: AnalyticsWorkerPrivateBootstrap;
+  analyticsWorkerStatus?: 'ready' | 'degraded' | 'unavailable';
   onReady(bootstrap: RuntimeBootstrap): void;
   onDegraded(reason: string): void;
 }
@@ -36,8 +39,13 @@ export class RuntimeSupervisor {
   private sessionNonce = '';
   private currentBootstrap: RuntimeBootstrap | undefined;
   private readonly nonceWaiters = new Map<string, () => void>();
+  private analyticsWorker: AnalyticsWorkerPrivateBootstrap | undefined;
+  private analyticsWorkerStatus: 'ready' | 'degraded' | 'unavailable';
 
-  constructor(private readonly options: SupervisorOptions) {}
+  constructor(private readonly options: SupervisorOptions) {
+    this.analyticsWorker = options.analyticsWorker;
+    this.analyticsWorkerStatus = options.analyticsWorkerStatus ?? 'unavailable';
+  }
 
   start(): void {
     this.stopping = false;
@@ -105,6 +113,8 @@ export class RuntimeSupervisor {
           model: process.env.AI_MODEL,
           apiKeyRef: process.env.ZHIYUN_DESKTOP_AI_KEY_REF,
         },
+        analyticsWorker: this.analyticsWorker,
+        analyticsWorkerStatus: this.analyticsWorkerStatus,
       });
     });
     child.once('exit', () => {
@@ -126,6 +136,15 @@ export class RuntimeSupervisor {
       ),
     ]);
     return { ...this.currentBootstrap, sessionNonce: nonce };
+  }
+
+  setAnalyticsWorker(
+    worker: AnalyticsWorkerPrivateBootstrap | undefined,
+    status: 'ready' | 'degraded' | 'unavailable',
+  ): void {
+    this.analyticsWorker = worker;
+    this.analyticsWorkerStatus = status;
+    this.child?.postMessage({ type: 'analytics-worker-changed', worker, status });
   }
 
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {

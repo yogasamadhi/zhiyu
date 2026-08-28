@@ -88,7 +88,7 @@ describe('ZhiYun Runtime API v2 lifecycle', () => {
       productVersion: '1.0.0',
       profileId: 'test',
       graphRevision: expect.any(String),
-      analyticsWorkerStatus: 'unavailable',
+      analyticsWorkerStatus: 'ready',
     });
     const graph = await app.inject({ method: 'GET', url: '/api/v2/runtime/graph' });
     expect(graph.statusCode).toBe(200);

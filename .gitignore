@@ -5,6 +5,11 @@
 node_modules/
 dist/
 coverage/
+**/.pytest_cache/
+**/.hypothesis/
+**/.pyinstaller/
+**/__pycache__/
+*.py[cod]
 .turbo/
 .cache/
 /storage/
@@ -16,6 +21,8 @@ apps/desktop/out/
 apps/desktop/.forge-app/
 apps/desktop/resources/playwright/*
 !apps/desktop/resources/playwright/.gitkeep
+apps/desktop/resources/analytics-worker/*
+!apps/desktop/resources/analytics-worker/.gitkeep
 .data/
 *.sqlite3
 *.sqlite3-shm

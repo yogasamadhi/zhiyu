@@ -1,5 +1,9 @@
 import { join } from 'node:path';
 import { createAiProvider } from '@zhiyun/ai-runtime';
+import {
+  AnalyticsWorkerClient,
+  type AnalyticsWorkerPrivateBootstrap,
+} from '@zhiyun/analytics-worker-client';
 import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
 import { FileArtifactStore, HostCredentialStore } from '@zhiyun/platform';
 import { LocalQueue, LocalScheduler } from '@zhiyun/scheduler';
@@ -16,6 +20,8 @@ interface BootstrapMessage {
   generation: number;
   browserResources?: string;
   rendererOrigin?: string;
+  analyticsWorker?: AnalyticsWorkerPrivateBootstrap;
+  analyticsWorkerStatus?: 'ready' | 'degraded' | 'unavailable';
   ai?: { baseUrl?: string; model?: string; apiKeyRef?: string };
 }
 
@@ -26,6 +32,11 @@ interface ParentPortLike {
       data:
         | BootstrapMessage
         | { type: 'shutdown' }
+        | {
+            type: 'analytics-worker-changed';
+            worker?: AnalyticsWorkerPrivateBootstrap;
+            status: 'ready' | 'degraded' | 'unavailable';
+          }
         | { type: 'issue-session-nonce'; nonce: string; requestId: string };
     }) => void,
   ): void;
@@ -38,6 +49,7 @@ if (!parentPort)
 const desktopParentPort = parentPort;
 
 let runtime: ZhiYunRuntime | undefined;
+let analyticsWorkerClient: AnalyticsWorkerClient | undefined;
 
 async function hostRequest<T>(message: BootstrapMessage, path: string, body: unknown): Promise<T> {
   const response = await fetch(`${message.hostBaseUrl}${path}`, {
@@ -60,13 +72,24 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
   const queue = new LocalQueue(repository);
   const scheduler = new LocalScheduler(repository, queue);
   const credentialStore = new HostCredentialStore(message.hostBaseUrl, message.hostToken);
+  let analyticsWorkerStatus = message.analyticsWorkerStatus ?? 'unavailable';
+  if (message.analyticsWorker) {
+    try {
+      analyticsWorkerClient = new AnalyticsWorkerClient(message.analyticsWorker);
+      await analyticsWorkerClient.health();
+      analyticsWorkerStatus = 'ready';
+    } catch {
+      analyticsWorkerClient = undefined;
+      analyticsWorkerStatus = 'degraded';
+    }
+  }
   const metadata: HostCapabilities['metadata'] = {
     runtimeId: crypto.randomUUID(),
     generation: message.generation,
     apiVersion: 'v2',
     mode: 'desktop',
     productVersion: '1.0.0',
-    analyticsWorkerStatus: 'unavailable',
+    analyticsWorkerStatus,
     startedAt: new Date().toISOString(),
   };
   const capabilities: RuntimeCapabilities = {
@@ -185,6 +208,23 @@ desktopParentPort.on('message', (event) => {
     });
   } else if (message.type === 'shutdown') {
     void runtime?.close().finally(() => process.exit(0));
+  } else if (message.type === 'analytics-worker-changed') {
+    void (async () => {
+      let status = message.status;
+      if (message.worker) {
+        try {
+          analyticsWorkerClient = new AnalyticsWorkerClient(message.worker);
+          await analyticsWorkerClient.health();
+          status = 'ready';
+        } catch {
+          analyticsWorkerClient = undefined;
+          status = 'degraded';
+        }
+      } else {
+        analyticsWorkerClient = undefined;
+      }
+      runtime?.setAnalyticsWorkerStatus(status);
+    })();
   } else if (message.type === 'issue-session-nonce') {
     runtime?.issueSessionNonce(message.nonce);
     desktopParentPort.postMessage({ type: 'session-nonce-issued', requestId: message.requestId });

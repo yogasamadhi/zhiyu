@@ -13,6 +13,10 @@ import {
   shell,
   Tray,
 } from 'electron';
+import {
+  AnalyticsWorkerSupervisor,
+  type AnalyticsWorkerSupervisorState,
+} from '@zhiyun/analytics-worker-client';
 import type { RuntimeBootstrap } from '@zhiyun/contracts';
 import { HostCapabilityServer } from './host-capability-server.js';
 import { RuntimeSupervisor } from './runtime-supervisor.js';
@@ -41,6 +45,7 @@ const developmentUrl = process.env.ZHIYUN_DESKTOP_DEV_URL;
 let mainWindow: BrowserWindow | undefined;
 let tray: Tray | undefined;
 let supervisor: RuntimeSupervisor | undefined;
+let analyticsSupervisor: AnalyticsWorkerSupervisor | undefined;
 let hostServer: HostCapabilityServer | undefined;
 let bootstrap: RuntimeBootstrap | undefined;
 let quitting = false;
@@ -300,11 +305,41 @@ function bundledBrowserDirectory(): string | undefined {
     : undefined;
 }
 
+function analyticsWorkerLaunch(): { command: string; args: string[] } {
+  if (!app.isPackaged) {
+    const workspaceRoot = resolve(moduleDirectory, '../../..');
+    const python =
+      process.platform === 'win32'
+        ? join(workspaceRoot, 'services', 'analytics-worker', '.venv', 'Scripts', 'python.exe')
+        : join(workspaceRoot, 'services', 'analytics-worker', '.venv', 'bin', 'python');
+    return { command: python, args: ['-m', 'zhiyun_analytics_worker'] };
+  }
+  const platform =
+    process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux';
+  const architecture = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const root = join(process.resourcesPath, 'analytics-worker', `${platform}-${architecture}`);
+  const executable = process.platform === 'win32' ? 'analytics-worker.exe' : 'analytics-worker';
+  const candidates = [join(root, executable), join(root, 'analytics-worker', executable)];
+  return {
+    command: candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!,
+    args: [],
+  };
+}
+
+function publishAnalyticsWorkerState(state: AnalyticsWorkerSupervisorState): void {
+  if (state.status === 'ready') {
+    supervisor?.setAnalyticsWorker(analyticsSupervisor?.connection(), 'ready');
+  } else if (state.status === 'degraded') {
+    supervisor?.setAnalyticsWorker(undefined, 'degraded');
+  }
+}
+
 async function orderlyQuit(): Promise<void> {
   if (quitting) return;
   quitting = true;
   mainWindow?.hide();
   await supervisor?.stop();
+  await analyticsSupervisor?.stop();
   await hostServer?.close();
   shutdownFinished = true;
   app.quit();
@@ -341,14 +376,36 @@ if (singleInstance) {
         promptCredential,
         loginCredential: captureLoginSession,
         windowStatus: () => ({ visible: mainWindow?.isVisible() ?? false, tray: Boolean(tray) }),
-        diagnostics: () => supervisor?.diagnostics() ?? { running: false },
+        diagnostics: () => ({
+          runtime: supervisor?.diagnostics() ?? { running: false },
+          analyticsWorker: analyticsSupervisor?.diagnostics() ?? { status: 'unavailable' },
+        }),
         restartRuntime: () => supervisor?.restart(),
       });
       const hostBaseUrl = await hostServer.start();
+      const workerLaunch = analyticsWorkerLaunch();
+      analyticsSupervisor = new AnalyticsWorkerSupervisor({
+        ...workerLaunch,
+        workspaceRoot: join(app.getPath('userData'), 'job-workspaces', 'analytics-worker'),
+        onStateChange: publishAnalyticsWorkerState,
+        onLog(stream, message) {
+          const output = stream === 'stdout' ? process.stdout : process.stderr;
+          output.write(`[analytics-worker] ${message}`);
+        },
+      });
+      const analyticsWorker = await analyticsSupervisor.start().catch((error: unknown) => {
+        console.warn(
+          '[desktop] analytics worker unavailable; collection Runtime will continue',
+          error instanceof Error ? error.message : String(error),
+        );
+        return undefined;
+      });
       supervisor = new RuntimeSupervisor({
         dataDirectory: app.getPath('userData'),
         hostBaseUrl,
         hostToken,
+        ...(analyticsWorker ? { analyticsWorker } : {}),
+        analyticsWorkerStatus: analyticsWorker ? 'ready' : 'degraded',
         ...(developmentUrl ? { rendererOrigin: developmentUrl } : {}),
         ...(bundledBrowserDirectory() ? { browserResources: bundledBrowserDirectory()! } : {}),
         onReady(value) {

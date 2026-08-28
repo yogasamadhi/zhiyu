@@ -1,15 +1,53 @@
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { AnalyticsWorkerSupervisor } from '@zhiyun/analytics-worker-client';
 import { createAiProvider } from '@zhiyun/ai-runtime';
 import { getConfig } from '@zhiyun/config';
 import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
 import { AesCredentialStore, FileArtifactStore } from '@zhiyun/platform';
-import { buildRuntime } from '@zhiyun/runtime';
+import { buildRuntime, type ZhiYunRuntime } from '@zhiyun/runtime';
 import { TaskQueue } from '@zhiyun/scheduler';
 import { PostgresRepository } from '@zhiyun/storage';
+
+function analyticsWorkerLaunch(): { command: string; args: string[] } {
+  if (process.env.ZHIYUN_ANALYTICS_WORKER_PATH) {
+    return { command: process.env.ZHIYUN_ANALYTICS_WORKER_PATH, args: [] };
+  }
+  const workspaceRoot = resolve(import.meta.dirname, '../../..');
+  const python =
+    process.platform === 'win32'
+      ? join(workspaceRoot, 'services', 'analytics-worker', '.venv', 'Scripts', 'python.exe')
+      : join(workspaceRoot, 'services', 'analytics-worker', '.venv', 'bin', 'python');
+  return { command: python, args: ['-m', 'zhiyun_analytics_worker'] };
+}
 
 export async function buildApp() {
   const config = getConfig();
   const dataDirectory = join(process.cwd(), '.data', 'headless');
+  const runtimeHolder: { current?: ZhiYunRuntime } = {};
+  const workerSupervisor = new AnalyticsWorkerSupervisor({
+    ...analyticsWorkerLaunch(),
+    workspaceRoot: join(dataDirectory, 'job-workspaces', 'analytics-worker'),
+    onStateChange(state) {
+      const runtime = runtimeHolder.current;
+      if (!runtime) return;
+      if (state.status === 'ready') runtime.setAnalyticsWorkerStatus('ready');
+      if (state.status === 'degraded') runtime.setAnalyticsWorkerStatus('degraded');
+      if (state.status === 'stopped') runtime.setAnalyticsWorkerStatus('unavailable');
+    },
+    onLog(stream, message) {
+      const output = stream === 'stdout' ? process.stdout : process.stderr;
+      output.write(`[analytics-worker] ${message}`);
+    },
+  });
+  const workerConnection = await workerSupervisor.start().catch((error: unknown) => {
+    if (config.NODE_ENV !== 'test') {
+      console.warn(
+        '[api] analytics worker unavailable; collection Runtime will continue',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    return undefined;
+  });
   const repository = new PostgresRepository();
   const queue = new TaskQueue(config.REDIS_URL);
   const credentials = new AesCredentialStore(
@@ -26,7 +64,7 @@ export async function buildApp() {
     apiVersion: 'v2' as const,
     mode: 'headless' as const,
     productVersion: '1.0.0' as const,
-    analyticsWorkerStatus: 'unavailable' as const,
+    analyticsWorkerStatus: workerConnection ? ('ready' as const) : ('degraded' as const),
     startedAt: new Date().toISOString(),
   };
   const ai = createAiProvider({
@@ -86,5 +124,7 @@ export async function buildApp() {
       profileId: config.NODE_ENV === 'test' ? 'test' : 'headless-server',
     },
   );
+  runtimeHolder.current = runtime;
+  runtime.app.addHook('onClose', async () => workerSupervisor.stop());
   return runtime.app;
 }

@@ -27,7 +27,10 @@ const config: ForgeConfig = {
     appCategoryType: 'public.app-category.developer-tools',
     icon: iconBase,
     asar: true,
-    extraResource: [resolve(desktopRoot, 'resources/playwright')],
+    extraResource: [
+      resolve(desktopRoot, 'resources/playwright'),
+      resolve(desktopRoot, '.forge-app/analytics-worker'),
+    ],
     ...(macSigning ? { osxSign: macSigning } : {}),
     ...(macNotarize ? { osxNotarize: macNotarize } : {}),
     ignore: [
