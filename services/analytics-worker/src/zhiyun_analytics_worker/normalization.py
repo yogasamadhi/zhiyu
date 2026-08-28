@@ -111,7 +111,8 @@ class ColumnProfile:
         else:
             self.kind = "string"
             warnings.append(
-                f"Field {self.source_name!r} had conflicting scalar types and was promoted to string"
+                f"Field {self.source_name!r} had conflicting scalar types "
+                "and was promoted to string"
             )
 
 
@@ -200,7 +201,7 @@ async def normalize_snapshot(
     fingerprint = parameters.get("fingerprint")
     if not isinstance(fingerprint, str) or len(fingerprint) != 64:
         raise NormalizationError("Snapshot fingerprint must be a SHA-256 hex digest")
-    input_size = input_path.stat().st_size
+    input_size = input_path.stat().st_size  # noqa: ASYNC240 -- handler runs in a worker thread
     if input_size > MAX_INPUT_BYTES:
         raise NormalizationResourceError("Snapshot input exceeds the 5GiB limit")
     required_disk = min(max(input_size * 2, 64 * 1024**2), 10 * 1024**3)

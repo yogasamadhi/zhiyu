@@ -96,6 +96,12 @@ export interface CreateArtifactInput extends Omit<PlatformArtifact, 'id' | 'crea
   createdAt?: string;
 }
 
+export type IdempotencyReservation =
+  | { state: 'reserved' }
+  | { state: 'pending' }
+  | { state: 'conflict' }
+  | { state: 'completed'; responseStatus: number; responseBody: unknown };
+
 export interface StoredArtifactFile {
   storageKey: string;
   size: number;
@@ -175,6 +181,20 @@ export interface PlatformRepository {
   createArtifact(input: CreateArtifactInput): Promise<PlatformArtifact>;
   getArtifact(id: string): Promise<PlatformArtifact | null>;
 
+  reserveIdempotency(input: {
+    scope: string;
+    key: string;
+    requestHash: string;
+    expiresAt: string;
+  }): Promise<IdempotencyReservation>;
+  completeIdempotency(input: {
+    scope: string;
+    key: string;
+    requestHash: string;
+    responseStatus: number;
+    responseBody: unknown;
+  }): Promise<void>;
+
   listMigrations(): Promise<MigrationRecord[]>;
 }
 
@@ -199,6 +219,16 @@ export interface JobExecutionContext {
 }
 
 export type PlatformJobHandler = (context: JobExecutionContext) => Promise<void>;
+
+export class PlatformJobExecutionError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly retryable: boolean,
+  ) {
+    super(message);
+  }
+}
 
 export class JobHandlerRegistry {
   private readonly handlers = new Map<
@@ -366,10 +396,12 @@ export class DurableJobDispatcher {
       if (controller.signal.aborted) {
         await this.repository.markJobCanceled(started.id, this.workerId);
       } else {
+        const failure =
+          error instanceof PlatformJobExecutionError
+            ? { code: error.code, message: error.message, retryable: error.retryable }
+            : { code: 'JOB_HANDLER_FAILED', message: safeError(error), retryable: true };
         await this.repository.failJob(started.id, this.workerId, {
-          code: 'JOB_HANDLER_FAILED',
-          message: safeError(error),
-          retryable: true,
+          ...failure,
         });
       }
     } finally {

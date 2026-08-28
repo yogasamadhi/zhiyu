@@ -50,4 +50,3 @@ def resolve_output(workspace: Path, artifact_ref: str) -> Path:
     if candidate.exists():
         ensure_within(candidate.resolve(strict=True), workspace)
     return ensure_within(candidate, workspace)
-

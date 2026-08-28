@@ -7,6 +7,7 @@ import {
   type ClaimJobInput,
   type CreateArtifactInput,
   type EnqueueJobInput,
+  type IdempotencyReservation,
   type MigrationRecord,
   type PlatformArtifact,
   type PlatformEvent,
@@ -444,6 +445,63 @@ export class PostgresPlatformRepository implements PlatformRepository {
   async getArtifact(id: string): Promise<PlatformArtifact | null> {
     const rows = await this.sql`SELECT * FROM platform_artifacts WHERE id=${id}`;
     return rows[0] ? artifactRow(rows[0] as PgRow) : null;
+  }
+
+  async reserveIdempotency(input: {
+    scope: string;
+    key: string;
+    requestHash: string;
+    expiresAt: string;
+  }): Promise<IdempotencyReservation> {
+    return this.sql.begin(async (transaction) => {
+      await transaction`DELETE FROM idempotency_keys WHERE expires_at<=${new Date()}`;
+      const inserted = await transaction`
+        INSERT INTO idempotency_keys(
+          scope,key,request_hash,response_status,response_body,created_at,expires_at
+        ) VALUES (
+          ${input.scope},${input.key},${input.requestHash},NULL,NULL,${new Date()},${input.expiresAt}
+        ) ON CONFLICT(scope,key) DO NOTHING RETURNING key
+      `;
+      if (inserted[0]) return { state: 'reserved' };
+      const rows = await transaction`
+        SELECT * FROM idempotency_keys WHERE scope=${input.scope} AND key=${input.key} FOR UPDATE
+      `;
+      const row = rows[0] as PgRow;
+      if (row.request_hash !== input.requestHash) return { state: 'conflict' };
+      if (row.response_status == null) return { state: 'pending' };
+      return {
+        state: 'completed',
+        responseStatus: Number(row.response_status),
+        responseBody: row.response_body,
+      };
+    });
+  }
+
+  async completeIdempotency(input: {
+    scope: string;
+    key: string;
+    requestHash: string;
+    responseStatus: number;
+    responseBody: unknown;
+  }): Promise<void> {
+    const rows = await this.sql`
+      UPDATE idempotency_keys SET
+        response_status=${input.responseStatus},response_body=${this.sql.json(
+          jsonValue(input.responseBody),
+        )}
+      WHERE scope=${input.scope} AND key=${input.key} AND request_hash=${input.requestHash}
+        AND response_status IS NULL
+      RETURNING key
+    `;
+    if (!rows[0]) {
+      const existing = await this.reserveIdempotency({
+        scope: input.scope,
+        key: input.key,
+        requestHash: input.requestHash,
+        expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      });
+      if (existing.state !== 'completed') throw new Error('Idempotency reservation was lost');
+    }
   }
 
   async listMigrations(): Promise<MigrationRecord[]> {

@@ -4,8 +4,9 @@ import asyncio
 from pathlib import Path
 
 import pytest
-from hypothesis import given, strategies as st
 from httpx import ASGITransport, AsyncClient
+from hypothesis import given
+from hypothesis import strategies as st
 
 from zhiyun_analytics_worker.app import create_app
 from zhiyun_analytics_worker.security import WorkspaceViolation, validate_artifact_ref
@@ -16,9 +17,7 @@ TOKEN = "test-token-" + "x" * 40
 @pytest.fixture
 async def client(tmp_path: Path):
     app = create_app(TOKEN, 7, tmp_path)
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://worker"
-    ) as http:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://worker") as http:
         yield http
     await app.state.worker.jobs.close()
 
@@ -43,7 +42,15 @@ async def test_reports_version_and_safe_capabilities(client: AsyncClient) -> Non
     assert capabilities["externalNetwork"] is False
     assert capabilities["arbitraryCodeExecution"] is False
     methods = await client.get("/worker/v1/methods", headers=auth())
-    assert methods.json() == []
+    descriptors = methods.json()
+    assert len(descriptors) == 18
+    assert {item["id"] for item in descriptors} >= {
+        "data.profile",
+        "stats.regression",
+        "ml.clustering",
+        "text.classification",
+    }
+    assert all(item["version"] == "1.0.0" for item in descriptors)
 
 
 @pytest.mark.parametrize(
@@ -109,7 +116,9 @@ async def test_cancel_becomes_visible_within_two_seconds(client: AsyncClient) ->
         "methodVersion": "1.0.0",
         "parameters": {"delayMs": 5000},
     }
-    assert (await client.post("/worker/v1/jobs", headers=auth(), json=submission)).status_code == 202
+    assert (
+        await client.post("/worker/v1/jobs", headers=auth(), json=submission)
+    ).status_code == 202
     await asyncio.sleep(0)
     started = asyncio.get_running_loop().time()
     response = await client.post("/worker/v1/jobs/job-cancel/cancel", headers=auth())

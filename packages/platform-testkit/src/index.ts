@@ -172,5 +172,49 @@ export function definePlatformRepositoryConformance(input: {
       expect(await fixture.repository.getArtifact(artifact.id)).toEqual(artifact);
       expect(artifact.metadata).toEqual({ fingerprint: 'fixture' });
     });
+
+    it('reserves, conflicts and replays idempotent mutations', async () => {
+      const key = crypto.randomUUID();
+      const scope = 'analytics:create-job';
+      const requestHash = 'a'.repeat(64);
+      const expiresAt = new Date(Date.now() + 86_400_000).toISOString();
+      expect(
+        await fixture.repository.reserveIdempotency({ scope, key, requestHash, expiresAt }),
+      ).toEqual({ state: 'reserved' });
+      expect(
+        await fixture.repository.reserveIdempotency({ scope, key, requestHash, expiresAt }),
+      ).toEqual({ state: 'pending' });
+      expect(
+        await fixture.repository.reserveIdempotency({
+          scope,
+          key,
+          requestHash: 'b'.repeat(64),
+          expiresAt,
+        }),
+      ).toEqual({ state: 'conflict' });
+      await fixture.repository.completeIdempotency({
+        scope,
+        key,
+        requestHash,
+        responseStatus: 202,
+        responseBody: { jobId: 'analysis-1' },
+      });
+      expect(
+        await fixture.repository.reserveIdempotency({ scope, key, requestHash, expiresAt }),
+      ).toEqual({
+        state: 'completed',
+        responseStatus: 202,
+        responseBody: { jobId: 'analysis-1' },
+      });
+      await expect(
+        fixture.repository.completeIdempotency({
+          scope,
+          key,
+          requestHash,
+          responseStatus: 202,
+          responseBody: { ignored: true },
+        }),
+      ).resolves.toBeUndefined();
+    });
   });
 }

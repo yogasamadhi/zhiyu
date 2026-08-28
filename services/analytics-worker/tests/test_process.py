@@ -34,10 +34,7 @@ def test_private_stdin_bootstrap_and_graceful_shutdown(tmp_path: Path) -> None:
     assert process.stdin is not None
     assert process.stdout is not None
     process.stdin.write(
-        json.dumps(
-            {"token": token, "generation": 3, "workspaceRoot": str(tmp_path)}
-        )
-        + "\n"
+        json.dumps({"token": token, "generation": 3, "workspaceRoot": str(tmp_path)}) + "\n"
     )
     process.stdin.close()
     ready = json.loads(process.stdout.readline())
@@ -53,4 +50,3 @@ def test_private_stdin_bootstrap_and_graceful_shutdown(tmp_path: Path) -> None:
     if process.poll() is None:
         process.kill()
     assert process.wait(timeout=2) == 0
-

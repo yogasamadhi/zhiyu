@@ -14,6 +14,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@zhiyun/kernel": "workspace:*"
+    "@zhiyun/kernel": "workspace:*",
+    "@zhiyun/platform-core": "workspace:*",
+    "better-sqlite3": "13.0.3",
+    "fastify": "^5.12.1",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@zhiyun/analytics-worker-client": "workspace:*",
+    "@zhiyun/artifact-store": "workspace:*",
+    "@zhiyun/platform-testkit": "workspace:*",
+    "@zhiyun/storage-postgres-v1": "workspace:*",
+    "@zhiyun/storage-sqlite-v1": "workspace:*"
   }
 }

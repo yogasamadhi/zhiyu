@@ -31,6 +31,30 @@
             "title": "Parameterschema",
             "type": "object"
           },
+          "recommendedVisualizations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recommendedvisualizations",
+            "type": "array"
+          },
+          "resourceLimits": {
+            "additionalProperties": true,
+            "title": "Resourcelimits",
+            "type": "object"
+          },
+          "supportedFieldTypes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supportedfieldtypes",
+            "type": "array"
+          },
+          "supportsSampling": {
+            "default": false,
+            "title": "Supportssampling",
+            "type": "boolean"
+          },
           "titleKey": {
             "title": "Titlekey",
             "type": "string"

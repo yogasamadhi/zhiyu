@@ -6,6 +6,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .analytics import (
+    ANALYSIS_METHODS,
+    AnalysisResourceError,
+    AnalysisValidationError,
+    execute_analysis,
+)
 from .models import MethodDescriptor
 from .normalization import (
     NORMALIZE_SNAPSHOT_METHOD,
@@ -52,7 +58,9 @@ async def self_test_handler(context: MethodContext) -> dict[str, Any]:
 
 async def normalize_snapshot_handler(context: MethodContext) -> dict[str, Any]:
     if context.input_path is None:
-        raise WorkerMethodError("INVALID_INPUT", "Snapshot normalization requires an input Artifact")
+        raise WorkerMethodError(
+            "INVALID_INPUT", "Snapshot normalization requires an input Artifact"
+        )
     try:
         return await normalize_snapshot(
             input_path=context.input_path,
@@ -71,6 +79,18 @@ async def normalize_snapshot_handler(context: MethodContext) -> dict[str, Any]:
                 "RESOURCE_LIMIT_EXCEEDED", "Insufficient temporary disk for Snapshot normalization"
             ) from error
         raise
+
+
+def analysis_handler(method_id: str) -> MethodHandler:
+    async def run(context: MethodContext) -> dict[str, Any]:
+        try:
+            return await execute_analysis(context, method_id)
+        except AnalysisResourceError as error:
+            raise WorkerMethodError("RESOURCE_LIMIT_EXCEEDED", str(error)) from error
+        except AnalysisValidationError as error:
+            raise WorkerMethodError("METHOD_INCOMPATIBLE", str(error)) from error
+
+    return run
 
 
 SELF_TEST_METHOD = MethodDescriptor(
@@ -101,10 +121,12 @@ class MethodRegistry:
         self._descriptors = {
             SELF_TEST_METHOD.id: SELF_TEST_METHOD,
             NORMALIZE_SNAPSHOT_METHOD.id: NORMALIZE_SNAPSHOT_METHOD,
+            **{item.id: item for item in ANALYSIS_METHODS},
         }
         self._handlers: dict[str, MethodHandler] = {
             SELF_TEST_METHOD.id: self_test_handler,
             NORMALIZE_SNAPSHOT_METHOD.id: normalize_snapshot_handler,
+            **{item.id: analysis_handler(item.id) for item in ANALYSIS_METHODS},
         }
 
     def list(self, *, include_internal: bool = False) -> list[MethodDescriptor]:

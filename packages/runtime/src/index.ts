@@ -297,6 +297,207 @@ function cursorPage<T>(items: T[], cursor: string | undefined, limit: number) {
   };
 }
 
+function idempotencyHeader() {
+  return {
+    name: 'Idempotency-Key',
+    in: 'header',
+    required: true,
+    schema: { type: 'string', minLength: 1, maxLength: 200 },
+  };
+}
+
+function ifMatchHeader() {
+  return {
+    name: 'If-Match',
+    in: 'header',
+    required: true,
+    schema: { type: 'string', pattern: '^"[1-9]\\d*"$' },
+  };
+}
+
+function analysisMethodDescriptorOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'id',
+      'version',
+      'category',
+      'titleKey',
+      'descriptionKey',
+      'supportedFieldTypes',
+      'parameterSchema',
+      'outputSchema',
+      'recommendedVisualizations',
+      'resourceLimits',
+      'supportsSampling',
+    ],
+    properties: {
+      id: { type: 'string' },
+      version: { type: 'string' },
+      category: { type: 'string' },
+      titleKey: { type: 'string' },
+      descriptionKey: { type: 'string' },
+      supportedFieldTypes: { type: 'array', items: { type: 'string' } },
+      parameterSchema: { type: 'object', additionalProperties: true },
+      outputSchema: { type: 'object', additionalProperties: true },
+      recommendedVisualizations: { type: 'array', items: { type: 'string' } },
+      resourceLimits: { type: 'object', additionalProperties: true },
+      supportsSampling: { type: 'boolean' },
+    },
+  };
+}
+
+function analysisRecipeInputOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name', 'datasetId', 'methodId', 'methodVersion', 'parameters'],
+    properties: {
+      name: { type: 'string', minLength: 1, maxLength: 200 },
+      datasetId: { type: 'string', format: 'uuid' },
+      methodId: { type: 'string' },
+      methodVersion: { type: 'string' },
+      parameters: { type: 'object', additionalProperties: true },
+    },
+  };
+}
+
+function analysisRecipeOpenApiSchema() {
+  const input = analysisRecipeInputOpenApiSchema();
+  return {
+    ...input,
+    required: [...input.required, 'id', 'revision', 'createdAt', 'updatedAt'],
+    properties: {
+      ...input.properties,
+      id: { type: 'string', format: 'uuid' },
+      revision: { type: 'integer', minimum: 1 },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  };
+}
+
+function analysisJobInputOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['datasetId', 'snapshotId', 'methodId', 'methodVersion', 'parameters'],
+    properties: {
+      recipeId: { type: ['string', 'null'], format: 'uuid' },
+      datasetId: { type: 'string', format: 'uuid' },
+      snapshotId: { type: 'string', format: 'uuid' },
+      methodId: { type: 'string' },
+      methodVersion: { type: 'string' },
+      parameters: { type: 'object', additionalProperties: true },
+    },
+  };
+}
+
+function analysisSamplingOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: true,
+    required: ['applied', 'inputRows', 'sampleRows', 'seed'],
+    properties: {
+      applied: { type: 'boolean' },
+      inputRows: { type: 'integer', minimum: 0 },
+      sampleRows: { type: 'integer', minimum: 0 },
+      seed: { type: ['integer', 'null'] },
+      strategy: { type: 'string' },
+    },
+  };
+}
+
+function analysisJobOpenApiSchema() {
+  const input = analysisJobInputOpenApiSchema();
+  return {
+    ...input,
+    required: [
+      ...input.required,
+      'id',
+      'state',
+      'phase',
+      'progress',
+      'attempt',
+      'sampling',
+      'resultId',
+      'error',
+      'createdAt',
+      'startedAt',
+      'completedAt',
+    ],
+    properties: {
+      ...input.properties,
+      id: { type: 'string', format: 'uuid' },
+      state: {
+        type: 'string',
+        enum: [
+          'queued',
+          'claimed',
+          'running',
+          'persisting',
+          'canceling',
+          'canceled',
+          'interrupted',
+          'succeeded',
+          'failed',
+        ],
+      },
+      phase: { type: 'string' },
+      progress: { type: 'number', minimum: 0, maximum: 1 },
+      attempt: { type: 'integer', minimum: 0 },
+      sampling: analysisSamplingOpenApiSchema(),
+      resultId: { type: ['string', 'null'], format: 'uuid' },
+      error: { type: ['object', 'null'], additionalProperties: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      startedAt: { type: ['string', 'null'], format: 'date-time' },
+      completedAt: { type: ['string', 'null'], format: 'date-time' },
+    },
+  };
+}
+
+function analysisResultOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'id',
+      'jobId',
+      'datasetId',
+      'snapshotId',
+      'methodId',
+      'methodVersion',
+      'summary',
+      'metrics',
+      'tables',
+      'series',
+      'artifacts',
+      'warnings',
+      'sampling',
+      'workerVersion',
+      'createdAt',
+    ],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      jobId: { type: 'string', format: 'uuid' },
+      datasetId: { type: 'string', format: 'uuid' },
+      snapshotId: { type: 'string', format: 'uuid' },
+      methodId: { type: 'string' },
+      methodVersion: { type: 'string' },
+      summary: { type: 'object', additionalProperties: true },
+      metrics: { type: 'object', additionalProperties: true },
+      tables: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      series: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      artifacts: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      warnings: { type: 'array', items: { type: 'string' } },
+      sampling: analysisSamplingOpenApiSchema(),
+      workerVersion: { type: 'string' },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+  };
+}
+
 export function openApiDocument() {
   const paths: Record<string, Record<string, Record<string, unknown>>> = {
     '/api/v2/session': { post: { operationId: 'createRuntimeSession' } },
@@ -408,6 +609,27 @@ export function openApiDocument() {
     },
     '/api/v2/api-tokens/{id}': { delete: { operationId: 'revokeApiToken' } },
     '/api/v2/data/tasks/{id}/records': { get: { operationId: 'queryDataApiRecords' } },
+    '/api/v2/analytics/methods': { get: { operationId: 'listAnalysisMethods' } },
+    '/api/v2/analytics/recipes': {
+      get: { operationId: 'listAnalysisRecipes' },
+      post: { operationId: 'createAnalysisRecipe' },
+    },
+    '/api/v2/analytics/recipes/{recipeId}': {
+      get: { operationId: 'getAnalysisRecipe' },
+      put: { operationId: 'updateAnalysisRecipe' },
+      delete: { operationId: 'deleteAnalysisRecipe' },
+    },
+    '/api/v2/analytics/jobs': {
+      get: { operationId: 'listAnalysisJobs' },
+      post: { operationId: 'createAnalysisJob' },
+    },
+    '/api/v2/analytics/jobs/{jobId}': { get: { operationId: 'getAnalysisJob' } },
+    '/api/v2/analytics/jobs/{jobId}/cancel': { post: { operationId: 'cancelAnalysisJob' } },
+    '/api/v2/analytics/jobs/{jobId}/retry': { post: { operationId: 'retryAnalysisJob' } },
+    '/api/v2/analytics/results/{resultId}': { get: { operationId: 'getAnalysisResult' } },
+    '/api/v2/analytics/results/{resultId}/exports': {
+      post: { operationId: 'exportAnalysisResult' },
+    },
     '/api/v2/inspection-sessions': { post: { operationId: 'createInspectionSession' } },
     '/api/v2/inspection-sessions/{id}/screenshot': {
       get: { operationId: 'getInspectionScreenshot' },
@@ -445,6 +667,15 @@ export function openApiDocument() {
       ...extras,
     },
   });
+  const appendParameters = (
+    operation: Record<string, unknown>,
+    ...parameters: Array<Record<string, unknown>>
+  ) => {
+    operation.parameters = [
+      ...((operation.parameters ?? []) as Array<Record<string, unknown>>),
+      ...parameters,
+    ];
+  };
 
   for (const [path, pathItem] of Object.entries(paths)) {
     const pathNames = [...path.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]!);
@@ -456,7 +687,9 @@ export function openApiDocument() {
         required: true,
         schema: {
           type: 'string',
-          format: ['id', 'ruleId', 'proposalId'].includes(name) ? 'uuid' : undefined,
+          format: ['id', 'ruleId', 'proposalId', 'recipeId', 'jobId', 'resultId'].includes(name)
+            ? 'uuid'
+            : undefined,
         },
       }));
       operation.responses ??= {
@@ -597,7 +830,7 @@ export function openApiDocument() {
       required: ['useAi', 'forceBrowser'],
       properties: { useAi: { type: 'boolean' }, forceBrowser: { type: 'boolean' } },
     }),
-    responses: responses(ref('AnalysisResult')),
+    responses: responses(ref('RuleAnalysisResult')),
   });
   paths['/api/v2/tasks/{id}/runs']!.get!.responses = responses(page(ref('CrawlRun')));
   paths['/api/v2/tasks/{id}/dataset']!.get!.responses = responses(
@@ -639,6 +872,67 @@ export function openApiDocument() {
     type: 'array',
     items: ref('ApiToken'),
   });
+  paths['/api/v2/analytics/methods']!.get!.responses = responses({
+    type: 'array',
+    items: ref('AnalysisMethodDescriptor'),
+  });
+  Object.assign(paths['/api/v2/analytics/recipes']!.get!, {
+    parameters: [
+      { name: 'cursor', in: 'query', schema: { type: 'string' } },
+      { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 200 } },
+    ],
+    responses: responses(page(ref('AnalysisRecipe'))),
+  });
+  Object.assign(paths['/api/v2/analytics/recipes']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body(ref('AnalysisRecipeInput')),
+    responses: responses(ref('AnalysisRecipe'), '201'),
+  });
+  paths['/api/v2/analytics/recipes/{recipeId}']!.get!.responses = responses(ref('AnalysisRecipe'));
+  Object.assign(paths['/api/v2/analytics/recipes/{recipeId}']!.put!, {
+    requestBody: body(ref('AnalysisRecipeInput')),
+    responses: responses(ref('AnalysisRecipe')),
+  });
+  appendParameters(
+    paths['/api/v2/analytics/recipes/{recipeId}']!.put!,
+    idempotencyHeader(),
+    ifMatchHeader(),
+  );
+  appendParameters(
+    paths['/api/v2/analytics/recipes/{recipeId}']!.delete!,
+    idempotencyHeader(),
+    ifMatchHeader(),
+  );
+  paths['/api/v2/analytics/recipes/{recipeId}']!.delete!.responses = responses({
+    type: 'object',
+    required: ['deleted'],
+    properties: { deleted: { type: 'boolean' } },
+  });
+  paths['/api/v2/analytics/jobs']!.get!.responses = responses({
+    type: 'array',
+    items: ref('AnalysisJob'),
+  });
+  Object.assign(paths['/api/v2/analytics/jobs']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body(ref('AnalysisJobInput')),
+    responses: responses(ref('AnalysisJob'), '202'),
+  });
+  paths['/api/v2/analytics/jobs/{jobId}']!.get!.responses = responses(ref('AnalysisJob'));
+  for (const path of [
+    '/api/v2/analytics/jobs/{jobId}/cancel',
+    '/api/v2/analytics/jobs/{jobId}/retry',
+  ]) {
+    appendParameters(paths[path]!.post!, idempotencyHeader());
+    paths[path]!.post!.responses = responses(ref('AnalysisJob'), '202');
+  }
+  paths['/api/v2/analytics/results/{resultId}']!.get!.responses = responses(ref('AnalysisResult'));
+  appendParameters(
+    paths['/api/v2/analytics/results/{resultId}/exports']!.post!,
+    idempotencyHeader(),
+  );
+  paths['/api/v2/analytics/results/{resultId}/exports']!.post!.responses = responses(
+    ref('AnalysisResult'),
+  );
   paths['/api/v2/data/tasks/{id}/records']!.get!.security = [{ dataApiBearer: [] }];
   return {
     openapi: '3.1.0',
@@ -652,7 +946,13 @@ export function openApiDocument() {
         TaskListItem: z.toJSONSchema(taskListItemSchema),
         CrawlPlanDefinition: z.toJSONSchema(crawlPlanDefinitionSchema),
         CrawlRun: z.toJSONSchema(crawlRunSchema),
-        AnalysisResult: z.toJSONSchema(analysisResultSchema),
+        RuleAnalysisResult: z.toJSONSchema(analysisResultSchema),
+        AnalysisMethodDescriptor: analysisMethodDescriptorOpenApiSchema(),
+        AnalysisRecipeInput: analysisRecipeInputOpenApiSchema(),
+        AnalysisRecipe: analysisRecipeOpenApiSchema(),
+        AnalysisJobInput: analysisJobInputOpenApiSchema(),
+        AnalysisJob: analysisJobOpenApiSchema(),
+        AnalysisResult: analysisResultOpenApiSchema(),
         RuleVersion: z.toJSONSchema(ruleVersionSchema),
         DatasetRecord: z.toJSONSchema(datasetRecordSchema),
         DatasetStats: z.toJSONSchema(datasetStatsSchema),

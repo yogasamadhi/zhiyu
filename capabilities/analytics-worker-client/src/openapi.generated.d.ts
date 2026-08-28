@@ -178,6 +178,19 @@ export type components = {
       parameterSchema: {
         [key: string]: unknown;
       };
+      /** Recommendedvisualizations */
+      recommendedVisualizations?: string[];
+      /** Resourcelimits */
+      resourceLimits?: {
+        [key: string]: unknown;
+      };
+      /** Supportedfieldtypes */
+      supportedFieldTypes?: string[];
+      /**
+       * Supportssampling
+       * @default false
+       */
+      supportsSampling: boolean;
       /** Titlekey */
       titleKey: string;
       /** Version */

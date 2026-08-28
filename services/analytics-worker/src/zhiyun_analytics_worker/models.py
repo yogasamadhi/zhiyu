@@ -60,6 +60,10 @@ class MethodDescriptor(StrictModel):
     descriptionKey: str
     parameterSchema: dict[str, Any]
     outputSchema: dict[str, Any]
+    supportedFieldTypes: list[str] = Field(default_factory=list)
+    recommendedVisualizations: list[str] = Field(default_factory=list)
+    resourceLimits: dict[str, Any] = Field(default_factory=dict)
+    supportsSampling: bool = False
     internal: bool = False
 
 
@@ -115,4 +119,3 @@ class Problem(StrictModel):
     status: int
     code: str
     detail: str
-

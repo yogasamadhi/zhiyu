@@ -25,6 +25,7 @@
   ],
   "services": [
     { "id": "ai-assistance.service", "owner": "ai-assistance" },
+    { "id": "analytics.catalog", "owner": "analytics" },
     { "id": "artifact.store", "owner": "platform" },
     { "id": "collection.read", "owner": "collection" },
     { "id": "collection.services", "owner": "collection" },
@@ -41,6 +42,12 @@
       "owner": "ai-assistance",
       "method": "POST",
       "path": "/api/v2/tasks/{taskId}/rule-analysis"
+    },
+    {
+      "id": "cancelAnalysisJob",
+      "owner": "analytics",
+      "method": "POST",
+      "path": "/api/v2/analytics/jobs/{jobId}/cancel"
     },
     {
       "id": "cancelRun",
@@ -127,6 +134,12 @@
       "path": "/api/v2/tasks"
     },
     {
+      "id": "deleteAnalysisRecipe",
+      "owner": "analytics",
+      "method": "DELETE",
+      "path": "/api/v2/analytics/recipes/{recipeId}"
+    },
+    {
       "id": "deleteOutputDestination",
       "owner": "outputs",
       "method": "DELETE",
@@ -157,10 +170,28 @@
       "path": "/api/v2/runs/{runId}/explain-failure"
     },
     {
+      "id": "exportAnalysisResult",
+      "owner": "analytics",
+      "method": "POST",
+      "path": "/api/v2/analytics/results/{resultId}/exports"
+    },
+    {
       "id": "exportDataset",
       "owner": "datasets",
       "method": "POST",
       "path": "/api/v2/datasets/{datasetId}/exports"
+    },
+    {
+      "id": "getAnalysisJob",
+      "owner": "analytics",
+      "method": "GET",
+      "path": "/api/v2/analytics/jobs/{jobId}"
+    },
+    {
+      "id": "getAnalysisRecipe",
+      "owner": "analytics",
+      "method": "GET",
+      "path": "/api/v2/analytics/recipes/{recipeId}"
     },
     {
       "id": "getAnalysisResult",
@@ -355,6 +386,12 @@
       "path": "/api/v2/trends"
     },
     {
+      "id": "retryAnalysisJob",
+      "owner": "analytics",
+      "method": "POST",
+      "path": "/api/v2/analytics/jobs/{jobId}/retry"
+    },
+    {
       "id": "revokeApiToken",
       "owner": "outputs",
       "method": "DELETE",
@@ -371,6 +408,12 @@
       "owner": "platform",
       "method": "GET",
       "path": "/api/v2/events/realtime"
+    },
+    {
+      "id": "updateAnalysisRecipe",
+      "owner": "analytics",
+      "method": "PUT",
+      "path": "/api/v2/analytics/recipes/{recipeId}"
     },
     {
       "id": "updateOutputDestination",
@@ -392,6 +435,9 @@
     { "id": "analysis.job.failed", "owner": "analytics" },
     { "id": "analysis.job.started", "owner": "analytics" },
     { "id": "analysis.job.succeeded", "owner": "analytics" },
+    { "id": "analysis.recipe.created", "owner": "analytics" },
+    { "id": "analysis.recipe.deleted", "owner": "analytics" },
+    { "id": "analysis.recipe.updated", "owner": "analytics" },
     { "id": "collection.rule.created", "owner": "collection" },
     { "id": "collection.rule.version-created", "owner": "collection" },
     { "id": "collection.run.cancel-requested", "owner": "collection" },

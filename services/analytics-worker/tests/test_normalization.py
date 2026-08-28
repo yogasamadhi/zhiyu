@@ -8,8 +8,8 @@ import pyarrow.parquet as pq
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from zhiyun_analytics_worker.app import create_app
 from zhiyun_analytics_worker import normalization
+from zhiyun_analytics_worker.app import create_app
 from zhiyun_analytics_worker.normalization import normalize_snapshot
 
 TOKEN = "normalization-token-" + "x" * 40
@@ -61,9 +61,7 @@ async def test_streaming_normalizer_promotes_types_and_writes_parquet(tmp_path: 
         b"".join(orjson.dumps(record) + b"\n" for record in records)
     )
     app = create_app(TOKEN, 1, tmp_path)
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://worker"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://worker") as client:
         response = await client.post(
             "/worker/v1/jobs",
             headers=headers(),
@@ -108,9 +106,7 @@ async def test_snapshot_size_limit_uses_resource_error_code(
     input_path.write_text("", encoding="utf-8")
     monkeypatch.setattr(normalization, "MAX_INPUT_BYTES", -1)
     app = create_app(TOKEN, 1, tmp_path)
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://worker"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://worker") as client:
         response = await client.post(
             "/worker/v1/jobs",
             headers=headers(),

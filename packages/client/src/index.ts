@@ -1,5 +1,5 @@
 import type {
-  AnalysisResult,
+  AnalysisResult as RuleAnalysisResult,
   ApiToken,
   ArtifactDescriptor,
   ConnectionState,
@@ -40,12 +40,21 @@ import type {
   TrendSourceUpdate,
   TrendsResponse,
 } from '@zhiyun/shared';
+import type { components } from './openapi.generated.js';
 export * from './generated.js';
 export type {
   components as OpenApiComponents,
   operations as OpenApiOperations,
   paths as OpenApiPaths,
 } from './openapi.generated.js';
+
+type ApiSchemas = components['schemas'];
+export type AnalysisMethodDescriptor = ApiSchemas['AnalysisMethodDescriptor'];
+export type AnalysisRecipeInput = ApiSchemas['AnalysisRecipeInput'];
+export type AnalysisRecipe = ApiSchemas['AnalysisRecipe'];
+export type AnalysisJobInput = ApiSchemas['AnalysisJobInput'];
+export type AnalysisJob = ApiSchemas['AnalysisJob'];
+export type AnalyticsResult = ApiSchemas['AnalysisResult'];
 
 export interface RuntimeBridge {
   getBootstrap(): Promise<RuntimeBootstrap>;
@@ -243,22 +252,14 @@ export class ZhiYunClient {
     const headers = new Headers(init.headers);
     headers.set('authorization', `Bearer ${this.token!}`);
     if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
-    if (
-      method === 'POST' &&
-      (/\/api\/v2\/tasks$/.test(path) ||
-        /\/rules(?:\/[^/]+\/versions)?$/.test(path) ||
-        /\/run$/.test(path) ||
-        /\/exports$/.test(path) ||
-        /\/output-destinations$/.test(path) ||
-        /\/retry$/.test(path) ||
-        /\/rollback$/.test(path) ||
-        /\/repair-proposals(?:\/[^/]+\/apply)?$/.test(path))
-    ) {
+    if (['POST', 'PUT', 'DELETE'].includes(method) && !headers.has('idempotency-key')) {
       headers.set('idempotency-key', crypto.randomUUID());
     }
-    if (method === 'PUT') {
+    if (method === 'PUT' || method === 'DELETE') {
+      const resourcePath = path.split('?')[0]!;
       const taskPath = path.match(/\/api\/v2\/tasks\/([^/?]+)/)?.[0];
-      const etag = taskPath ? this.etags.get(taskPath) : undefined;
+      const etag =
+        this.etags.get(resourcePath) ?? (taskPath ? this.etags.get(taskPath) : undefined);
       if (etag) headers.set('if-match', etag);
     }
     const response = await fetch(`${this.bootstrap.baseUrl}${path}`, {
@@ -389,10 +390,83 @@ export class ZhiYunClient {
   }
 
   analyzeTask(id: string, input: { useAi: boolean; forceBrowser: boolean }) {
-    return this.request<AnalysisResult>(`/api/v2/tasks/${id}/rule-analysis`, {
+    return this.request<RuleAnalysisResult>(`/api/v2/tasks/${id}/rule-analysis`, {
       method: 'POST',
       body: JSON.stringify(input),
     });
+  }
+
+  listAnalysisMethods() {
+    return this.request<AnalysisMethodDescriptor[]>('/api/v2/analytics/methods');
+  }
+
+  listAnalysisRecipes(limit = 100, cursor?: string) {
+    return this.request<{ items: AnalysisRecipe[]; nextCursor: string | null }>(
+      `/api/v2/analytics/recipes${search({ limit, cursor })}`,
+    );
+  }
+
+  createAnalysisRecipe(input: AnalysisRecipeInput) {
+    return this.request<AnalysisRecipe>('/api/v2/analytics/recipes', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  getAnalysisRecipe(id: string) {
+    return this.request<AnalysisRecipe>(`/api/v2/analytics/recipes/${encodeURIComponent(id)}`);
+  }
+
+  updateAnalysisRecipe(id: string, input: AnalysisRecipeInput) {
+    return this.request<AnalysisRecipe>(`/api/v2/analytics/recipes/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  }
+
+  deleteAnalysisRecipe(id: string) {
+    return this.request<{ deleted: boolean }>(
+      `/api/v2/analytics/recipes/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  listAnalysisJobs() {
+    return this.request<AnalysisJob[]>('/api/v2/analytics/jobs');
+  }
+
+  createAnalysisJob(input: AnalysisJobInput) {
+    return this.request<AnalysisJob>('/api/v2/analytics/jobs', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  getAnalysisJob(id: string) {
+    return this.request<AnalysisJob>(`/api/v2/analytics/jobs/${encodeURIComponent(id)}`);
+  }
+
+  cancelAnalysisJob(id: string) {
+    return this.request<AnalysisJob>(`/api/v2/analytics/jobs/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  retryAnalysisJob(id: string) {
+    return this.request<AnalysisJob>(`/api/v2/analytics/jobs/${encodeURIComponent(id)}/retry`, {
+      method: 'POST',
+    });
+  }
+
+  getAnalysisResult(id: string) {
+    return this.request<AnalyticsResult>(`/api/v2/analytics/results/${encodeURIComponent(id)}`);
+  }
+
+  exportAnalysisResult(id: string) {
+    return this.request<AnalyticsResult>(
+      `/api/v2/analytics/results/${encodeURIComponent(id)}/exports`,
+      { method: 'POST' },
+    );
   }
 
   runAiExtractDemo(id: string, definition?: CrawlPlanDefinition) {

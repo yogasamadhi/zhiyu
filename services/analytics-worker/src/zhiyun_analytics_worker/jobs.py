@@ -181,9 +181,7 @@ class JobManager:
         except (WorkspaceViolation, ValueError) as error:
             job.state = "failed"
             job.phase = "failed"
-            job.error = WorkerJobError(
-                code="INVALID_INPUT", message=str(error), retryable=False
-            )
+            job.error = WorkerJobError(code="INVALID_INPUT", message=str(error), retryable=False)
             job.completedAt = utc_now()
             await self._publish(job)
         except Exception:

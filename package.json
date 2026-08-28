@@ -56,6 +56,8 @@
     "client:check": "bun run --filter @zhiyun/client check:generated",
     "worker:sync": "cd services/analytics-worker && uv sync --frozen",
     "worker:test": "cd services/analytics-worker && uv run pytest",
+    "worker:lint": "cd services/analytics-worker && uv run ruff check src tests scripts packaging",
+    "worker:format": "cd services/analytics-worker && uv run ruff format src tests scripts packaging",
     "worker:openapi:generate": "cd services/analytics-worker && uv run python scripts/export_openapi.py",
     "worker:openapi:check": "cd services/analytics-worker && uv run python scripts/export_openapi.py --check",
     "worker:client:generate": "bun run --filter @zhiyun/analytics-worker-client generate",
@@ -65,7 +67,7 @@
     "architecture:generate": "bun run --filter @zhiyun/product-profiles architecture:generate",
     "architecture:check": "bun run --filter @zhiyun/product-profiles architecture:check",
     "architecture:deps": "depcruise --config dependency-cruiser.config.cjs packages plugins capabilities profiles apps --output-type err",
-    "release:verify": "bun run lint && bun run format:check && bun run client:check && bun run worker:client:check && bun run typecheck && bun run worker:test && bun run test && bun run build && bun run test:e2e:web && bun run test:e2e:desktop && bun run test:smoke:desktop-package"
+    "release:verify": "bun run lint && bun run worker:lint && bun run format:check && bun run client:check && bun run worker:client:check && bun run typecheck && bun run worker:test && bun run test && bun run build && bun run test:e2e:web && bun run test:e2e:desktop && bun run test:smoke:desktop-package"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
