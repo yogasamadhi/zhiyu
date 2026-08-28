@@ -9,6 +9,10 @@
   "workspaces": [
     "apps/*",
     "packages/*",
+    "plugins/*",
+    "capabilities/*",
+    "services/*",
+    "profiles/*",
     "fixtures"
   ],
   "engines": {
@@ -48,6 +52,9 @@
     "browser:install": "playwright install chromium",
     "client:generate": "bun run --filter @zhiyun/client generate",
     "client:check": "bun run --filter @zhiyun/client check:generated",
+    "architecture:generate": "bun run --filter @zhiyun/product-profiles architecture:generate",
+    "architecture:check": "bun run --filter @zhiyun/product-profiles architecture:check",
+    "architecture:deps": "depcruise --config dependency-cruiser.config.cjs packages plugins capabilities profiles apps --output-type err",
     "release:verify": "bun run lint && bun run format:check && bun run client:check && bun run typecheck && bun run test && bun run build && bun run test:e2e:web && bun run test:e2e:desktop && bun run test:smoke:desktop-package"
   },
   "devDependencies": {
@@ -55,6 +62,7 @@
     "@playwright/test": "1.62.1",
     "@types/bun": "^1.4.0",
     "@types/node": "^24.10.13",
+    "dependency-cruiser": "^18.2.0",
     "eslint": "^10.0.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.3.0",

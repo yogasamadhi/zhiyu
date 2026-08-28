@@ -1,0 +1,294 @@
+{
+  "graphRevision": "32424c915a02158ae2667af8ec3aa7014e4de7613a72107ef16b711ea01c41fd",
+  "profileId": "desktop-studio",
+  "plugins": [
+    { "id": "datasets", "version": "1.0.0", "dependencies": [] },
+    { "id": "collection", "version": "1.0.0", "dependencies": ["datasets"] },
+    {
+      "id": "ai-assistance",
+      "version": "1.0.0",
+      "dependencies": ["collection"]
+    },
+    { "id": "analytics", "version": "1.0.0", "dependencies": ["datasets"] },
+    { "id": "corpus", "version": "1.0.0", "dependencies": ["datasets"] },
+    {
+      "id": "outputs",
+      "version": "1.0.0",
+      "dependencies": ["collection", "datasets"]
+    },
+    {
+      "id": "preferences",
+      "version": "1.0.0",
+      "dependencies": ["collection", "datasets"]
+    }
+  ],
+  "services": [
+    { "id": "collection.read", "owner": "collection" },
+    { "id": "datasets.read", "owner": "datasets" },
+    { "id": "datasets.snapshot", "owner": "datasets" }
+  ],
+  "routes": [
+    {
+      "id": "analyzeTaskRule",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/rule-analysis"
+    },
+    {
+      "id": "createAnalysisJob",
+      "owner": "analytics",
+      "method": "POST",
+      "path": "/api/v2/analytics/jobs"
+    },
+    {
+      "id": "createAnalysisRecipe",
+      "owner": "analytics",
+      "method": "POST",
+      "path": "/api/v2/analytics/recipes"
+    },
+    {
+      "id": "createCorpus",
+      "owner": "corpus",
+      "method": "POST",
+      "path": "/api/v2/corpora"
+    },
+    {
+      "id": "createCorpusBuild",
+      "owner": "corpus",
+      "method": "POST",
+      "path": "/api/v2/corpora/{corpusId}/builds"
+    },
+    {
+      "id": "createDatasetSnapshot",
+      "owner": "datasets",
+      "method": "POST",
+      "path": "/api/v2/datasets/{datasetId}/snapshots"
+    },
+    {
+      "id": "createOutputDestination",
+      "owner": "outputs",
+      "method": "POST",
+      "path": "/api/v2/output-destinations"
+    },
+    {
+      "id": "createRun",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/runs"
+    },
+    {
+      "id": "createTask",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/tasks"
+    },
+    {
+      "id": "explainRunFailure",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/runs/{runId}/explain-failure"
+    },
+    {
+      "id": "getAnalysisResult",
+      "owner": "analytics",
+      "method": "GET",
+      "path": "/api/v2/analytics/results/{resultId}"
+    },
+    {
+      "id": "getCorpus",
+      "owner": "corpus",
+      "method": "GET",
+      "path": "/api/v2/corpora/{corpusId}"
+    },
+    {
+      "id": "getCorpusBuild",
+      "owner": "corpus",
+      "method": "GET",
+      "path": "/api/v2/corpus-builds/{buildId}"
+    },
+    {
+      "id": "getDataset",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}"
+    },
+    {
+      "id": "getPreferenceProfile",
+      "owner": "preferences",
+      "method": "GET",
+      "path": "/api/v2/preferences/profile"
+    },
+    {
+      "id": "getRun",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/runs/{runId}"
+    },
+    {
+      "id": "getTask",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}"
+    },
+    {
+      "id": "listAnalysisJobs",
+      "owner": "analytics",
+      "method": "GET",
+      "path": "/api/v2/analytics/jobs"
+    },
+    {
+      "id": "listAnalysisMethods",
+      "owner": "analytics",
+      "method": "GET",
+      "path": "/api/v2/analytics/methods"
+    },
+    {
+      "id": "listAnalysisRecipes",
+      "owner": "analytics",
+      "method": "GET",
+      "path": "/api/v2/analytics/recipes"
+    },
+    {
+      "id": "listCorpora",
+      "owner": "corpus",
+      "method": "GET",
+      "path": "/api/v2/corpora"
+    },
+    {
+      "id": "listDatasetChanges",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/changes"
+    },
+    {
+      "id": "listDatasetRecords",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/records"
+    },
+    {
+      "id": "listDatasets",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets"
+    },
+    {
+      "id": "listDeliveryAttempts",
+      "owner": "outputs",
+      "method": "GET",
+      "path": "/api/v2/delivery-attempts"
+    },
+    {
+      "id": "listOutputDestinations",
+      "owner": "outputs",
+      "method": "GET",
+      "path": "/api/v2/output-destinations"
+    },
+    {
+      "id": "listPreferenceSignals",
+      "owner": "preferences",
+      "method": "GET",
+      "path": "/api/v2/preferences/signals"
+    },
+    {
+      "id": "listTasks",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/tasks"
+    },
+    {
+      "id": "listTrends",
+      "owner": "preferences",
+      "method": "GET",
+      "path": "/api/v2/trends"
+    },
+    {
+      "id": "updateTask",
+      "owner": "collection",
+      "method": "PUT",
+      "path": "/api/v2/tasks/{taskId}"
+    }
+  ],
+  "events": [
+    { "id": "ai.request.completed", "owner": "ai-assistance" },
+    { "id": "analysis.job.canceled", "owner": "analytics" },
+    { "id": "analysis.job.created", "owner": "analytics" },
+    { "id": "analysis.job.failed", "owner": "analytics" },
+    { "id": "analysis.job.started", "owner": "analytics" },
+    { "id": "analysis.job.succeeded", "owner": "analytics" },
+    { "id": "collection.run.created", "owner": "collection" },
+    { "id": "collection.run.failed", "owner": "collection" },
+    { "id": "collection.run.succeeded", "owner": "collection" },
+    { "id": "corpus.build.canceled", "owner": "corpus" },
+    { "id": "corpus.build.created", "owner": "corpus" },
+    { "id": "corpus.build.failed", "owner": "corpus" },
+    { "id": "corpus.build.started", "owner": "corpus" },
+    { "id": "corpus.version.created", "owner": "corpus" },
+    { "id": "dataset.projected", "owner": "datasets" },
+    { "id": "dataset.snapshot.created", "owner": "datasets" },
+    { "id": "outputs.delivery.failed", "owner": "outputs" },
+    { "id": "outputs.delivery.succeeded", "owner": "outputs" },
+    { "id": "preferences.signal.updated", "owner": "preferences" }
+  ],
+  "tables": [
+    { "id": "analysis_artifacts", "owner": "analytics" },
+    { "id": "analysis_jobs", "owner": "analytics" },
+    { "id": "analysis_recipes", "owner": "analytics" },
+    { "id": "analysis_results", "owner": "analytics" },
+    { "id": "api_tokens", "owner": "outputs" },
+    { "id": "corpora", "owner": "corpus" },
+    { "id": "corpus_artifacts", "owner": "corpus" },
+    { "id": "corpus_builds", "owner": "corpus" },
+    { "id": "corpus_recipes", "owner": "corpus" },
+    { "id": "corpus_versions", "owner": "corpus" },
+    { "id": "dataset_records", "owner": "datasets" },
+    { "id": "dataset_snapshots", "owner": "datasets" },
+    { "id": "datasets", "owner": "datasets" },
+    { "id": "delivery_attempts", "owner": "outputs" },
+    { "id": "output_destinations", "owner": "outputs" },
+    { "id": "preference_signals", "owner": "preferences" },
+    { "id": "record_changes", "owner": "datasets" },
+    { "id": "records", "owner": "datasets" },
+    { "id": "rule_repair_proposals", "owner": "collection" },
+    { "id": "rule_versions", "owner": "collection" },
+    { "id": "rules", "owner": "collection" },
+    { "id": "run_logs", "owner": "collection" },
+    { "id": "run_requests", "owner": "collection" },
+    { "id": "runs", "owner": "collection" },
+    { "id": "task_output_bindings", "owner": "outputs" },
+    { "id": "task_schedules", "owner": "collection" },
+    { "id": "tasks", "owner": "collection" },
+    { "id": "trend_sources", "owner": "preferences" }
+  ],
+  "migrations": [
+    { "id": "001-initial", "owner": "datasets" },
+    { "id": "001-initial", "owner": "collection" },
+    { "id": "001-initial", "owner": "analytics" },
+    { "id": "001-initial", "owner": "corpus" },
+    { "id": "001-initial", "owner": "outputs" },
+    { "id": "001-initial", "owner": "preferences" }
+  ],
+  "uiContributions": [
+    { "id": "analytics.dataset-panel", "owner": "analytics" },
+    { "id": "analytics.navigation", "owner": "analytics" },
+    { "id": "analytics.route", "owner": "analytics" },
+    { "id": "collection.navigation", "owner": "collection" },
+    { "id": "collection.tasks-route", "owner": "collection" },
+    { "id": "corpus.dataset-panel", "owner": "corpus" },
+    { "id": "corpus.navigation", "owner": "corpus" },
+    { "id": "corpus.route", "owner": "corpus" },
+    { "id": "datasets.route", "owner": "datasets" },
+    { "id": "datasets.task-panel", "owner": "datasets" },
+    { "id": "outputs.navigation", "owner": "outputs" },
+    { "id": "outputs.route", "owner": "outputs" },
+    { "id": "preferences.navigation", "owner": "preferences" },
+    { "id": "preferences.route", "owner": "preferences" }
+  ],
+  "backgroundHandlers": [
+    { "id": "analytics.job.execute", "owner": "analytics" },
+    { "id": "collection.crawl.execute", "owner": "collection" },
+    { "id": "corpus.build.execute", "owner": "corpus" },
+    { "id": "datasets.snapshot.prepare", "owner": "datasets" },
+    { "id": "outputs.delivery.execute", "owner": "outputs" }
+  ]
+}

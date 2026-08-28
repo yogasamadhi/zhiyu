@@ -2,7 +2,7 @@
 
 > 文档类型：Project Architecture Proposal
 >
-> 文档状态：Proposed
+> 文档状态：Accepted
 >
 > 版本：1.0
 >

@@ -24,6 +24,8 @@ import {
   sourceCatalogEntry,
 } from '@zhiyun/preferences';
 import { validateCrawlPlan } from '@zhiyun/rules';
+import { activateGraph } from '@zhiyun/kernel';
+import { resolveProductGraph } from '@zhiyun/product-profiles';
 import {
   generatedBySchema,
   analysisResultSchema,
@@ -119,6 +121,7 @@ export interface RuntimeDependencies {
 export interface RuntimeOptions {
   sessionNonce: string;
   allowedOrigins: string[];
+  profileId?: string;
   reusableSessionNonce?: boolean;
   logger?: boolean | Record<string, unknown>;
   adminToken?: string;
@@ -127,6 +130,11 @@ export interface RuntimeOptions {
 
 export interface ZhiYunRuntime {
   app: FastifyInstance;
+  readonly graph: {
+    profileId: string;
+    revision: string;
+    pluginIds: readonly string[];
+  };
   listen(options?: { host?: string; port?: number }): Promise<string>;
   close(): Promise<void>;
   issueSessionNonce(nonce: string): void;
@@ -665,6 +673,7 @@ export async function buildRuntime(
   dependencies: RuntimeDependencies,
   options: RuntimeOptions,
 ): Promise<ZhiYunRuntime> {
+  const resolvedGraph = resolveProductGraph(options.profileId ?? 'legacy');
   const app = Fastify({
     logger: options.logger ?? false,
     genReqId: () => crypto.randomUUID(),
@@ -1693,6 +1702,11 @@ export async function buildRuntime(
       failed: tasks.filter((task) => task.status === 'failed').length,
       tasks: tasks.length,
       schedulingPaused,
+      graph: {
+        profileId: resolvedGraph.profile.id,
+        revision: resolvedGraph.revision,
+        pluginIds: resolvedGraph.plugins.map(({ descriptor }) => descriptor.id),
+      },
     };
   });
 
@@ -3107,6 +3121,8 @@ export async function buildRuntime(
     request.raw.once('close', () => realtime.off('event', listener));
   });
 
+  const activeGraph = await activateGraph(resolvedGraph);
+
   app.addHook('onReady', async () => {
     await dependencies.repository.migrate();
     await dependencies.repository.recoverInterruptedRuns();
@@ -3161,10 +3177,16 @@ export async function buildRuntime(
     if ((dependencies.scheduler as unknown) !== dependencies.queue)
       await dependencies.queue.close();
     await dependencies.repository.close();
+    await activeGraph.dispose();
   });
 
   return {
     app,
+    graph: {
+      profileId: activeGraph.graph.profile.id,
+      revision: activeGraph.graph.revision,
+      pluginIds: activeGraph.graph.plugins.map(({ descriptor }) => descriptor.id),
+    },
     get token() {
       return issuedToken;
     },

@@ -1,0 +1,32 @@
+{
+  "name": "@zhiyun/product-profiles",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "development": "./src/index.ts",
+    "bun": "./src/index.ts",
+    "types": "./src/index.ts",
+    "default": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external",
+    "typecheck": "tsc --noEmit",
+    "architecture:generate": "bun scripts/generate.ts",
+    "architecture:check": "bun scripts/generate.ts --check"
+  },
+  "dependencies": {
+    "@zhiyun/kernel": "workspace:*",
+    "@zhiyun/plugin-ai-assistance": "workspace:*",
+    "@zhiyun/plugin-analytics": "workspace:*",
+    "@zhiyun/plugin-collection": "workspace:*",
+    "@zhiyun/plugin-corpus": "workspace:*",
+    "@zhiyun/plugin-datasets": "workspace:*",
+    "@zhiyun/plugin-legacy-runtime": "workspace:*",
+    "@zhiyun/plugin-outputs": "workspace:*",
+    "@zhiyun/plugin-preferences": "workspace:*"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.2"
+  }
+}
