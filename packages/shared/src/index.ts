@@ -409,15 +409,20 @@ export const runtimeBootstrapSchema = z.object({
   sessionNonce: z.string().min(16),
   runtimeId: z.string().uuid(),
   generation: z.number().int().nonnegative(),
-  apiVersion: z.literal('v1'),
+  apiVersion: z.literal('v2'),
 });
 
 export const runtimeMetadataSchema = z.object({
   runtimeId: z.string().uuid(),
   generation: z.number().int().nonnegative(),
-  apiVersion: z.literal('v1'),
+  apiVersion: z.literal('v2'),
   mode: z.enum(['headless', 'desktop']),
-  version: z.string(),
+  productVersion: z.literal('1.0.0'),
+  profileId: z.string().min(1),
+  graphRevision: z.string().min(1),
+  enabledPluginIds: z.array(z.string().min(1)),
+  enabledUiContributionIds: z.array(z.string().min(1)),
+  analyticsWorkerStatus: z.enum(['starting', 'ready', 'degraded', 'unavailable']),
   startedAt: z.string().datetime(),
 });
 

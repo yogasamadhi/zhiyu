@@ -55,7 +55,7 @@ beforeAll(async () => {
   await app.ready();
   const session = await app.inject({
     method: 'POST',
-    url: '/api/v1/session',
+    url: '/api/v2/session',
     payload: { nonce: 'headless-development-session' },
   });
   token = session.json().token as string;
@@ -63,7 +63,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (taskId) {
-    await app.inject({ method: 'DELETE', url: `/api/v1/tasks/${taskId}`, headers: headers() });
+    await app.inject({ method: 'DELETE', url: `/api/v2/tasks/${taskId}`, headers: headers() });
   }
   await app.close();
   await new Promise<void>((resolve, reject) =>
@@ -71,17 +71,41 @@ afterAll(async () => {
   );
 });
 
-describe('ZhiYun Runtime API v1 lifecycle', () => {
+describe('ZhiYun Runtime API v2 lifecycle', () => {
   it('rejects removed legacy API paths with Problem Details', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/tasks' });
-    expect(response.statusCode).toBe(404);
-    expect(response.headers['content-type']).toContain('application/problem+json');
+    for (const url of ['/api/tasks', '/api/v1/version', '/api/v1/tasks']) {
+      const response = await app.inject({ method: 'GET', url });
+      expect(response.statusCode).toBe(404);
+      expect(response.headers['content-type']).toContain('application/problem+json');
+    }
+  });
+
+  it('publishes v2 Runtime metadata and the immutable owned graph', async () => {
+    const metadata = await app.inject({ method: 'GET', url: '/api/v2/runtime' });
+    expect(metadata.statusCode).toBe(200);
+    expect(metadata.json()).toMatchObject({
+      apiVersion: 'v2',
+      productVersion: '1.0.0',
+      profileId: 'test',
+      graphRevision: expect.any(String),
+      analyticsWorkerStatus: 'unavailable',
+    });
+    const graph = await app.inject({ method: 'GET', url: '/api/v2/runtime/graph' });
+    expect(graph.statusCode).toBe(200);
+    expect(graph.json()).toMatchObject({
+      profileId: 'test',
+      graphRevision: metadata.json().graphRevision,
+      plugins: expect.arrayContaining([expect.objectContaining({ id: 'collection' })]),
+      routes: expect.arrayContaining([
+        expect.objectContaining({ operationId: 'listTasks', ownerPluginId: 'collection' }),
+      ]),
+    });
   });
 
   it('creates, analyzes and versions a task rule', async () => {
     const created = await app.inject({
       method: 'POST',
-      url: '/api/v1/tasks',
+      url: '/api/v2/tasks',
       headers: headers({ 'idempotency-key': crypto.randomUUID() }),
       payload: {
         name: 'Integration fixture',
@@ -117,7 +141,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
 
     const analysis = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/analyze`,
+      url: `/api/v2/tasks/${taskId}/rule-analysis`,
       headers: headers(),
       payload: { useAi: true, forceBrowser: false },
     });
@@ -127,7 +151,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
 
     const rule = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/rules`,
+      url: `/api/v2/tasks/${taskId}/rules`,
       headers: headers({ 'idempotency-key': crypto.randomUUID() }),
       payload: {
         name: 'Products',
@@ -141,7 +165,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
 
     const version = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/rules/${rule.json().rule.id}/versions`,
+      url: `/api/v2/tasks/${taskId}/rules/${rule.json().rule.id}/versions`,
       headers: headers({ 'idempotency-key': crypto.randomUUID() }),
       payload: { definition: analysis.json().candidate, generatedBy: 'human' },
     });
@@ -150,7 +174,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
 
     const extractDemo = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/ai/extract`,
+      url: `/api/v2/tasks/${taskId}/ai/extract`,
       headers: headers(),
       payload: { definition: analysis.json().candidate },
     });
@@ -170,7 +194,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
   it('requires a repair proposal to be tested before activation', async () => {
     const proposed = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/rules/${ruleId}/repair-proposals`,
+      url: `/api/v2/tasks/${taskId}/rules/${ruleId}/repair-proposals`,
       headers: headers(),
       payload: { error: 'The page layout changed' },
     });
@@ -196,14 +220,14 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
 
     const untested = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/apply`,
+      url: `/api/v2/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/apply`,
       headers: headers({ 'idempotency-key': crypto.randomUUID() }),
     });
     expect(untested.statusCode).toBe(409);
 
     const tested = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/test`,
+      url: `/api/v2/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/test`,
       headers: headers(),
     });
     expect(tested.statusCode).toBe(200);
@@ -212,7 +236,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
 
     const applied = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/apply`,
+      url: `/api/v2/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/apply`,
       headers: headers({ 'idempotency-key': crypto.randomUUID() }),
     });
     expect(applied.statusCode).toBe(201);
@@ -220,24 +244,24 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
   });
 
   it('enforces authorization, idempotency and optimistic concurrency', async () => {
-    const unauthorized = await app.inject({ method: 'GET', url: '/api/v1/tasks' });
+    const unauthorized = await app.inject({ method: 'GET', url: '/api/v2/tasks' });
     expect(unauthorized.statusCode).toBe(401);
 
     const missingKey = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/run`,
+      url: `/api/v2/tasks/${taskId}/run`,
       headers: headers(),
     });
     expect(missingKey.statusCode).toBe(428);
 
     const task = await app.inject({
       method: 'GET',
-      url: `/api/v1/tasks/${taskId}`,
+      url: `/api/v2/tasks/${taskId}`,
       headers: headers(),
     });
     const stale = await app.inject({
       method: 'PUT',
-      url: `/api/v1/tasks/${taskId}`,
+      url: `/api/v2/tasks/${taskId}`,
       headers: headers({ 'if-match': '"999"' }),
       payload: { name: 'Stale' },
     });
@@ -249,14 +273,14 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
     const key = crypto.randomUUID();
     const queued = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/run`,
+      url: `/api/v2/tasks/${taskId}/run`,
       headers: headers({ 'idempotency-key': key }),
     });
     expect(queued.statusCode).toBe(202);
     runId = queued.json().runId as string;
     const repeated = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/run`,
+      url: `/api/v2/tasks/${taskId}/run`,
       headers: headers({ 'idempotency-key': key }),
     });
     expect(repeated.json().runId).toBe(runId);
@@ -266,7 +290,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
       const run = await app.inject({
         method: 'GET',
-        url: `/api/v1/runs/${runId}`,
+        url: `/api/v2/runs/${runId}`,
         headers: headers(),
       });
       status = run.json().status as string;
@@ -275,7 +299,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
 
     const records = await app.inject({
       method: 'GET',
-      url: `/api/v1/runs/${runId}/records`,
+      url: `/api/v2/runs/${runId}/records`,
       headers: headers(),
     });
     expect(records.json().items).toHaveLength(10);
@@ -283,14 +307,14 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
     for (const format of ['csv', 'json', 'xlsx']) {
       const exported = await app.inject({
         method: 'POST',
-        url: `/api/v1/runs/${runId}/exports`,
+        url: `/api/v2/runs/${runId}/exports`,
         headers: headers({ 'idempotency-key': crypto.randomUUID() }),
         payload: { format },
       });
       expect(exported.statusCode).toBe(201);
       const content = await app.inject({
         method: 'GET',
-        url: `/api/v1/artifacts/${exported.json().artifactRef}/content`,
+        url: `/api/v2/artifacts/${exported.json().artifactRef}/content`,
         headers: headers(),
       });
       expect(content.rawPayload.byteLength).toBeGreaterThan(10);
@@ -298,14 +322,14 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
 
     const datasetExport = await app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/dataset/exports`,
+      url: `/api/v2/tasks/${taskId}/dataset/exports`,
       headers: headers({ 'idempotency-key': crypto.randomUUID() }),
       payload: { format: 'json', jsonMode: 'jsonl', fields: ['name', 'price'] },
     });
     expect(datasetExport.statusCode).toBe(201);
     const datasetContent = await app.inject({
       method: 'GET',
-      url: `/api/v1/artifacts/${datasetExport.json().artifactRef}/content`,
+      url: `/api/v2/artifacts/${datasetExport.json().artifactRef}/content`,
       headers: headers(),
     });
     expect(datasetContent.body).toContain('Item 0');
@@ -314,7 +338,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
   it('scopes, filters, rate-limits and revokes read-only Data API tokens', async () => {
     const wrongScope = await app.inject({
       method: 'POST',
-      url: '/api/v1/api-tokens',
+      url: '/api/v2/api-tokens',
       headers: headers(),
       payload: {
         name: 'Wrong scope',
@@ -325,14 +349,14 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
     expect(wrongScope.statusCode).toBe(201);
     const forbidden = await app.inject({
       method: 'GET',
-      url: `/api/v1/data/tasks/${taskId}/records`,
+      url: `/api/v2/data/tasks/${taskId}/records`,
       headers: { authorization: `Bearer ${wrongScope.json().token as string}` },
     });
     expect(forbidden.statusCode).toBe(403);
 
     const created = await app.inject({
       method: 'POST',
-      url: '/api/v1/api-tokens',
+      url: '/api/v2/api-tokens',
       headers: headers(),
       payload: { name: 'One request', taskIds: [taskId], rateLimitPerMinute: 1 },
     });
@@ -340,7 +364,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
     const dataToken = created.json().token as string;
     const filtered = await app.inject({
       method: 'GET',
-      url: `/api/v1/data/tasks/${taskId}/records?limit=5&fields=name,price&filter=${encodeURIComponent(JSON.stringify({ name: 'Item 0' }))}`,
+      url: `/api/v2/data/tasks/${taskId}/records?limit=5&fields=name,price&filter=${encodeURIComponent(JSON.stringify({ name: 'Item 0' }))}`,
       headers: { authorization: `Bearer ${dataToken}` },
     });
     expect(filtered.statusCode).toBe(200);
@@ -349,20 +373,20 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
 
     const limited = await app.inject({
       method: 'GET',
-      url: `/api/v1/data/tasks/${taskId}/records`,
+      url: `/api/v2/data/tasks/${taskId}/records`,
       headers: { authorization: `Bearer ${dataToken}` },
     });
     expect(limited.statusCode).toBe(429);
 
     const revoked = await app.inject({
       method: 'DELETE',
-      url: `/api/v1/api-tokens/${created.json().id as string}`,
+      url: `/api/v2/api-tokens/${created.json().id as string}`,
       headers: headers(),
     });
     expect(revoked.statusCode).toBe(204);
     const rejected = await app.inject({
       method: 'GET',
-      url: `/api/v1/data/tasks/${taskId}/records`,
+      url: `/api/v2/data/tasks/${taskId}/records`,
       headers: { authorization: `Bearer ${dataToken}` },
     });
     expect(rejected.statusCode).toBe(401);
@@ -371,12 +395,12 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
   it('registers and removes a five-field cron schedule using If-Match', async () => {
     const task = await app.inject({
       method: 'GET',
-      url: `/api/v1/tasks/${taskId}`,
+      url: `/api/v2/tasks/${taskId}`,
       headers: headers(),
     });
     const scheduled = await app.inject({
       method: 'PUT',
-      url: `/api/v1/tasks/${taskId}`,
+      url: `/api/v2/tasks/${taskId}`,
       headers: headers({ 'if-match': task.headers.etag! }),
       payload: { schedule: { mode: 'cron', cron: '*/30 * * * *', timezone: 'Asia/Shanghai' } },
     });
@@ -384,25 +408,25 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
     expect(scheduled.json().schedule.misfirePolicy).toBe('skip');
     const paused = await app.inject({
       method: 'POST',
-      url: '/api/v1/scheduler/pause',
+      url: '/api/v2/scheduler/pause',
       headers: headers(),
     });
     expect(paused.json().schedulingPaused).toBe(true);
     const pausedSummary = await app.inject({
       method: 'GET',
-      url: '/api/v1/runtime/summary',
+      url: '/api/v2/runtime/summary',
       headers: headers(),
     });
     expect(pausedSummary.json().schedulingPaused).toBe(true);
     const resumed = await app.inject({
       method: 'POST',
-      url: '/api/v1/scheduler/resume',
+      url: '/api/v2/scheduler/resume',
       headers: headers(),
     });
     expect(resumed.json().schedulingPaused).toBe(false);
     const manual = await app.inject({
       method: 'PUT',
-      url: `/api/v1/tasks/${taskId}`,
+      url: `/api/v2/tasks/${taskId}`,
       headers: headers({ 'if-match': scheduled.headers.etag! }),
       payload: { schedule: { mode: 'manual', timezone: 'Asia/Shanghai' } },
     });

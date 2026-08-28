@@ -3,6 +3,10 @@ import { defineConfig, devices } from '@playwright/test';
 const apiRoot = new URL('../api/', import.meta.url).pathname;
 const fixtureRoot = new URL('../../fixtures/', import.meta.url).pathname;
 const webRoot = new URL('./', import.meta.url).pathname;
+process.env.PLAYWRIGHT_BROWSERS_PATH ??= new URL(
+  '../desktop/resources/playwright/',
+  import.meta.url,
+).pathname;
 const fixturePort = Number(process.env.E2E_FIXTURE_PORT ?? 45100);
 const apiPort = Number(process.env.E2E_API_PORT ?? 45300);
 const webPort = Number(process.env.E2E_WEB_PORT ?? 45173);

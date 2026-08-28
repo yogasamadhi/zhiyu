@@ -19,7 +19,7 @@ interface ReadyMessage {
   baseUrl: string;
   runtimeId: string;
   generation: number;
-  apiVersion: 'v1';
+  apiVersion: 'v2';
 }
 
 interface NonceIssuedMessage {
@@ -130,7 +130,7 @@ export class RuntimeSupervisor {
 
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const bootstrap = await this.issueBootstrap();
-    const session = await fetch(`${bootstrap.baseUrl}/api/v1/session`, {
+    const session = await fetch(`${bootstrap.baseUrl}/api/v2/session`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ nonce: bootstrap.sessionNonce }),

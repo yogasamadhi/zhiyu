@@ -4,7 +4,7 @@ import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
 import { FileArtifactStore, HostCredentialStore } from '@zhiyun/platform';
 import { LocalQueue, LocalScheduler } from '@zhiyun/scheduler';
 import { SqliteRepository } from '@zhiyun/sqlite-storage';
-import type { ArtifactDescriptor, RuntimeCapabilities, RuntimeMetadata } from '@zhiyun/contracts';
+import type { ArtifactDescriptor, HostCapabilities, RuntimeCapabilities } from '@zhiyun/contracts';
 import { buildRuntime, type ZhiYunRuntime } from './index.js';
 
 interface BootstrapMessage {
@@ -60,12 +60,13 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
   const queue = new LocalQueue(repository);
   const scheduler = new LocalScheduler(repository, queue);
   const credentialStore = new HostCredentialStore(message.hostBaseUrl, message.hostToken);
-  const metadata: RuntimeMetadata = {
+  const metadata: HostCapabilities['metadata'] = {
     runtimeId: crypto.randomUUID(),
     generation: message.generation,
-    apiVersion: 'v1',
+    apiVersion: 'v2',
     mode: 'desktop',
-    version: '0.2.0',
+    productVersion: '1.0.0',
+    analyticsWorkerStatus: 'unavailable',
     startedAt: new Date().toISOString(),
   };
   const capabilities: RuntimeCapabilities = {
@@ -159,6 +160,7 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
       sessionNonce: message.sessionNonce,
       allowedOrigins: ['app://zhiyun', ...(message.rendererOrigin ? [message.rendererOrigin] : [])],
       logger: { level: 'info' },
+      profileId: 'desktop-studio',
     },
   );
   const address = await runtime.listen({ host: '127.0.0.1', port: 0 });

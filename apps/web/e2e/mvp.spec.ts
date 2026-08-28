@@ -5,11 +5,11 @@ const apiBaseUrl = `http://127.0.0.1:${process.env.E2E_API_PORT ?? 45300}`;
 const fixtureBaseUrl = `http://127.0.0.1:${process.env.E2E_FIXTURE_PORT ?? 45100}`;
 
 async function deleteTask(request: APIRequestContext, id: string) {
-  const session = await request.post(`${apiBaseUrl}/api/v1/session`, {
+  const session = await request.post(`${apiBaseUrl}/api/v2/session`, {
     data: { nonce: 'headless-development-session' },
   });
   const token = (await session.json()).token as string;
-  return request.delete(`${apiBaseUrl}/api/v1/tasks/${id}`, {
+  return request.delete(`${apiBaseUrl}/api/v2/tasks/${id}`, {
     headers: { authorization: `Bearer ${token}` },
   });
 }

@@ -23,9 +23,10 @@ export async function buildApp() {
   const metadata = {
     runtimeId: crypto.randomUUID(),
     generation: 0,
-    apiVersion: 'v1' as const,
+    apiVersion: 'v2' as const,
     mode: 'headless' as const,
-    version: '0.2.0',
+    productVersion: '1.0.0' as const,
+    analyticsWorkerStatus: 'unavailable' as const,
     startedAt: new Date().toISOString(),
   };
   const ai = createAiProvider({
@@ -82,6 +83,7 @@ export async function buildApp() {
           .filter(Boolean) ?? []),
       ],
       logger: config.NODE_ENV === 'test' ? false : { level: 'info' },
+      profileId: config.NODE_ENV === 'test' ? 'test' : 'headless-server',
     },
   );
   return runtime.app;

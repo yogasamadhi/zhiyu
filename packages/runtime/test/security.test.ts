@@ -54,9 +54,10 @@ async function securityRuntime(options: { adminToken?: string; crawler?: Crawler
         metadata: {
           runtimeId: crypto.randomUUID(),
           generation: 7,
-          apiVersion: 'v1',
+          apiVersion: 'v2',
           mode: 'desktop',
-          version: 'test',
+          productVersion: '1.0.0',
+          analyticsWorkerStatus: 'unavailable',
           startedAt: new Date().toISOString(),
         },
         capabilities: {
@@ -87,14 +88,14 @@ describe('Runtime security contract', () => {
     const runtime = await securityRuntime();
     const session = await runtime.app.inject({
       method: 'POST',
-      url: '/api/v1/session',
+      url: '/api/v2/session',
       payload: { nonce: 'one-time-nonce' },
     });
     const authorization = { authorization: `Bearer ${session.json().token as string}` };
 
     const initial = await runtime.app.inject({
       method: 'GET',
-      url: '/api/v1/trend-sources',
+      url: '/api/v2/trend-sources',
       headers: authorization,
     });
     expect(initial.statusCode).toBe(200);
@@ -106,12 +107,12 @@ describe('Runtime security contract', () => {
     const [firstBootstrap, concurrentBootstrap] = await Promise.all([
       runtime.app.inject({
         method: 'POST',
-        url: '/api/v1/trend-sources/bootstrap',
+        url: '/api/v2/trend-sources/bootstrap',
         headers: authorization,
       }),
       runtime.app.inject({
         method: 'POST',
-        url: '/api/v1/trend-sources/bootstrap',
+        url: '/api/v2/trend-sources/bootstrap',
         headers: authorization,
       }),
     ]);
@@ -122,7 +123,7 @@ describe('Runtime security contract', () => {
     ).toHaveLength(3);
     const tasks = await runtime.app.inject({
       method: 'GET',
-      url: '/api/v1/tasks?limit=100',
+      url: '/api/v2/tasks?limit=100',
       headers: authorization,
     });
     expect(tasks.json().items).toHaveLength(3);
@@ -142,7 +143,7 @@ describe('Runtime security contract', () => {
     for (const kind of ['like', 'completed', 'dislike']) {
       const response = await runtime.app.inject({
         method: 'POST',
-        url: '/api/v1/preferences/signals',
+        url: '/api/v2/preferences/signals',
         headers: authorization,
         payload: { kind, content },
       });
@@ -150,7 +151,7 @@ describe('Runtime security contract', () => {
     }
     const signals = await runtime.app.inject({
       method: 'GET',
-      url: '/api/v1/preferences/signals',
+      url: '/api/v2/preferences/signals',
       headers: authorization,
     });
     expect(
@@ -161,21 +162,21 @@ describe('Runtime security contract', () => {
     ).toEqual(['completed', 'dislike']);
     const profile = await runtime.app.inject({
       method: 'GET',
-      url: '/api/v1/preferences/profile',
+      url: '/api/v2/preferences/profile',
       headers: authorization,
     });
     expect(profile.json()).toMatchObject({ signalCount: 2 });
 
     const unsupportedImport = await runtime.app.inject({
       method: 'POST',
-      url: '/api/v1/preferences/import',
+      url: '/api/v2/preferences/import',
       headers: authorization,
       payload: { url: 'https://example.com/not-supported', kind: 'like' },
     });
     expect(unsupportedImport.statusCode).toBe(422);
     const reset = await runtime.app.inject({
       method: 'DELETE',
-      url: '/api/v1/preferences/signals',
+      url: '/api/v2/preferences/signals',
       headers: authorization,
     });
     expect(reset.json()).toEqual({ deleted: 2 });
@@ -205,13 +206,13 @@ describe('Runtime security contract', () => {
     const runtime = await securityRuntime({ crawler });
     const session = await runtime.app.inject({
       method: 'POST',
-      url: '/api/v1/session',
+      url: '/api/v2/session',
       payload: { nonce: 'one-time-nonce' },
     });
     const authorization = { authorization: `Bearer ${session.json().token as string}` };
     const taskResponse = await runtime.app.inject({
       method: 'POST',
-      url: '/api/v1/tasks',
+      url: '/api/v2/tasks',
       headers: { ...authorization, 'idempotency-key': crypto.randomUUID() },
       payload: {
         name: 'Cancelable task',
@@ -222,7 +223,7 @@ describe('Runtime security contract', () => {
     const taskId = taskResponse.json().id as string;
     await runtime.app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/rules`,
+      url: `/api/v2/tasks/${taskId}/rules`,
       headers: { ...authorization, 'idempotency-key': crypto.randomUUID() },
       payload: {
         name: 'Cancelable rule',
@@ -235,7 +236,7 @@ describe('Runtime security contract', () => {
     });
     const queued = await runtime.app.inject({
       method: 'POST',
-      url: `/api/v1/tasks/${taskId}/run`,
+      url: `/api/v2/tasks/${taskId}/run`,
       headers: { ...authorization, 'idempotency-key': crypto.randomUUID() },
     });
     expect(queued.statusCode).toBe(202);
@@ -243,7 +244,7 @@ describe('Runtime security contract', () => {
     await started;
     const canceled = await runtime.app.inject({
       method: 'POST',
-      url: `/api/v1/runs/${runId}/cancel`,
+      url: `/api/v2/runs/${runId}/cancel`,
       headers: authorization,
     });
     expect(canceled.statusCode).toBe(200);
@@ -252,7 +253,7 @@ describe('Runtime security contract', () => {
     await expect.poll(() => signalWasAborted).toBe(true);
     const persisted = await runtime.app.inject({
       method: 'GET',
-      url: `/api/v1/runs/${runId}`,
+      url: `/api/v2/runs/${runId}`,
       headers: authorization,
     });
     expect(persisted.json().status).toBe('canceled');
@@ -262,7 +263,7 @@ describe('Runtime security contract', () => {
     const runtime = await securityRuntime();
     const response = await runtime.app.inject({
       method: 'OPTIONS',
-      url: '/api/v1/tasks/example',
+      url: '/api/v2/tasks/example',
       headers: {
         origin: 'app://zhiyun',
         'access-control-request-method': 'PUT',
@@ -279,7 +280,7 @@ describe('Runtime security contract', () => {
     const runtime = await securityRuntime();
     const first = await runtime.app.inject({
       method: 'POST',
-      url: '/api/v1/session',
+      url: '/api/v2/session',
       headers: { origin: 'app://zhiyun' },
       payload: { nonce: 'one-time-nonce' },
     });
@@ -288,7 +289,7 @@ describe('Runtime security contract', () => {
 
     const replay = await runtime.app.inject({
       method: 'POST',
-      url: '/api/v1/session',
+      url: '/api/v2/session',
       headers: { origin: 'app://zhiyun' },
       payload: { nonce: 'one-time-nonce' },
     });
@@ -296,7 +297,7 @@ describe('Runtime security contract', () => {
 
     const rejectedOrigin = await runtime.app.inject({
       method: 'GET',
-      url: '/api/v1/version',
+      url: '/api/v2/version',
       headers: { origin: 'https://attacker.example' },
     });
     expect(rejectedOrigin.statusCode).toBe(403);
@@ -306,12 +307,12 @@ describe('Runtime security contract', () => {
     const runtime = await securityRuntime();
     const session = await runtime.app.inject({
       method: 'POST',
-      url: '/api/v1/session',
+      url: '/api/v2/session',
       payload: { nonce: 'one-time-nonce' },
     });
     const response = await runtime.app.inject({
       method: 'GET',
-      url: '/api/v1/does-not-exist?token=do-not-leak&query=visible',
+      url: '/api/v2/does-not-exist?token=do-not-leak&query=visible',
       headers: { authorization: `Bearer ${session.json().token as string}` },
     });
     expect(response.statusCode).toBe(404);
@@ -326,13 +327,13 @@ describe('Runtime security contract', () => {
     const runtime = await securityRuntime({ adminToken });
     const nonce = await runtime.app.inject({
       method: 'POST',
-      url: '/api/v1/session',
+      url: '/api/v2/session',
       payload: { nonce: 'one-time-nonce' },
     });
     expect(nonce.statusCode).toBe(401);
     const session = await runtime.app.inject({
       method: 'POST',
-      url: '/api/v1/session',
+      url: '/api/v2/session',
       payload: { adminToken },
     });
     expect(session.statusCode).toBe(200);

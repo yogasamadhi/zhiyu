@@ -50,5 +50,9 @@ export const platformPlugin: PluginDescriptor = {
       ],
     },
   ],
+  uiContributions: [
+    { id: 'platform.settings-route', kind: 'route' },
+    { id: 'platform.settings-navigation', kind: 'navigation' },
+  ],
   activate() {},
 };

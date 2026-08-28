@@ -73,6 +73,7 @@ import {
   type QueueAdapter,
   type RealtimeEvent,
   type Repository,
+  type RuntimeMetadata,
   type RuntimeJob,
   type SchedulerAdapter,
   type TaskCreate,
@@ -297,127 +298,128 @@ function cursorPage<T>(items: T[], cursor: string | undefined, limit: number) {
 
 export function openApiDocument() {
   const paths: Record<string, Record<string, Record<string, unknown>>> = {
-    '/api/v1/session': { post: { operationId: 'createRuntimeSession' } },
-    '/api/v1/version': { get: { operationId: 'getVersion' } },
-    '/api/v1/capabilities': { get: { operationId: 'getCapabilities' } },
-    '/api/v1/runtime': { get: { operationId: 'getRuntimeMetadata' } },
-    '/api/v1/openapi.json': { get: { operationId: 'getOpenApiDocument' } },
-    '/api/v1/trend-sources': {
+    '/api/v2/session': { post: { operationId: 'createRuntimeSession' } },
+    '/api/v2/version': { get: { operationId: 'getVersion' } },
+    '/api/v2/capabilities': { get: { operationId: 'getCapabilities' } },
+    '/api/v2/runtime': { get: { operationId: 'getRuntimeMetadata' } },
+    '/api/v2/runtime/graph': { get: { operationId: 'getRuntimeGraph' } },
+    '/api/v2/openapi.json': { get: { operationId: 'getOpenApiDocument' } },
+    '/api/v2/trend-sources': {
       get: { operationId: 'listTrendSources' },
     },
-    '/api/v1/trend-sources/bootstrap': { post: { operationId: 'bootstrapTrendSources' } },
-    '/api/v1/trend-sources/run': { post: { operationId: 'runTrendSources' } },
-    '/api/v1/trend-sources/{key}': { put: { operationId: 'updateTrendSource' } },
-    '/api/v1/trend-sources/{key}/run': { post: { operationId: 'runTrendSource' } },
-    '/api/v1/trends': { get: { operationId: 'listTrends' } },
-    '/api/v1/preferences/profile': { get: { operationId: 'getPreferenceProfile' } },
-    '/api/v1/preferences/signals': {
+    '/api/v2/trend-sources/bootstrap': { post: { operationId: 'bootstrapTrendSources' } },
+    '/api/v2/trend-sources/run': { post: { operationId: 'runTrendSources' } },
+    '/api/v2/trend-sources/{key}': { put: { operationId: 'updateTrendSource' } },
+    '/api/v2/trend-sources/{key}/run': { post: { operationId: 'runTrendSource' } },
+    '/api/v2/trends': { get: { operationId: 'listTrends' } },
+    '/api/v2/preferences/profile': { get: { operationId: 'getPreferenceProfile' } },
+    '/api/v2/preferences/signals': {
       get: { operationId: 'listPreferenceSignals' },
       post: { operationId: 'upsertPreferenceSignal' },
       delete: { operationId: 'clearPreferenceSignals' },
     },
-    '/api/v1/preferences/signals/{id}': { delete: { operationId: 'deletePreferenceSignal' } },
-    '/api/v1/preferences/import': { post: { operationId: 'importPreferenceContent' } },
-    '/api/v1/tasks': {
+    '/api/v2/preferences/signals/{id}': { delete: { operationId: 'deletePreferenceSignal' } },
+    '/api/v2/preferences/import': { post: { operationId: 'importPreferenceContent' } },
+    '/api/v2/tasks': {
       get: { operationId: 'listTasks' },
       post: { operationId: 'createTask' },
     },
-    '/api/v1/tasks/{id}': {
+    '/api/v2/tasks/{id}': {
       get: { operationId: 'getTask' },
       put: { operationId: 'updateTask' },
       delete: { operationId: 'deleteTask' },
     },
-    '/api/v1/tasks/{id}/analyze': { post: { operationId: 'analyzeTask' } },
-    '/api/v1/tasks/{id}/ai/extract': { post: { operationId: 'runAiExtractDemo' } },
-    '/api/v1/tasks/{id}/browser-session/login': {
+    '/api/v2/tasks/{id}/rule-analysis': { post: { operationId: 'analyzeTaskRule' } },
+    '/api/v2/tasks/{id}/ai/extract': { post: { operationId: 'runAiExtractDemo' } },
+    '/api/v2/tasks/{id}/browser-session/login': {
       post: { operationId: 'createTaskLoginSession' },
     },
-    '/api/v1/tasks/{id}/credentials/{kind}': {
+    '/api/v2/tasks/{id}/credentials/{kind}': {
       post: { operationId: 'promptTaskCredential' },
       delete: { operationId: 'deleteTaskCredential' },
     },
-    '/api/v1/tasks/{id}/rules': {
+    '/api/v2/tasks/{id}/rules': {
       get: { operationId: 'listRules' },
       post: { operationId: 'createRule' },
     },
-    '/api/v1/tasks/{id}/rules/test': { post: { operationId: 'testRule' } },
-    '/api/v1/tasks/{id}/rules/{ruleId}/versions': {
+    '/api/v2/tasks/{id}/rules/test': { post: { operationId: 'testRule' } },
+    '/api/v2/tasks/{id}/rules/{ruleId}/versions': {
       post: { operationId: 'createRuleVersion' },
     },
-    '/api/v1/tasks/{id}/rules/{ruleId}/diff': {
+    '/api/v2/tasks/{id}/rules/{ruleId}/diff': {
       get: { operationId: 'diffRuleVersions' },
     },
-    '/api/v1/tasks/{id}/rules/{ruleId}/rollback': {
+    '/api/v2/tasks/{id}/rules/{ruleId}/rollback': {
       post: { operationId: 'rollbackRuleVersion' },
     },
-    '/api/v1/tasks/{id}/rules/{ruleId}/repair-proposals': {
+    '/api/v2/tasks/{id}/rules/{ruleId}/repair-proposals': {
       get: { operationId: 'listRuleRepairProposals' },
       post: { operationId: 'createRuleRepairProposal' },
     },
-    '/api/v1/tasks/{id}/rules/{ruleId}/repair-proposals/{proposalId}/test': {
+    '/api/v2/tasks/{id}/rules/{ruleId}/repair-proposals/{proposalId}/test': {
       post: { operationId: 'testRuleRepairProposal' },
     },
-    '/api/v1/tasks/{id}/rules/{ruleId}/repair-proposals/{proposalId}/apply': {
+    '/api/v2/tasks/{id}/rules/{ruleId}/repair-proposals/{proposalId}/apply': {
       post: { operationId: 'applyRuleRepairProposal' },
     },
-    '/api/v1/tasks/{id}/rules/{ruleId}/repair-proposals/{proposalId}/reject': {
+    '/api/v2/tasks/{id}/rules/{ruleId}/repair-proposals/{proposalId}/reject': {
       post: { operationId: 'rejectRuleRepairProposal' },
     },
-    '/api/v1/tasks/{id}/run': { post: { operationId: 'createRun' } },
-    '/api/v1/tasks/{id}/runs': { get: { operationId: 'listRuns' } },
-    '/api/v1/tasks/{id}/dataset': { get: { operationId: 'listDatasetRecords' } },
-    '/api/v1/tasks/{id}/dataset/changes': { get: { operationId: 'listDatasetChanges' } },
-    '/api/v1/tasks/{id}/dataset/diff': { get: { operationId: 'diffDatasetRuns' } },
-    '/api/v1/tasks/{id}/dataset/exports': { post: { operationId: 'createDatasetExport' } },
-    '/api/v1/runs/{id}': { get: { operationId: 'getRun' } },
-    '/api/v1/runs/{id}/cancel': { post: { operationId: 'cancelRun' } },
-    '/api/v1/runs/{id}/retry': { post: { operationId: 'retryRun' } },
-    '/api/v1/runs/{id}/explain-failure': { post: { operationId: 'explainRunFailure' } },
-    '/api/v1/runs/{id}/logs': { get: { operationId: 'listRunLogs' } },
-    '/api/v1/runs/{id}/requests': { get: { operationId: 'listRunRequests' } },
-    '/api/v1/runs/{id}/records': { get: { operationId: 'listRunRecords' } },
-    '/api/v1/runs/{id}/exports': { post: { operationId: 'createRunExport' } },
-    '/api/v1/artifacts/{id}/save': { post: { operationId: 'saveArtifact' } },
-    '/api/v1/artifacts/{id}/content': { get: { operationId: 'getArtifactContent' } },
-    '/api/v1/events/domain': { get: { operationId: 'streamDomainEvents' } },
-    '/api/v1/events/realtime': { get: { operationId: 'streamRealtimeEvents' } },
-    '/api/v1/output-destinations': {
+    '/api/v2/tasks/{id}/run': { post: { operationId: 'createRun' } },
+    '/api/v2/tasks/{id}/runs': { get: { operationId: 'listRuns' } },
+    '/api/v2/tasks/{id}/dataset': { get: { operationId: 'listDatasetRecords' } },
+    '/api/v2/tasks/{id}/dataset/changes': { get: { operationId: 'listDatasetChanges' } },
+    '/api/v2/tasks/{id}/dataset/diff': { get: { operationId: 'diffDatasetRuns' } },
+    '/api/v2/tasks/{id}/dataset/exports': { post: { operationId: 'createDatasetExport' } },
+    '/api/v2/runs/{id}': { get: { operationId: 'getRun' } },
+    '/api/v2/runs/{id}/cancel': { post: { operationId: 'cancelRun' } },
+    '/api/v2/runs/{id}/retry': { post: { operationId: 'retryRun' } },
+    '/api/v2/runs/{id}/explain-failure': { post: { operationId: 'explainRunFailure' } },
+    '/api/v2/runs/{id}/logs': { get: { operationId: 'listRunLogs' } },
+    '/api/v2/runs/{id}/requests': { get: { operationId: 'listRunRequests' } },
+    '/api/v2/runs/{id}/records': { get: { operationId: 'listRunRecords' } },
+    '/api/v2/runs/{id}/exports': { post: { operationId: 'createRunExport' } },
+    '/api/v2/artifacts/{id}/save': { post: { operationId: 'saveArtifact' } },
+    '/api/v2/artifacts/{id}/content': { get: { operationId: 'getArtifactContent' } },
+    '/api/v2/events/domain': { get: { operationId: 'streamDomainEvents' } },
+    '/api/v2/events/realtime': { get: { operationId: 'streamRealtimeEvents' } },
+    '/api/v2/output-destinations': {
       get: { operationId: 'listOutputDestinations' },
       post: { operationId: 'createOutputDestination' },
     },
-    '/api/v1/output-destinations/{id}': {
+    '/api/v2/output-destinations/{id}': {
       put: { operationId: 'updateOutputDestination' },
       delete: { operationId: 'deleteOutputDestination' },
     },
-    '/api/v1/output-destinations/{id}/test': {
+    '/api/v2/output-destinations/{id}/test': {
       post: { operationId: 'testOutputDestination' },
     },
-    '/api/v1/output-destinations/{id}/credential/prompt': {
+    '/api/v2/output-destinations/{id}/credential/prompt': {
       post: { operationId: 'promptOutputCredential' },
     },
-    '/api/v1/delivery-attempts/{id}/retry': {
+    '/api/v2/delivery-attempts/{id}/retry': {
       post: { operationId: 'retryOutputDelivery' },
     },
-    '/api/v1/delivery-attempts': { get: { operationId: 'listDeliveryAttempts' } },
-    '/api/v1/api-tokens': {
+    '/api/v2/delivery-attempts': { get: { operationId: 'listDeliveryAttempts' } },
+    '/api/v2/api-tokens': {
       get: { operationId: 'listApiTokens' },
       post: { operationId: 'createApiToken' },
     },
-    '/api/v1/api-tokens/{id}': { delete: { operationId: 'revokeApiToken' } },
-    '/api/v1/data/tasks/{id}/records': { get: { operationId: 'queryDataApiRecords' } },
-    '/api/v1/inspection-sessions': { post: { operationId: 'createInspectionSession' } },
-    '/api/v1/inspection-sessions/{id}/screenshot': {
+    '/api/v2/api-tokens/{id}': { delete: { operationId: 'revokeApiToken' } },
+    '/api/v2/data/tasks/{id}/records': { get: { operationId: 'queryDataApiRecords' } },
+    '/api/v2/inspection-sessions': { post: { operationId: 'createInspectionSession' } },
+    '/api/v2/inspection-sessions/{id}/screenshot': {
       get: { operationId: 'getInspectionScreenshot' },
     },
-    '/api/v1/inspection-sessions/{id}/actions': { post: { operationId: 'interactWithInspection' } },
-    '/api/v1/inspection-sessions/{id}/select': { post: { operationId: 'selectInspectionElement' } },
-    '/api/v1/inspection-sessions/{id}': { delete: { operationId: 'closeInspectionSession' } },
-    '/api/v1/desktop/diagnostics': { get: { operationId: 'getDesktopDiagnostics' } },
-    '/api/v1/desktop/backup': { post: { operationId: 'backupDesktopDatabase' } },
-    '/api/v1/desktop/restore': { post: { operationId: 'restoreDesktopDatabase' } },
-    '/api/v1/runtime/summary': { get: { operationId: 'getRuntimeSummary' } },
-    '/api/v1/scheduler/pause': { post: { operationId: 'pauseScheduler' } },
-    '/api/v1/scheduler/resume': { post: { operationId: 'resumeScheduler' } },
+    '/api/v2/inspection-sessions/{id}/actions': { post: { operationId: 'interactWithInspection' } },
+    '/api/v2/inspection-sessions/{id}/select': { post: { operationId: 'selectInspectionElement' } },
+    '/api/v2/inspection-sessions/{id}': { delete: { operationId: 'closeInspectionSession' } },
+    '/api/v2/desktop/diagnostics': { get: { operationId: 'getDesktopDiagnostics' } },
+    '/api/v2/desktop/backup': { post: { operationId: 'backupDesktopDatabase' } },
+    '/api/v2/desktop/restore': { post: { operationId: 'restoreDesktopDatabase' } },
+    '/api/v2/runtime/summary': { get: { operationId: 'getRuntimeSummary' } },
+    '/api/v2/scheduler/pause': { post: { operationId: 'pauseScheduler' } },
+    '/api/v2/scheduler/resume': { post: { operationId: 'resumeScheduler' } },
   };
   const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
   const jsonResponse = (schema: Record<string, unknown>, description = 'Success') => ({
@@ -463,7 +465,7 @@ export function openApiDocument() {
     }
   }
 
-  Object.assign(paths['/api/v1/session']!.post!, {
+  Object.assign(paths['/api/v2/session']!.post!, {
     security: [],
     requestBody: body({
       type: 'object',
@@ -479,16 +481,33 @@ export function openApiDocument() {
       },
     }),
   });
-  for (const publicPath of ['/api/v1/version', '/api/v1/runtime', '/api/v1/openapi.json']) {
+  for (const publicPath of [
+    '/api/v2/version',
+    '/api/v2/runtime',
+    '/api/v2/runtime/graph',
+    '/api/v2/openapi.json',
+  ]) {
     paths[publicPath]!.get!.security = [];
   }
-  paths['/api/v1/runtime']!.get!.responses = responses(ref('RuntimeMetadata'));
-  paths['/api/v1/capabilities']!.get!.responses = responses(ref('RuntimeCapabilities'));
-  paths['/api/v1/trend-sources']!.get!.responses = responses({
+  paths['/api/v2/runtime']!.get!.responses = responses(ref('RuntimeMetadata'));
+  paths['/api/v2/runtime/graph']!.get!.responses = responses({
+    type: 'object',
+    required: ['profileId', 'graphRevision', 'plugins', 'routes', 'uiContributions'],
+    additionalProperties: false,
+    properties: {
+      profileId: { type: 'string' },
+      graphRevision: { type: 'string' },
+      plugins: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      routes: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      uiContributions: { type: 'array', items: { type: 'object', additionalProperties: true } },
+    },
+  });
+  paths['/api/v2/capabilities']!.get!.responses = responses(ref('RuntimeCapabilities'));
+  paths['/api/v2/trend-sources']!.get!.responses = responses({
     type: 'array',
     items: ref('TrendSource'),
   });
-  paths['/api/v1/trend-sources/bootstrap']!.post!.responses = {
+  paths['/api/v2/trend-sources/bootstrap']!.post!.responses = {
     '202': jsonResponse({
       type: 'object',
       required: ['sources', 'runs'],
@@ -499,7 +518,7 @@ export function openApiDocument() {
     }),
     default: problemResponse,
   };
-  paths['/api/v1/trend-sources/run']!.post!.responses = {
+  paths['/api/v2/trend-sources/run']!.post!.responses = {
     '202': jsonResponse({
       type: 'object',
       required: ['runs'],
@@ -509,16 +528,16 @@ export function openApiDocument() {
     }),
     default: problemResponse,
   };
-  Object.assign(paths['/api/v1/trend-sources/{key}']!.put!, {
+  Object.assign(paths['/api/v2/trend-sources/{key}']!.put!, {
     requestBody: body(ref('TrendSourceUpdate')),
     responses: responses(ref('TrendSource')),
   });
-  paths['/api/v1/trend-sources/{key}/run']!.post!.responses = {
+  paths['/api/v2/trend-sources/{key}/run']!.post!.responses = {
     '200': jsonResponse({ type: 'object', additionalProperties: true }),
     '202': jsonResponse({ type: 'object', additionalProperties: true }),
     default: problemResponse,
   };
-  Object.assign(paths['/api/v1/trends']!.get!, {
+  Object.assign(paths['/api/v2/trends']!.get!, {
     parameters: [
       { name: 'platform', in: 'query', schema: { type: 'string' } },
       { name: 'contentType', in: 'query', schema: { type: 'string' } },
@@ -526,52 +545,52 @@ export function openApiDocument() {
     ],
     responses: responses(ref('TrendsResponse')),
   });
-  paths['/api/v1/preferences/profile']!.get!.responses = responses(ref('PreferenceProfile'));
-  Object.assign(paths['/api/v1/preferences/signals']!.get!, {
+  paths['/api/v2/preferences/profile']!.get!.responses = responses(ref('PreferenceProfile'));
+  Object.assign(paths['/api/v2/preferences/signals']!.get!, {
     parameters: [
       { name: 'cursor', in: 'query', schema: { type: 'string' } },
       { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 500 } },
     ],
     responses: responses(page(ref('PreferenceSignal'))),
   });
-  Object.assign(paths['/api/v1/preferences/signals']!.post!, {
+  Object.assign(paths['/api/v2/preferences/signals']!.post!, {
     requestBody: body(ref('PreferenceSignalInput')),
     responses: responses(ref('PreferenceSignal')),
   });
-  paths['/api/v1/preferences/signals']!.delete!.responses = responses({
+  paths['/api/v2/preferences/signals']!.delete!.responses = responses({
     type: 'object',
     required: ['deleted'],
     properties: { deleted: { type: 'integer' } },
   });
-  paths['/api/v1/preferences/signals/{id}']!.delete!.responses = {
+  paths['/api/v2/preferences/signals/{id}']!.delete!.responses = {
     '204': { description: 'Deleted' },
     default: problemResponse,
   };
-  Object.assign(paths['/api/v1/preferences/import']!.post!, {
+  Object.assign(paths['/api/v2/preferences/import']!.post!, {
     requestBody: body(ref('PreferenceImport')),
     responses: responses(ref('PreferenceSignal'), '201'),
   });
-  Object.assign(paths['/api/v1/tasks']!.get!, {
+  Object.assign(paths['/api/v2/tasks']!.get!, {
     parameters: [
       { name: 'cursor', in: 'query', schema: { type: 'string' } },
       { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 500 } },
     ],
     responses: responses(page(ref('TaskListItem'))),
   });
-  Object.assign(paths['/api/v1/tasks']!.post!, {
+  Object.assign(paths['/api/v2/tasks']!.post!, {
     requestBody: body(ref('TaskCreate')),
     responses: responses(ref('TaskDetail'), '201'),
   });
-  paths['/api/v1/tasks/{id}']!.get!.responses = responses(ref('TaskDetail'));
-  Object.assign(paths['/api/v1/tasks/{id}']!.put!, {
+  paths['/api/v2/tasks/{id}']!.get!.responses = responses(ref('TaskDetail'));
+  Object.assign(paths['/api/v2/tasks/{id}']!.put!, {
     requestBody: body(ref('TaskUpdate')),
     responses: responses(ref('TaskDetail')),
   });
-  paths['/api/v1/tasks/{id}']!.delete!.responses = {
+  paths['/api/v2/tasks/{id}']!.delete!.responses = {
     '204': { description: 'Deleted' },
     default: problemResponse,
   };
-  Object.assign(paths['/api/v1/tasks/{id}/analyze']!.post!, {
+  Object.assign(paths['/api/v2/tasks/{id}/rule-analysis']!.post!, {
     requestBody: body({
       type: 'object',
       required: ['useAi', 'forceBrowser'],
@@ -579,14 +598,14 @@ export function openApiDocument() {
     }),
     responses: responses(ref('AnalysisResult')),
   });
-  paths['/api/v1/tasks/{id}/runs']!.get!.responses = responses(page(ref('CrawlRun')));
-  paths['/api/v1/tasks/{id}/dataset']!.get!.responses = responses(
+  paths['/api/v2/tasks/{id}/runs']!.get!.responses = responses(page(ref('CrawlRun')));
+  paths['/api/v2/tasks/{id}/dataset']!.get!.responses = responses(
     page(ref('DatasetRecord'), { stats: ref('DatasetStats') }),
   );
-  paths['/api/v1/tasks/{id}/dataset/changes']!.get!.responses = responses(
+  paths['/api/v2/tasks/{id}/dataset/changes']!.get!.responses = responses(
     page(ref('RecordChange')),
   );
-  paths['/api/v1/tasks/{id}/run']!.post!.responses = responses(
+  paths['/api/v2/tasks/{id}/run']!.post!.responses = responses(
     {
       type: 'object',
       required: ['runId', 'status'],
@@ -594,11 +613,11 @@ export function openApiDocument() {
     },
     '202',
   );
-  paths['/api/v1/runs/{id}']!.get!.responses = responses(ref('CrawlRun'));
-  paths['/api/v1/runs/{id}/records']!.get!.responses = responses(page(ref('ExtractedRecord')));
-  paths['/api/v1/runs/{id}/logs']!.get!.responses = responses(page(ref('RunLogEntry')));
-  paths['/api/v1/runs/{id}/requests']!.get!.responses = responses(page(ref('RunRequestEntry')));
-  paths['/api/v1/tasks/{id}/dataset/diff']!.get!.responses = responses({
+  paths['/api/v2/runs/{id}']!.get!.responses = responses(ref('CrawlRun'));
+  paths['/api/v2/runs/{id}/records']!.get!.responses = responses(page(ref('ExtractedRecord')));
+  paths['/api/v2/runs/{id}/logs']!.get!.responses = responses(page(ref('RunLogEntry')));
+  paths['/api/v2/runs/{id}/requests']!.get!.responses = responses(page(ref('RunRequestEntry')));
+  paths['/api/v2/tasks/{id}/dataset/diff']!.get!.responses = responses({
     type: 'object',
     required: ['items', 'nextCursor', 'stats'],
     properties: {
@@ -607,19 +626,19 @@ export function openApiDocument() {
       stats: ref('DatasetDiffStats'),
     },
   });
-  paths['/api/v1/output-destinations']!.get!.responses = responses({
+  paths['/api/v2/output-destinations']!.get!.responses = responses({
     type: 'array',
     items: ref('OutputDestination'),
   });
-  paths['/api/v1/delivery-attempts']!.get!.responses = responses({
+  paths['/api/v2/delivery-attempts']!.get!.responses = responses({
     type: 'array',
     items: ref('DeliveryAttempt'),
   });
-  paths['/api/v1/api-tokens']!.get!.responses = responses({
+  paths['/api/v2/api-tokens']!.get!.responses = responses({
     type: 'array',
     items: ref('ApiToken'),
   });
-  paths['/api/v1/data/tasks/{id}/records']!.get!.security = [{ dataApiBearer: [] }];
+  paths['/api/v2/data/tasks/{id}/records']!.get!.security = [{ dataApiBearer: [] }];
   return {
     openapi: '3.1.0',
     info: { title: 'ZhiYun Runtime API', version: '1.0.0' },
@@ -674,6 +693,33 @@ export async function buildRuntime(
   options: RuntimeOptions,
 ): Promise<ZhiYunRuntime> {
   const resolvedGraph = resolveProductGraph(options.profileId ?? 'legacy');
+  const runtimeMetadata: RuntimeMetadata = runtimeMetadataSchema.parse({
+    ...dependencies.host.metadata,
+    profileId: resolvedGraph.profile.id,
+    graphRevision: resolvedGraph.revision,
+    enabledPluginIds: resolvedGraph.plugins.map(({ descriptor }) => descriptor.id),
+    enabledUiContributionIds: resolvedGraph.plugins.flatMap(
+      ({ descriptor }) => descriptor.uiContributions?.map(({ id }) => id) ?? [],
+    ),
+  });
+  const runtimeGraph = {
+    profileId: resolvedGraph.profile.id,
+    graphRevision: resolvedGraph.revision,
+    plugins: resolvedGraph.plugins.map(({ descriptor }) => ({
+      id: descriptor.id,
+      version: descriptor.version,
+      dependencies: descriptor.dependencies?.map(({ id }) => id) ?? [],
+    })),
+    routes: resolvedGraph.plugins.flatMap(({ descriptor }) =>
+      (descriptor.routes ?? []).map((route) => ({ ...route, ownerPluginId: descriptor.id })),
+    ),
+    uiContributions: resolvedGraph.plugins.flatMap(({ descriptor }) =>
+      (descriptor.uiContributions ?? []).map((contribution) => ({
+        ...contribution,
+        ownerPluginId: descriptor.id,
+      })),
+    ),
+  };
   const app = Fastify({
     logger: options.logger ?? false,
     genReqId: () => crypto.randomUUID(),
@@ -779,23 +825,24 @@ export async function buildRuntime(
   app.addHook('onRequest', async (request, reply) => {
     app.log.info({ method: request.method, url: safeUrl(request.url) }, 'incoming request');
     reply.header('x-trace-id', request.id);
-    reply.header('x-runtime-generation', String(dependencies.host.metadata.generation));
+    reply.header('x-runtime-generation', String(runtimeMetadata.generation));
     const origin = headerValue(request.headers.origin);
     if (!isAllowedOrigin(origin)) {
       return sendProblem(request, reply, 403, 'FORBIDDEN', 'Origin is not allowed by this Runtime');
     }
     const publicPaths = new Set([
       '/health',
-      '/api/v1/session',
-      '/api/v1/version',
-      '/api/v1/runtime',
-      '/api/v1/openapi.json',
+      '/api/v2/session',
+      '/api/v2/version',
+      '/api/v2/runtime',
+      '/api/v2/runtime/graph',
+      '/api/v2/openapi.json',
     ]);
     const path = request.url.split('?')[0]!;
-    if (!path.startsWith('/api/v1') || publicPaths.has(path) || request.method === 'OPTIONS')
+    if (!path.startsWith('/api/v2') || publicPaths.has(path) || request.method === 'OPTIONS')
       return;
     const authorization = headerValue(request.headers.authorization);
-    if (path.startsWith('/api/v1/data/')) {
+    if (path.startsWith('/api/v2/data/')) {
       const raw = authorization?.startsWith('Bearer ') ? authorization.slice(7) : '';
       const tokenHash = fingerprint(raw);
       const token = raw ? await dependencies.repository.findApiToken(tokenHash) : null;
@@ -984,7 +1031,7 @@ export async function buildRuntime(
     };
     const protectedInput: TaskCreate | TaskUpdate = { ...input };
 
-    if (dependencies.host.metadata.mode === 'desktop') {
+    if (runtimeMetadata.mode === 'desktop') {
       const containsSensitiveHeader = Object.keys(input.requestSettings?.headers ?? {}).some(
         (name) => ['authorization', 'cookie', 'proxy-authorization'].includes(name.toLowerCase()),
       );
@@ -1657,7 +1704,7 @@ export async function buildRuntime(
     return { status: 'ok', services: { database: 'ok', queue: 'ok' } };
   });
 
-  app.post('/api/v1/session', async (request, reply) => {
+  app.post('/api/v2/session', async (request, reply) => {
     const body = z
       .object({ nonce: z.string().min(1).optional(), adminToken: z.string().min(1).optional() })
       .parse(request.body);
@@ -1682,20 +1729,21 @@ export async function buildRuntime(
     issuedTokenExpiresAt = Date.now() + 12 * 60 * 60_000;
     return {
       token: sessionToken,
-      runtime: dependencies.host.metadata,
+      runtime: runtimeMetadata,
       capabilities: dependencies.host.capabilities,
     };
   });
 
-  app.get('/api/v1/version', async () => ({
-    apiVersion: 'v1',
-    version: dependencies.host.metadata.version,
+  app.get('/api/v2/version', async () => ({
+    apiVersion: 'v2',
+    productVersion: runtimeMetadata.productVersion,
   }));
-  app.get('/api/v1/runtime', async () => dependencies.host.metadata);
-  app.get('/api/v1/capabilities', async () => dependencies.host.capabilities);
-  app.get('/api/v1/openapi.json', async () => openApiDocument());
+  app.get('/api/v2/runtime', async () => runtimeMetadata);
+  app.get('/api/v2/runtime/graph', async () => runtimeGraph);
+  app.get('/api/v2/capabilities', async () => dependencies.host.capabilities);
+  app.get('/api/v2/openapi.json', async () => openApiDocument());
 
-  app.get('/api/v1/runtime/summary', async () => {
+  app.get('/api/v2/runtime/summary', async () => {
     const tasks = await dependencies.repository.listTasks();
     return {
       running: tasks.filter((task) => task.status === 'running').length,
@@ -1710,7 +1758,7 @@ export async function buildRuntime(
     };
   });
 
-  app.post('/api/v1/scheduler/pause', async () => {
+  app.post('/api/v2/scheduler/pause', async () => {
     for (const task of await dependencies.repository.listScheduledTasks()) {
       await dependencies.scheduler.unschedule(task.id);
     }
@@ -1719,7 +1767,7 @@ export async function buildRuntime(
     return { schedulingPaused };
   });
 
-  app.post('/api/v1/scheduler/resume', async () => {
+  app.post('/api/v2/scheduler/resume', async () => {
     for (const task of await dependencies.repository.listScheduledTasks()) {
       if (task.schedule.mode === 'cron' && task.schedule.cron) {
         await dependencies.scheduler.schedule(task.id, task.schedule.cron, task.schedule.timezone, {
@@ -1733,9 +1781,9 @@ export async function buildRuntime(
     return { schedulingPaused };
   });
 
-  app.get('/api/v1/trend-sources', async () => trendSourceViews());
+  app.get('/api/v2/trend-sources', async () => trendSourceViews());
 
-  app.post('/api/v1/trend-sources/bootstrap', async (_request, reply) => {
+  app.post('/api/v2/trend-sources/bootstrap', async (_request, reply) => {
     const errors = await ensureTrendSources();
     const bindings = await dependencies.repository.listTrendSourceBindings();
     const runs = await Promise.all(
@@ -1749,7 +1797,7 @@ export async function buildRuntime(
     });
   });
 
-  app.put('/api/v1/trend-sources/:key', async (request, reply) => {
+  app.put('/api/v2/trend-sources/:key', async (request, reply) => {
     const { key } = sourceParams.parse(request.params);
     const input = trendSourceUpdateSchema.parse(request.body);
     const entry = sourceCatalogEntry(key);
@@ -1769,7 +1817,7 @@ export async function buildRuntime(
     return source ?? sendProblem(request, reply, 404, 'NOT_FOUND', 'Trend source not found');
   });
 
-  app.post('/api/v1/trend-sources/:key/run', async (request, reply) => {
+  app.post('/api/v2/trend-sources/:key/run', async (request, reply) => {
     const { key } = sourceParams.parse(request.params);
     if (!sourceCatalogEntry(key)) {
       return sendProblem(request, reply, 404, 'NOT_FOUND', 'Trend source not found');
@@ -1778,7 +1826,7 @@ export async function buildRuntime(
     return reply.code(result.status === 'queued' ? 202 : 200).send(result);
   });
 
-  app.post('/api/v1/trend-sources/run', async (_request, reply) => {
+  app.post('/api/v2/trend-sources/run', async (_request, reply) => {
     const runs = await Promise.all(
       (await dependencies.repository.listTrendSourceBindings())
         .filter((binding) => binding.enabled)
@@ -1787,7 +1835,7 @@ export async function buildRuntime(
     return reply.code(202).send({ runs });
   });
 
-  app.get('/api/v1/trends', async (request) => {
+  app.get('/api/v2/trends', async (request) => {
     const query = z
       .object({
         platform: z.enum(['hongguo', 'fanqie', 'bilibili', 'douyin', 'manual']).optional(),
@@ -1811,9 +1859,9 @@ export async function buildRuntime(
     });
   });
 
-  app.get('/api/v1/preferences/profile', async () => preferenceProfile());
+  app.get('/api/v2/preferences/profile', async () => preferenceProfile());
 
-  app.get('/api/v1/preferences/signals', async (request) => {
+  app.get('/api/v2/preferences/signals', async (request) => {
     const query = z
       .object({
         cursor: z.string().optional(),
@@ -1823,7 +1871,7 @@ export async function buildRuntime(
     return dependencies.repository.listPreferenceSignals(query.cursor, query.limit);
   });
 
-  app.post('/api/v1/preferences/signals', async (request) => {
+  app.post('/api/v2/preferences/signals', async (request) => {
     const input = preferenceSignalInputSchema.parse(request.body);
     return dependencies.repository.upsertPreferenceSignal({
       ...input,
@@ -1831,7 +1879,7 @@ export async function buildRuntime(
     });
   });
 
-  app.delete('/api/v1/preferences/signals/:id', async (request, reply) => {
+  app.delete('/api/v2/preferences/signals/:id', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     if (!(await dependencies.repository.deletePreferenceSignal(id))) {
       return sendProblem(request, reply, 404, 'NOT_FOUND', 'Preference signal not found');
@@ -1839,11 +1887,11 @@ export async function buildRuntime(
     return reply.code(204).send();
   });
 
-  app.delete('/api/v1/preferences/signals', async () => ({
+  app.delete('/api/v2/preferences/signals', async () => ({
     deleted: await dependencies.repository.clearPreferenceSignals(),
   }));
 
-  app.post('/api/v1/preferences/import', async (request, reply) => {
+  app.post('/api/v2/preferences/import', async (request, reply) => {
     const input = preferenceImportSchema.parse(request.body);
     const resolver = contentResolver(input.url);
     if (!resolver) {
@@ -1912,7 +1960,7 @@ export async function buildRuntime(
     return reply.code(201).send(signal);
   });
 
-  app.post('/api/v1/tasks', async (request, reply) => {
+  app.post('/api/v2/tasks', async (request, reply) => {
     const input = taskCreateSchema.parse(request.body);
     const result = await requireIdempotency(request, reply, 'task:create', input, async () => {
       const protectedInput = await protectTaskCredentials(input);
@@ -1934,7 +1982,7 @@ export async function buildRuntime(
     return reply.code(201).header('etag', `"${result.revision}"`).send(result);
   });
 
-  app.get('/api/v1/tasks', async (request) => {
+  app.get('/api/v2/tasks', async (request) => {
     const query = z
       .object({
         limit: z.coerce.number().int().min(1).max(500).default(100),
@@ -1944,14 +1992,14 @@ export async function buildRuntime(
     return cursorPage(await dependencies.repository.listTasks(), query.cursor, query.limit);
   });
 
-  app.get('/api/v1/tasks/:id', async (request, reply) => {
+  app.get('/api/v2/tasks/:id', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const task = await dependencies.repository.getTask(id);
     if (!task) return sendProblem(request, reply, 404, 'NOT_FOUND', 'Task not found');
     return reply.header('etag', `"${task.revision}"`).send(task);
   });
 
-  app.put('/api/v1/tasks/:id', async (request, reply) => {
+  app.put('/api/v2/tasks/:id', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const input = taskUpdateSchema.parse(request.body);
     const ifMatch = headerValue(request.headers['if-match']);
@@ -2016,7 +2064,7 @@ export async function buildRuntime(
     return reply.header('etag', `"${task.revision}"`).send(task);
   });
 
-  app.delete('/api/v1/tasks/:id', async (request, reply) => {
+  app.delete('/api/v2/tasks/:id', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const existing = await dependencies.repository.getTask(id);
     await dependencies.scheduler.unschedule(id);
@@ -2026,7 +2074,7 @@ export async function buildRuntime(
     return reply.code(204).send();
   });
 
-  app.post('/api/v1/tasks/:id/analyze', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/rule-analysis', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const body = z
       .object({ useAi: z.boolean().default(false), forceBrowser: z.boolean().default(false) })
@@ -2058,7 +2106,7 @@ export async function buildRuntime(
     return result;
   });
 
-  app.post('/api/v1/tasks/:id/ai/extract', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/ai/extract', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const body = z
       .object({
@@ -2101,7 +2149,7 @@ export async function buildRuntime(
     };
   });
 
-  app.post('/api/v1/tasks/:id/browser-session/login', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/browser-session/login', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const body = z.object({ loginUrl: z.string().url().optional() }).parse(request.body ?? {});
     const task = await dependencies.repository.getTask(id);
@@ -2155,7 +2203,7 @@ export async function buildRuntime(
     proxy: 'task-proxy',
   } as const;
 
-  app.post('/api/v1/tasks/:id/credentials/:kind', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/credentials/:kind', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const kind = taskCredentialKindSchema.parse((request.params as Record<string, unknown>).kind);
     const body = z.object({ revision: z.number().int().positive() }).parse(request.body);
@@ -2197,7 +2245,7 @@ export async function buildRuntime(
     return { canceled: false, task: updated };
   });
 
-  app.delete('/api/v1/tasks/:id/credentials/:kind', async (request, reply) => {
+  app.delete('/api/v2/tasks/:id/credentials/:kind', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const kind = taskCredentialKindSchema.parse((request.params as Record<string, unknown>).kind);
     const body = z.object({ revision: z.number().int().positive() }).parse(request.body);
@@ -2219,12 +2267,12 @@ export async function buildRuntime(
     return updated;
   });
 
-  app.get('/api/v1/tasks/:id/rules', async (request) => {
+  app.get('/api/v2/tasks/:id/rules', async (request) => {
     const { id } = idParams.parse(request.params);
     return dependencies.repository.listRules(id);
   });
 
-  app.post('/api/v1/tasks/:id/rules/test', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/rules/test', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const body = z
       .object({ definition: z.unknown(), limit: z.number().int().min(1).max(10).default(10) })
@@ -2246,7 +2294,7 @@ export async function buildRuntime(
     });
   });
 
-  app.post('/api/v1/tasks/:id/rules', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/rules', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const body = z
       .object({
@@ -2273,7 +2321,7 @@ export async function buildRuntime(
     return reply.code(201).send(result);
   });
 
-  app.post('/api/v1/tasks/:id/rules/:ruleId/versions', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/rules/:ruleId/versions', async (request, reply) => {
     const { id, ruleId } = ruleParams.parse(request.params);
     const body = z
       .object({ definition: z.unknown(), generatedBy: generatedBySchema.default('human') })
@@ -2297,7 +2345,7 @@ export async function buildRuntime(
     return reply.code(201).send(result);
   });
 
-  app.get('/api/v1/tasks/:id/rules/:ruleId/diff', async (request, reply) => {
+  app.get('/api/v2/tasks/:id/rules/:ruleId/diff', async (request, reply) => {
     const { id, ruleId } = ruleParams.parse(request.params);
     const query = z
       .object({ from: z.coerce.number().int().positive(), to: z.coerce.number().int().positive() })
@@ -2315,7 +2363,7 @@ export async function buildRuntime(
     };
   });
 
-  app.post('/api/v1/tasks/:id/rules/:ruleId/rollback', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/rules/:ruleId/rollback', async (request, reply) => {
     const { id, ruleId } = ruleParams.parse(request.params);
     const body = z.object({ version: z.number().int().positive() }).parse(request.body);
     const rule = (await dependencies.repository.listRules(id)).find((item) => item.id === ruleId);
@@ -2328,7 +2376,7 @@ export async function buildRuntime(
     return reply.code(201).send(result);
   });
 
-  app.post('/api/v1/tasks/:id/rules/:ruleId/repair-proposals', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/rules/:ruleId/repair-proposals', async (request, reply) => {
     const { id, ruleId } = ruleParams.parse(request.params);
     const body = z
       .object({
@@ -2373,7 +2421,7 @@ export async function buildRuntime(
     });
   });
 
-  app.get('/api/v1/tasks/:id/rules/:ruleId/repair-proposals', async (request, reply) => {
+  app.get('/api/v2/tasks/:id/rules/:ruleId/repair-proposals', async (request, reply) => {
     const { id, ruleId } = ruleParams.parse(request.params);
     const rule = (await dependencies.repository.listRules(id)).find((item) => item.id === ruleId);
     if (!rule) return sendProblem(request, reply, 404, 'NOT_FOUND', 'Rule not found');
@@ -2381,7 +2429,7 @@ export async function buildRuntime(
   });
 
   app.post(
-    '/api/v1/tasks/:id/rules/:ruleId/repair-proposals/:proposalId/test',
+    '/api/v2/tasks/:id/rules/:ruleId/repair-proposals/:proposalId/test',
     async (request, reply) => {
       const parameters = z
         .object({ id: z.string().uuid(), ruleId: z.string().uuid(), proposalId: z.string().uuid() })
@@ -2413,7 +2461,7 @@ export async function buildRuntime(
   );
 
   app.post(
-    '/api/v1/tasks/:id/rules/:ruleId/repair-proposals/:proposalId/apply',
+    '/api/v2/tasks/:id/rules/:ruleId/repair-proposals/:proposalId/apply',
     async (request, reply) => {
       const parameters = z
         .object({ id: z.string().uuid(), ruleId: z.string().uuid(), proposalId: z.string().uuid() })
@@ -2458,7 +2506,7 @@ export async function buildRuntime(
   );
 
   app.post(
-    '/api/v1/tasks/:id/rules/:ruleId/repair-proposals/:proposalId/reject',
+    '/api/v2/tasks/:id/rules/:ruleId/repair-proposals/:proposalId/reject',
     async (request, reply) => {
       const parameters = z
         .object({ id: z.string().uuid(), ruleId: z.string().uuid(), proposalId: z.string().uuid() })
@@ -2472,7 +2520,7 @@ export async function buildRuntime(
     },
   );
 
-  app.post('/api/v1/tasks/:id/run', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/run', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const result = await requireIdempotency(request, reply, `task:${id}:run`, {}, async () => {
       if (!(await dependencies.repository.getActiveRule(id))) {
@@ -2486,7 +2534,7 @@ export async function buildRuntime(
     return reply.code(202).send(result);
   });
 
-  app.get('/api/v1/tasks/:id/runs', async (request) => {
+  app.get('/api/v2/tasks/:id/runs', async (request) => {
     const { id } = idParams.parse(request.params);
     const query = z
       .object({
@@ -2497,7 +2545,7 @@ export async function buildRuntime(
     return cursorPage(await dependencies.repository.listRuns(id), query.cursor, query.limit);
   });
 
-  app.get('/api/v1/tasks/:id/dataset', async (request) => {
+  app.get('/api/v2/tasks/:id/dataset', async (request) => {
     const { id } = idParams.parse(request.params);
     const query = z
       .object({
@@ -2515,7 +2563,7 @@ export async function buildRuntime(
     });
   });
 
-  app.get('/api/v1/tasks/:id/dataset/changes', async (request) => {
+  app.get('/api/v2/tasks/:id/dataset/changes', async (request) => {
     const { id } = idParams.parse(request.params);
     const query = z
       .object({
@@ -2527,7 +2575,7 @@ export async function buildRuntime(
     return dependencies.repository.listRecordChanges(id, query.cursor, query.limit, query.runId);
   });
 
-  app.get('/api/v1/tasks/:id/dataset/diff', async (request) => {
+  app.get('/api/v2/tasks/:id/dataset/diff', async (request) => {
     const { id } = idParams.parse(request.params);
     const query = z
       .object({
@@ -2556,7 +2604,7 @@ export async function buildRuntime(
     );
   });
 
-  app.post('/api/v1/tasks/:id/dataset/exports', async (request, reply) => {
+  app.post('/api/v2/tasks/:id/dataset/exports', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const body = exportBodySchema
       .extend({
@@ -2596,13 +2644,13 @@ export async function buildRuntime(
     return reply.code(201).send(result);
   });
 
-  app.get('/api/v1/runs/:id', async (request, reply) => {
+  app.get('/api/v2/runs/:id', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const run = await dependencies.repository.getRun(id);
     return run ?? sendProblem(request, reply, 404, 'NOT_FOUND', 'Run not found');
   });
 
-  app.post('/api/v1/runs/:id/explain-failure', async (request, reply) => {
+  app.post('/api/v2/runs/:id/explain-failure', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const run = await dependencies.repository.getRun(id);
     if (!run) return sendProblem(request, reply, 404, 'NOT_FOUND', 'Run not found');
@@ -2624,7 +2672,7 @@ export async function buildRuntime(
     return { explanation, persisted: false };
   });
 
-  app.post('/api/v1/runs/:id/cancel', async (request, reply) => {
+  app.post('/api/v2/runs/:id/cancel', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const requested = await dependencies.repository.requestRunCancellation(id);
     if (!requested) return sendProblem(request, reply, 409, 'CONFLICT', 'Run cannot be canceled');
@@ -2638,7 +2686,7 @@ export async function buildRuntime(
     return run;
   });
 
-  app.post('/api/v1/runs/:id/retry', async (request, reply) => {
+  app.post('/api/v2/runs/:id/retry', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const original = await dependencies.repository.getRun(id);
     if (!original) return sendProblem(request, reply, 404, 'NOT_FOUND', 'Run not found');
@@ -2651,7 +2699,7 @@ export async function buildRuntime(
     return reply.code(202).send(result);
   });
 
-  app.get('/api/v1/runs/:id/logs', async (request) => {
+  app.get('/api/v2/runs/:id/logs', async (request) => {
     const { id } = idParams.parse(request.params);
     const query = z
       .object({
@@ -2662,7 +2710,7 @@ export async function buildRuntime(
     return dependencies.repository.listRunLogs(id, query.cursor, query.limit);
   });
 
-  app.get('/api/v1/runs/:id/requests', async (request) => {
+  app.get('/api/v2/runs/:id/requests', async (request) => {
     const { id } = idParams.parse(request.params);
     const query = z
       .object({
@@ -2673,7 +2721,7 @@ export async function buildRuntime(
     return dependencies.repository.listRunRequests(id, query.cursor, query.limit);
   });
 
-  app.get('/api/v1/runs/:id/records', async (request) => {
+  app.get('/api/v2/runs/:id/records', async (request) => {
     const { id } = idParams.parse(request.params);
     const query = z
       .object({
@@ -2684,7 +2732,7 @@ export async function buildRuntime(
     return dependencies.repository.listRecords(id, query.cursor, query.limit);
   });
 
-  app.post('/api/v1/runs/:id/exports', async (request, reply) => {
+  app.post('/api/v2/runs/:id/exports', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const body = exportBodySchema.parse(request.body);
     const result = await requireIdempotency(request, reply, `run:${id}:export`, body, async () => {
@@ -2704,7 +2752,7 @@ export async function buildRuntime(
     return reply.code(201).send(result);
   });
 
-  app.post('/api/v1/artifacts/:id/save', async (request, reply) => {
+  app.post('/api/v2/artifacts/:id/save', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const artifact = await dependencies.repository.getArtifact(id);
     if (!artifact) return sendProblem(request, reply, 404, 'NOT_FOUND', 'Artifact not found');
@@ -2723,8 +2771,8 @@ export async function buildRuntime(
     return dependencies.host.saveArtifact(descriptor, { storageKey: artifact.storageKey });
   });
 
-  app.get('/api/v1/artifacts/:id/content', async (request, reply) => {
-    if (dependencies.host.metadata.mode === 'desktop') {
+  app.get('/api/v2/artifacts/:id/content', async (request, reply) => {
+    if (runtimeMetadata.mode === 'desktop') {
       return sendProblem(
         request,
         reply,
@@ -2742,11 +2790,11 @@ export async function buildRuntime(
       .send(Readable.from(dependencies.artifactStore.readStream(artifact.storageKey)));
   });
 
-  app.get('/api/v1/output-destinations', async () =>
+  app.get('/api/v2/output-destinations', async () =>
     dependencies.repository.listOutputDestinations(),
   );
 
-  app.post('/api/v1/output-destinations', async (request, reply) => {
+  app.post('/api/v2/output-destinations', async (request, reply) => {
     const body = z
       .object({
         name: z.string().min(1).max(200),
@@ -2756,7 +2804,7 @@ export async function buildRuntime(
         enabled: z.boolean().default(true),
       })
       .parse(request.body);
-    if (dependencies.host.metadata.mode === 'desktop' && body.credential !== undefined) {
+    if (runtimeMetadata.mode === 'desktop' && body.credential !== undefined) {
       throw new ZhiYunError(
         'CREDENTIAL_ERROR',
         'Desktop output credentials must be entered in a Host-owned secure window',
@@ -2778,7 +2826,7 @@ export async function buildRuntime(
     return reply.code(201).send(result);
   });
 
-  app.put('/api/v1/output-destinations/:id', async (request, reply) => {
+  app.put('/api/v2/output-destinations/:id', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const body = z
       .object({
@@ -2788,7 +2836,7 @@ export async function buildRuntime(
         enabled: z.boolean().optional(),
       })
       .parse(request.body);
-    if (dependencies.host.metadata.mode === 'desktop' && body.credential !== undefined) {
+    if (runtimeMetadata.mode === 'desktop' && body.credential !== undefined) {
       throw new ZhiYunError(
         'CREDENTIAL_ERROR',
         'Desktop output credentials must be entered in a Host-owned secure window',
@@ -2816,7 +2864,7 @@ export async function buildRuntime(
     return updated;
   });
 
-  app.delete('/api/v1/output-destinations/:id', async (request, reply) => {
+  app.delete('/api/v2/output-destinations/:id', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const destination = await dependencies.repository.getOutputDestination(id);
     if (!destination)
@@ -2828,7 +2876,7 @@ export async function buildRuntime(
     return reply.code(204).send();
   });
 
-  app.post('/api/v1/output-destinations/:id/test', async (request, reply) => {
+  app.post('/api/v2/output-destinations/:id/test', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const destination = await dependencies.repository.getOutputDestination(id);
     if (!destination)
@@ -2864,7 +2912,7 @@ export async function buildRuntime(
     }
   });
 
-  app.post('/api/v1/output-destinations/:id/credential/prompt', async (request, reply) => {
+  app.post('/api/v2/output-destinations/:id/credential/prompt', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const destination = await dependencies.repository.getOutputDestination(id);
     if (!destination)
@@ -2895,12 +2943,12 @@ export async function buildRuntime(
     return updated;
   });
 
-  app.get('/api/v1/delivery-attempts', async (request) => {
+  app.get('/api/v2/delivery-attempts', async (request) => {
     const query = z.object({ runId: z.string().uuid().optional() }).parse(request.query);
     return dependencies.repository.listDeliveryAttempts(query.runId);
   });
 
-  app.post('/api/v1/delivery-attempts/:id/retry', async (request, reply) => {
+  app.post('/api/v2/delivery-attempts/:id/retry', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const previous = (await dependencies.repository.listDeliveryAttempts()).find(
       (attempt) => attempt.id === id,
@@ -2928,9 +2976,9 @@ export async function buildRuntime(
     return reply.code(202).send(result);
   });
 
-  app.get('/api/v1/api-tokens', async () => dependencies.repository.listApiTokens());
+  app.get('/api/v2/api-tokens', async () => dependencies.repository.listApiTokens());
 
-  app.post('/api/v1/api-tokens', async (request, reply) => {
+  app.post('/api/v2/api-tokens', async (request, reply) => {
     const body = z
       .object({
         name: z.string().min(1).max(200),
@@ -2947,7 +2995,7 @@ export async function buildRuntime(
     return reply.code(201).send({ ...created, token: raw });
   });
 
-  app.delete('/api/v1/api-tokens/:id', async (request, reply) => {
+  app.delete('/api/v2/api-tokens/:id', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     if (!(await dependencies.repository.revokeApiToken(id))) {
       return sendProblem(request, reply, 404, 'NOT_FOUND', 'API token not found');
@@ -2955,7 +3003,7 @@ export async function buildRuntime(
     return reply.code(204).send();
   });
 
-  app.get('/api/v1/data/tasks/:id/records', async (request, reply) => {
+  app.get('/api/v2/data/tasks/:id/records', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const token = (request as FastifyRequest & { dataToken?: { taskIds: string[] } }).dataToken;
     if (!token || (token.taskIds.length > 0 && !token.taskIds.includes(id))) {
@@ -2988,7 +3036,7 @@ export async function buildRuntime(
       : page;
   });
 
-  app.post('/api/v1/inspection-sessions', async (request, reply) => {
+  app.post('/api/v2/inspection-sessions', async (request, reply) => {
     const body = z.object({ taskId: z.string().uuid() }).parse(request.body);
     const task = await dependencies.repository.getTask(body.taskId);
     if (!task) return sendProblem(request, reply, 404, 'NOT_FOUND', 'Task not found');
@@ -3005,12 +3053,12 @@ export async function buildRuntime(
     );
   });
 
-  app.get('/api/v1/inspection-sessions/:id/screenshot', async (request) => {
+  app.get('/api/v2/inspection-sessions/:id/screenshot', async (request) => {
     const { id } = idParams.parse(request.params);
     return inspections.screenshot(id);
   });
 
-  app.post('/api/v1/inspection-sessions/:id/actions', async (request) => {
+  app.post('/api/v2/inspection-sessions/:id/actions', async (request) => {
     const { id } = idParams.parse(request.params);
     const action = z
       .object({
@@ -3028,7 +3076,7 @@ export async function buildRuntime(
     });
   });
 
-  app.post('/api/v1/inspection-sessions/:id/select', async (request) => {
+  app.post('/api/v2/inspection-sessions/:id/select', async (request) => {
     const { id } = idParams.parse(request.params);
     const point = z
       .object({ x: z.number().nonnegative(), y: z.number().nonnegative() })
@@ -3036,26 +3084,26 @@ export async function buildRuntime(
     return inspections.select(id, point.x, point.y);
   });
 
-  app.delete('/api/v1/inspection-sessions/:id', async (request, reply) => {
+  app.delete('/api/v2/inspection-sessions/:id', async (request, reply) => {
     const { id } = idParams.parse(request.params);
     if (!(await inspections.close(id)))
       return sendProblem(request, reply, 404, 'NOT_FOUND', 'Inspection session not found');
     return reply.code(204).send();
   });
 
-  app.get('/api/v1/desktop/diagnostics', async (request, reply) => {
-    if (dependencies.host.metadata.mode !== 'desktop') {
+  app.get('/api/v2/desktop/diagnostics', async (request, reply) => {
+    if (runtimeMetadata.mode !== 'desktop') {
       return sendProblem(request, reply, 409, 'CONFLICT', 'Desktop diagnostics are unavailable');
     }
     return {
-      runtime: dependencies.host.metadata,
+      runtime: runtimeMetadata,
       capabilities: dependencies.host.capabilities,
       browserResources: process.env.PLAYWRIGHT_BROWSERS_PATH ?? null,
       database: (await dependencies.repository.diagnostics?.()) ?? { engine: 'unknown' },
     };
   });
 
-  app.post('/api/v1/desktop/backup', async (request, reply) => {
+  app.post('/api/v2/desktop/backup', async (request, reply) => {
     if (!dependencies.repository.createBackup || !dependencies.host.saveBackup) {
       return sendProblem(request, reply, 409, 'CONFLICT', 'Desktop backup is unavailable');
     }
@@ -3066,7 +3114,7 @@ export async function buildRuntime(
     );
   });
 
-  app.post('/api/v1/desktop/restore', async (request, reply) => {
+  app.post('/api/v2/desktop/restore', async (request, reply) => {
     if (
       !dependencies.repository.stageRestore ||
       !dependencies.host.selectRestoreBackup ||
@@ -3081,7 +3129,7 @@ export async function buildRuntime(
     return { canceled: false, restarting: true };
   });
 
-  app.get('/api/v1/events/domain', async (request, reply) => {
+  app.get('/api/v2/events/domain', async (request, reply) => {
     const query = z
       .object({ after: z.coerce.number().int().nonnegative().default(0) })
       .parse(request.query);
@@ -3107,7 +3155,7 @@ export async function buildRuntime(
     request.raw.once('close', () => clearInterval(timer));
   });
 
-  app.get('/api/v1/events/realtime', async (request, reply) => {
+  app.get('/api/v2/events/realtime', async (request, reply) => {
     reply.hijack();
     reply.raw.writeHead(200, {
       'content-type': 'text/event-stream',

@@ -488,6 +488,8 @@
     { "id": "datasets.task-panel", "owner": "datasets" },
     { "id": "outputs.navigation", "owner": "outputs" },
     { "id": "outputs.route", "owner": "outputs" },
+    { "id": "platform.settings-navigation", "owner": "platform" },
+    { "id": "platform.settings-route", "owner": "platform" },
     { "id": "preferences.navigation", "owner": "preferences" },
     { "id": "preferences.route", "owner": "preferences" }
   ],

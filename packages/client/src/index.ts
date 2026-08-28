@@ -71,6 +71,24 @@ export class ApiError extends Error {
 
 type ConnectionListener = (state: ConnectionState) => void;
 type DomainEventListener = (event: DomainEvent) => void;
+type RuntimeResetListener = () => void;
+
+export interface RuntimeGraph {
+  profileId: string;
+  graphRevision: string;
+  plugins: Array<{ id: string; version: string; dependencies: string[] }>;
+  routes: Array<{
+    operationId: string;
+    method: string;
+    path: string;
+    ownerPluginId: string;
+  }>;
+  uiContributions: Array<{
+    id: string;
+    kind: 'route' | 'navigation' | 'panel' | 'command';
+    ownerPluginId: string;
+  }>;
+}
 
 export interface DatasetPageResult {
   items: DatasetRecord[];
@@ -99,7 +117,7 @@ function defaultBootstrap(): RuntimeBootstrap {
     sessionNonce: 'headless-development-session',
     runtimeId: '00000000-0000-4000-8000-000000000000',
     generation: 0,
-    apiVersion: 'v1',
+    apiVersion: 'v2',
   };
 }
 
@@ -111,6 +129,7 @@ export class ZhiYunClient {
   private readonly etags = new Map<string, string>();
   private readonly connectionListeners = new Set<ConnectionListener>();
   private readonly domainListeners = new Set<DomainEventListener>();
+  private readonly runtimeResetListeners = new Set<RuntimeResetListener>();
   private eventLoop: Promise<void> | undefined;
   private eventCursor = 0;
   private mode: RuntimeMetadata['mode'] = 'headless';
@@ -131,6 +150,11 @@ export class ZhiYunClient {
     this.domainListeners.add(listener);
     void this.startDomainEvents();
     return () => this.domainListeners.delete(listener);
+  }
+
+  onRuntimeReset(listener: RuntimeResetListener): () => void {
+    this.runtimeResetListeners.add(listener);
+    return () => this.runtimeResetListeners.delete(listener);
   }
 
   setAdminToken(token: string): void {
@@ -156,6 +180,8 @@ export class ZhiYunClient {
     this.connectPromise = undefined;
     this.etags.clear();
     this.eventLoop = undefined;
+    this.eventCursor = 0;
+    for (const listener of this.runtimeResetListeners) listener();
     this.emitConnection({ status: 'reconnecting', attempt: 1 });
     if (this.domainListeners.size > 0) void this.startDomainEvents();
   }
@@ -166,7 +192,7 @@ export class ZhiYunClient {
     this.connectPromise = (async () => {
       this.emitConnection({ status: 'connecting' });
       if (this.bridge) this.bootstrap = await this.bridge.getBootstrap();
-      let response = await fetch(`${this.bootstrap.baseUrl}/api/v1/session`, {
+      let response = await fetch(`${this.bootstrap.baseUrl}/api/v2/session`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(
@@ -180,7 +206,7 @@ export class ZhiYunClient {
         const entered = window.prompt('请输入 ZhiYun 管理员 Token');
         if (entered) {
           this.adminToken = entered;
-          response = await fetch(`${this.bootstrap.baseUrl}/api/v1/session`, {
+          response = await fetch(`${this.bootstrap.baseUrl}/api/v2/session`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ adminToken: entered }),
@@ -219,7 +245,7 @@ export class ZhiYunClient {
     if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
     if (
       method === 'POST' &&
-      (/\/api\/v1\/tasks$/.test(path) ||
+      (/\/api\/v2\/tasks$/.test(path) ||
         /\/rules(?:\/[^/]+\/versions)?$/.test(path) ||
         /\/run$/.test(path) ||
         /\/exports$/.test(path) ||
@@ -231,7 +257,7 @@ export class ZhiYunClient {
       headers.set('idempotency-key', crypto.randomUUID());
     }
     if (method === 'PUT') {
-      const taskPath = path.match(/\/api\/v1\/tasks\/([^/?]+)/)?.[0];
+      const taskPath = path.match(/\/api\/v2\/tasks\/([^/?]+)/)?.[0];
       const etag = taskPath ? this.etags.get(taskPath) : undefined;
       if (etag) headers.set('if-match', etag);
     }
@@ -253,45 +279,53 @@ export class ZhiYunClient {
 
   listTasks(limit = 100, cursor?: string) {
     return this.request<{ items: TaskListItem[]; nextCursor: string | null }>(
-      `/api/v1/tasks${search({ limit, cursor })}`,
+      `/api/v2/tasks${search({ limit, cursor })}`,
     );
   }
 
   createTask(input: TaskCreate) {
-    return this.request<TaskDetail>('/api/v1/tasks', {
+    return this.request<TaskDetail>('/api/v2/tasks', {
       method: 'POST',
       body: JSON.stringify(input),
     });
   }
 
   getTask(id: string) {
-    return this.request<TaskDetail>(`/api/v1/tasks/${id}`);
+    return this.request<TaskDetail>(`/api/v2/tasks/${id}`);
   }
 
   updateTask(id: string, input: TaskUpdate) {
-    return this.request<TaskDetail>(`/api/v1/tasks/${id}`, {
+    return this.request<TaskDetail>(`/api/v2/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     });
   }
 
   deleteTask(id: string) {
-    return this.request<void>(`/api/v1/tasks/${id}`, { method: 'DELETE' });
+    return this.request<void>(`/api/v2/tasks/${id}`, { method: 'DELETE' });
+  }
+
+  getRuntimeMetadata() {
+    return this.request<RuntimeMetadata>('/api/v2/runtime');
+  }
+
+  getRuntimeGraph() {
+    return this.request<RuntimeGraph>('/api/v2/runtime/graph');
   }
 
   listTrendSources() {
-    return this.request<TrendSource[]>('/api/v1/trend-sources');
+    return this.request<TrendSource[]>('/api/v2/trend-sources');
   }
 
   bootstrapTrendSources() {
     return this.request<{
       sources: TrendSource[];
       runs: Array<Record<string, unknown>>;
-    }>('/api/v1/trend-sources/bootstrap', { method: 'POST' });
+    }>('/api/v2/trend-sources/bootstrap', { method: 'POST' });
   }
 
   updateTrendSource(key: string, input: TrendSourceUpdate) {
-    return this.request<TrendSource>(`/api/v1/trend-sources/${encodeURIComponent(key)}`, {
+    return this.request<TrendSource>(`/api/v2/trend-sources/${encodeURIComponent(key)}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     });
@@ -299,13 +333,13 @@ export class ZhiYunClient {
 
   runTrendSource(key: string) {
     return this.request<Record<string, unknown>>(
-      `/api/v1/trend-sources/${encodeURIComponent(key)}/run`,
+      `/api/v2/trend-sources/${encodeURIComponent(key)}/run`,
       { method: 'POST' },
     );
   }
 
   runTrendSources() {
-    return this.request<{ runs: Array<Record<string, unknown>> }>('/api/v1/trend-sources/run', {
+    return this.request<{ runs: Array<Record<string, unknown>> }>('/api/v2/trend-sources/run', {
       method: 'POST',
     });
   }
@@ -317,45 +351,45 @@ export class ZhiYunClient {
       limit?: number;
     } = {},
   ) {
-    return this.request<TrendsResponse>(`/api/v1/trends${search(options)}`);
+    return this.request<TrendsResponse>(`/api/v2/trends${search(options)}`);
   }
 
   getPreferenceProfile() {
-    return this.request<PreferenceProfile>('/api/v1/preferences/profile');
+    return this.request<PreferenceProfile>('/api/v2/preferences/profile');
   }
 
   listPreferenceSignals(limit = 100, cursor?: string) {
     return this.request<{ items: PreferenceSignal[]; nextCursor: string | null }>(
-      `/api/v1/preferences/signals${search({ limit, cursor })}`,
+      `/api/v2/preferences/signals${search({ limit, cursor })}`,
     );
   }
 
   upsertPreferenceSignal(input: PreferenceSignalInput) {
-    return this.request<PreferenceSignal>('/api/v1/preferences/signals', {
+    return this.request<PreferenceSignal>('/api/v2/preferences/signals', {
       method: 'POST',
       body: JSON.stringify(input),
     });
   }
 
   deletePreferenceSignal(id: string) {
-    return this.request<void>(`/api/v1/preferences/signals/${id}`, { method: 'DELETE' });
+    return this.request<void>(`/api/v2/preferences/signals/${id}`, { method: 'DELETE' });
   }
 
   clearPreferenceSignals() {
-    return this.request<{ deleted: number }>('/api/v1/preferences/signals', {
+    return this.request<{ deleted: number }>('/api/v2/preferences/signals', {
       method: 'DELETE',
     });
   }
 
   importPreferenceContent(input: PreferenceImport) {
-    return this.request<PreferenceSignal>('/api/v1/preferences/import', {
+    return this.request<PreferenceSignal>('/api/v2/preferences/import', {
       method: 'POST',
       body: JSON.stringify(input),
     });
   }
 
   analyzeTask(id: string, input: { useAi: boolean; forceBrowser: boolean }) {
-    return this.request<AnalysisResult>(`/api/v1/tasks/${id}/analyze`, {
+    return this.request<AnalysisResult>(`/api/v2/tasks/${id}/rule-analysis`, {
       method: 'POST',
       body: JSON.stringify(input),
     });
@@ -366,33 +400,33 @@ export class ZhiYunClient {
       records: Array<Record<string, unknown>>;
       sourceUrl: string;
       persisted: false;
-    }>(`/api/v1/tasks/${id}/ai/extract`, {
+    }>(`/api/v2/tasks/${id}/ai/extract`, {
       method: 'POST',
       body: JSON.stringify(definition ? { definition } : {}),
     });
   }
 
   runTask(id: string) {
-    return this.request<{ runId: string; status: CrawlRun['status'] }>(`/api/v1/tasks/${id}/run`, {
+    return this.request<{ runId: string; status: CrawlRun['status'] }>(`/api/v2/tasks/${id}/run`, {
       method: 'POST',
     });
   }
 
   listTaskRuns(id: string, limit = 100, cursor?: string) {
     return this.request<{ items: CrawlRun[]; nextCursor: string | null }>(
-      `/api/v1/tasks/${id}/runs${search({ limit, cursor })}`,
+      `/api/v2/tasks/${id}/runs${search({ limit, cursor })}`,
     );
   }
 
   listRules(id: string) {
     return this.request<Array<RuleRecord & { versions: RuleVersionRecord[] }>>(
-      `/api/v1/tasks/${id}/rules`,
+      `/api/v2/tasks/${id}/rules`,
     );
   }
 
   testRule(id: string, definition: CrawlPlanDefinition, limit = 10) {
     return this.request<{ records: Array<{ data: Record<string, unknown>; sourceUrl: string }> }>(
-      `/api/v1/tasks/${id}/rules/test`,
+      `/api/v2/tasks/${id}/rules/test`,
       { method: 'POST', body: JSON.stringify({ definition, limit }) },
     );
   }
@@ -402,7 +436,7 @@ export class ZhiYunClient {
     input: { name: string; definition: CrawlPlanDefinition; generatedBy: GeneratedBy },
   ) {
     return this.request<{ rule: RuleRecord; version: RuleVersionRecord }>(
-      `/api/v1/tasks/${taskId}/rules`,
+      `/api/v2/tasks/${taskId}/rules`,
       { method: 'POST', body: JSON.stringify(input) },
     );
   }
@@ -412,7 +446,7 @@ export class ZhiYunClient {
     ruleId: string,
     input: { definition: CrawlPlanDefinition; generatedBy: GeneratedBy },
   ) {
-    return this.request<RuleVersionRecord>(`/api/v1/tasks/${taskId}/rules/${ruleId}/versions`, {
+    return this.request<RuleVersionRecord>(`/api/v2/tasks/${taskId}/rules/${ruleId}/versions`, {
       method: 'POST',
       body: JSON.stringify(input),
     });
@@ -420,12 +454,12 @@ export class ZhiYunClient {
 
   diffRuleVersions(taskId: string, ruleId: string, from: number, to: number) {
     return this.request<{ changes: Array<{ path: string; before: unknown; after: unknown }> }>(
-      `/api/v1/tasks/${taskId}/rules/${ruleId}/diff${search({ from, to })}`,
+      `/api/v2/tasks/${taskId}/rules/${ruleId}/diff${search({ from, to })}`,
     );
   }
 
   rollbackRule(taskId: string, ruleId: string, version: number) {
-    return this.request<RuleVersionRecord>(`/api/v1/tasks/${taskId}/rules/${ruleId}/rollback`, {
+    return this.request<RuleVersionRecord>(`/api/v2/tasks/${taskId}/rules/${ruleId}/rollback`, {
       method: 'POST',
       body: JSON.stringify({ version }),
     });
@@ -433,7 +467,7 @@ export class ZhiYunClient {
 
   listRepairProposals(taskId: string, ruleId: string) {
     return this.request<RuleRepairProposal[]>(
-      `/api/v1/tasks/${taskId}/rules/${ruleId}/repair-proposals`,
+      `/api/v2/tasks/${taskId}/rules/${ruleId}/repair-proposals`,
     );
   }
 
@@ -442,7 +476,7 @@ export class ZhiYunClient {
       RuleRepairProposal & {
         diff: Array<{ path: string; before: unknown; after: unknown }>;
       }
-    >(`/api/v1/tasks/${taskId}/rules/${ruleId}/repair-proposals`, {
+    >(`/api/v2/tasks/${taskId}/rules/${ruleId}/repair-proposals`, {
       method: 'POST',
       body: JSON.stringify({ error, runId }),
     });
@@ -452,7 +486,7 @@ export class ZhiYunClient {
     return this.request<{
       records: Array<{ data: Record<string, unknown>; sourceUrl: string }>;
       proposal: RuleRepairProposal;
-    }>(`/api/v1/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/test`, {
+    }>(`/api/v2/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/test`, {
       method: 'POST',
     });
   }
@@ -464,14 +498,14 @@ export class ZhiYunClient {
     action: 'apply' | 'reject',
   ) {
     return this.request<RuleVersionRecord | RuleRepairProposal>(
-      `/api/v1/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/${action}`,
+      `/api/v2/tasks/${taskId}/rules/${ruleId}/repair-proposals/${proposalId}/${action}`,
       { method: 'POST' },
     );
   }
 
   startLoginSession(taskId: string, loginUrl?: string) {
     return this.request<{ canceled: boolean; reference?: string; task?: TaskDetail }>(
-      `/api/v1/tasks/${taskId}/browser-session/login`,
+      `/api/v2/tasks/${taskId}/browser-session/login`,
       {
         method: 'POST',
         body: JSON.stringify(loginUrl ? { loginUrl } : {}),
@@ -485,7 +519,7 @@ export class ZhiYunClient {
     revision: number,
   ) {
     return this.request<{ canceled?: boolean; task?: TaskDetail }>(
-      `/api/v1/tasks/${taskId}/credentials/${kind}`,
+      `/api/v2/tasks/${taskId}/credentials/${kind}`,
       { method: 'POST', body: JSON.stringify({ revision }) },
     );
   }
@@ -495,7 +529,7 @@ export class ZhiYunClient {
     kind: 'secretHeaders' | 'cookies' | 'proxy',
     revision: number,
   ) {
-    return this.request<TaskDetail>(`/api/v1/tasks/${taskId}/credentials/${kind}`, {
+    return this.request<TaskDetail>(`/api/v2/tasks/${taskId}/credentials/${kind}`, {
       method: 'DELETE',
       body: JSON.stringify({ revision }),
     });
@@ -512,13 +546,13 @@ export class ZhiYunClient {
     } = {},
   ) {
     return this.request<DatasetPageResult>(
-      `/api/v1/tasks/${taskId}/dataset${search({ limit: options.limit ?? 100, ...options })}`,
+      `/api/v2/tasks/${taskId}/dataset${search({ limit: options.limit ?? 100, ...options })}`,
     );
   }
 
   getDatasetChanges(taskId: string, limit = 20, cursor?: string, runId?: string) {
     return this.request<{ items: RecordChange[]; nextCursor: string | null }>(
-      `/api/v1/tasks/${taskId}/dataset/changes${search({ limit, cursor, runId })}`,
+      `/api/v2/tasks/${taskId}/dataset/changes${search({ limit, cursor, runId })}`,
     );
   }
 
@@ -527,48 +561,48 @@ export class ZhiYunClient {
       items: DatasetDiffEntry[];
       nextCursor: string | null;
       stats: DatasetDiffStats;
-    }>(`/api/v1/tasks/${taskId}/dataset/diff${search({ from, to, limit, cursor })}`);
+    }>(`/api/v2/tasks/${taskId}/dataset/diff${search({ from, to, limit, cursor })}`);
   }
 
   getRun(id: string) {
-    return this.request<CrawlRun>(`/api/v1/runs/${id}`);
+    return this.request<CrawlRun>(`/api/v2/runs/${id}`);
   }
 
   cancelRun(id: string) {
-    return this.request<CrawlRun>(`/api/v1/runs/${id}/cancel`, { method: 'POST' });
+    return this.request<CrawlRun>(`/api/v2/runs/${id}/cancel`, { method: 'POST' });
   }
 
   retryRun(id: string) {
-    return this.request<{ runId: string; status: CrawlRun['status'] }>(`/api/v1/runs/${id}/retry`, {
+    return this.request<{ runId: string; status: CrawlRun['status'] }>(`/api/v2/runs/${id}/retry`, {
       method: 'POST',
     });
   }
 
   explainRunFailure(id: string) {
     return this.request<{ explanation: string; persisted: false }>(
-      `/api/v1/runs/${id}/explain-failure`,
+      `/api/v2/runs/${id}/explain-failure`,
       { method: 'POST' },
     );
   }
 
   getRunRecords(id: string, limit = 100, cursor?: string) {
-    return this.request<RecordPage>(`/api/v1/runs/${id}/records${search({ limit, cursor })}`);
+    return this.request<RecordPage>(`/api/v2/runs/${id}/records${search({ limit, cursor })}`);
   }
 
   getRunLogs(id: string, limit = 100, cursor?: string) {
     return this.request<{ items: RunLogEntry[]; nextCursor: string | null }>(
-      `/api/v1/runs/${id}/logs${search({ limit, cursor })}`,
+      `/api/v2/runs/${id}/logs${search({ limit, cursor })}`,
     );
   }
 
   getRunRequests(id: string, limit = 100, cursor?: string) {
     return this.request<{ items: RunRequestEntry[]; nextCursor: string | null }>(
-      `/api/v1/runs/${id}/requests${search({ limit, cursor })}`,
+      `/api/v2/runs/${id}/requests${search({ limit, cursor })}`,
     );
   }
 
   listOutputDestinations() {
-    return this.request<OutputDestination[]>('/api/v1/output-destinations');
+    return this.request<OutputDestination[]>('/api/v2/output-destinations');
   }
 
   createOutputDestination(input: {
@@ -578,7 +612,7 @@ export class ZhiYunClient {
     credential?: unknown;
     enabled?: boolean;
   }) {
-    return this.request<OutputDestination>('/api/v1/output-destinations', {
+    return this.request<OutputDestination>('/api/v2/output-destinations', {
       method: 'POST',
       body: JSON.stringify(input),
     });
@@ -590,41 +624,41 @@ export class ZhiYunClient {
       credential?: unknown;
     },
   ) {
-    return this.request<OutputDestination>(`/api/v1/output-destinations/${id}`, {
+    return this.request<OutputDestination>(`/api/v2/output-destinations/${id}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     });
   }
 
   deleteOutputDestination(id: string) {
-    return this.request<void>(`/api/v1/output-destinations/${id}`, { method: 'DELETE' });
+    return this.request<void>(`/api/v2/output-destinations/${id}`, { method: 'DELETE' });
   }
 
   testOutputDestination(id: string) {
-    return this.request<{ ok: boolean }>(`/api/v1/output-destinations/${id}/test`, {
+    return this.request<{ ok: boolean }>(`/api/v2/output-destinations/${id}/test`, {
       method: 'POST',
     });
   }
 
   promptOutputCredential(id: string) {
     return this.request<OutputDestination & { canceled?: boolean }>(
-      `/api/v1/output-destinations/${id}/credential/prompt`,
+      `/api/v2/output-destinations/${id}/credential/prompt`,
       { method: 'POST' },
     );
   }
 
   listDeliveryAttempts(runId?: string) {
-    return this.request<DeliveryAttempt[]>(`/api/v1/delivery-attempts${search({ runId })}`);
+    return this.request<DeliveryAttempt[]>(`/api/v2/delivery-attempts${search({ runId })}`);
   }
 
   retryDeliveryAttempt(id: string) {
-    return this.request<DeliveryAttempt>(`/api/v1/delivery-attempts/${id}/retry`, {
+    return this.request<DeliveryAttempt>(`/api/v2/delivery-attempts/${id}/retry`, {
       method: 'POST',
     });
   }
 
   listApiTokens() {
-    return this.request<ApiToken[]>('/api/v1/api-tokens');
+    return this.request<ApiToken[]>('/api/v2/api-tokens');
   }
 
   createApiToken(input: {
@@ -633,48 +667,48 @@ export class ZhiYunClient {
     rateLimitPerMinute: number;
     expiresAt: string | null;
   }) {
-    return this.request<ApiToken & { token: string }>('/api/v1/api-tokens', {
+    return this.request<ApiToken & { token: string }>('/api/v2/api-tokens', {
       method: 'POST',
       body: JSON.stringify(input),
     });
   }
 
   revokeApiToken(id: string) {
-    return this.request<void>(`/api/v1/api-tokens/${id}`, { method: 'DELETE' });
+    return this.request<void>(`/api/v2/api-tokens/${id}`, { method: 'DELETE' });
   }
 
   createInspectionSession(taskId: string) {
-    return this.request<{ id: string }>('/api/v1/inspection-sessions', {
+    return this.request<{ id: string }>('/api/v2/inspection-sessions', {
       method: 'POST',
       body: JSON.stringify({ taskId }),
     });
   }
 
   getInspectionScreenshot(id: string) {
-    return this.request<{ image: string }>(`/api/v1/inspection-sessions/${id}/screenshot`);
+    return this.request<{ image: string }>(`/api/v2/inspection-sessions/${id}/screenshot`);
   }
 
   selectInspectionElement(id: string, point: { x: number; y: number }) {
-    return this.request<{ selector: string }>(`/api/v1/inspection-sessions/${id}/select`, {
+    return this.request<{ selector: string }>(`/api/v2/inspection-sessions/${id}/select`, {
       method: 'POST',
       body: JSON.stringify(point),
     });
   }
 
   closeInspectionSession(id: string) {
-    return this.request<void>(`/api/v1/inspection-sessions/${id}`, { method: 'DELETE' });
+    return this.request<void>(`/api/v2/inspection-sessions/${id}`, { method: 'DELETE' });
   }
 
   getDesktopDiagnostics() {
-    return this.request<DesktopDiagnostics>('/api/v1/desktop/diagnostics');
+    return this.request<DesktopDiagnostics>('/api/v2/desktop/diagnostics');
   }
 
   createDesktopBackup() {
-    return this.request<{ saved: boolean }>('/api/v1/desktop/backup', { method: 'POST' });
+    return this.request<{ saved: boolean }>('/api/v2/desktop/backup', { method: 'POST' });
   }
 
   restoreDesktopBackup() {
-    return this.request<{ canceled: boolean }>('/api/v1/desktop/restore', { method: 'POST' });
+    return this.request<{ canceled: boolean }>('/api/v2/desktop/restore', { method: 'POST' });
   }
 
   async exportRun(
@@ -689,7 +723,7 @@ export class ZhiYunClient {
   ): Promise<ArtifactDescriptor> {
     const { signal, ...body } = options;
     const result = await this.request<{ artifactRef: string; artifact: ArtifactDescriptor }>(
-      `/api/v1/runs/${runId}/exports`,
+      `/api/v2/runs/${runId}/exports`,
       { method: 'POST', body: JSON.stringify({ format, ...body }), ...(signal ? { signal } : {}) },
     );
     await this.saveOrDownloadArtifact(result.artifactRef, result.artifact);
@@ -711,7 +745,7 @@ export class ZhiYunClient {
   ): Promise<ArtifactDescriptor> {
     const { signal, ...body } = options;
     const result = await this.request<{ artifactRef: string; artifact: ArtifactDescriptor }>(
-      `/api/v1/tasks/${taskId}/dataset/exports`,
+      `/api/v2/tasks/${taskId}/dataset/exports`,
       { method: 'POST', body: JSON.stringify({ format, ...body }), ...(signal ? { signal } : {}) },
     );
     await this.saveOrDownloadArtifact(result.artifactRef, result.artifact);
@@ -723,7 +757,7 @@ export class ZhiYunClient {
     artifact: ArtifactDescriptor,
   ): Promise<void> {
     if (this.mode === 'desktop') {
-      await this.request(`/api/v1/artifacts/${artifactRef}/save`, { method: 'POST' });
+      await this.request(`/api/v2/artifacts/${artifactRef}/save`, { method: 'POST' });
     } else {
       await this.downloadArtifact(artifact);
     }
@@ -731,7 +765,7 @@ export class ZhiYunClient {
 
   private async downloadArtifact(artifact: ArtifactDescriptor): Promise<void> {
     const response = await fetch(
-      `${this.bootstrap.baseUrl}/api/v1/artifacts/${artifact.id}/content`,
+      `${this.bootstrap.baseUrl}/api/v2/artifacts/${artifact.id}/content`,
       {
         headers: { authorization: `Bearer ${this.token!}` },
         signal: this.controller.signal,
@@ -760,7 +794,7 @@ export class ZhiYunClient {
         try {
           await this.connect();
           const response = await fetch(
-            `${this.bootstrap.baseUrl}/api/v1/events/domain?after=${this.eventCursor}`,
+            `${this.bootstrap.baseUrl}/api/v2/events/domain?after=${this.eventCursor}`,
             {
               headers: { authorization: `Bearer ${this.token!}` },
               signal: this.controller.signal,

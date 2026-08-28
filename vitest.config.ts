@@ -1,5 +1,10 @@
 import { defineConfig } from 'vitest/config';
 
+process.env.PLAYWRIGHT_BROWSERS_PATH ??= new URL(
+  './apps/desktop/resources/playwright/',
+  import.meta.url,
+).pathname;
+
 export default defineConfig({
   test: {
     include: [

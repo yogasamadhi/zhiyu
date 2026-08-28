@@ -229,7 +229,7 @@ function updateTrayMenu(): void {
         label: traySummary.schedulingPaused ? '恢复调度' : '暂停调度',
         click: () => {
           void supervisor
-            ?.request(`/api/v1/scheduler/${traySummary.schedulingPaused ? 'resume' : 'pause'}`, {
+            ?.request(`/api/v2/scheduler/${traySummary.schedulingPaused ? 'resume' : 'pause'}`, {
               method: 'POST',
             })
             .then(() => refreshTraySummary());
@@ -244,7 +244,7 @@ function updateTrayMenu(): void {
 
 async function refreshTraySummary(): Promise<void> {
   try {
-    traySummary = await supervisor!.request<typeof traySummary>('/api/v1/runtime/summary');
+    traySummary = await supervisor!.request<typeof traySummary>('/api/v2/runtime/summary');
     updateTrayMenu();
   } catch {
     // Runtime supervisor diagnostics remain available while it is restarting.

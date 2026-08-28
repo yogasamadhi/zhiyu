@@ -366,7 +366,16 @@ export interface ArtifactStore {
 }
 
 export interface HostCapabilities {
-  metadata: RuntimeMetadata;
+  metadata: Pick<
+    RuntimeMetadata,
+    | 'runtimeId'
+    | 'generation'
+    | 'apiVersion'
+    | 'mode'
+    | 'productVersion'
+    | 'analyticsWorkerStatus'
+    | 'startedAt'
+  >;
   capabilities: RuntimeCapabilities;
   saveArtifact?(
     artifact: ArtifactDescriptor,
