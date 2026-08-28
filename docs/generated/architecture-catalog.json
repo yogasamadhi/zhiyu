@@ -28,7 +28,8 @@
     { "id": "collection.read", "owner": "collection" },
     { "id": "datasets.read", "owner": "datasets" },
     { "id": "datasets.snapshot", "owner": "datasets" },
-    { "id": "platform.repository", "owner": "platform" }
+    { "id": "platform.repository", "owner": "platform" },
+    { "id": "preferences.service", "owner": "preferences" }
   ],
   "routes": [
     {
@@ -36,6 +37,12 @@
       "owner": "ai-assistance",
       "method": "POST",
       "path": "/api/v2/tasks/{taskId}/rule-analysis"
+    },
+    {
+      "id": "clearPreferenceSignals",
+      "owner": "preferences",
+      "method": "DELETE",
+      "path": "/api/v2/preferences/signals"
     },
     {
       "id": "createAnalysisJob",
@@ -74,6 +81,12 @@
       "path": "/api/v2/output-destinations"
     },
     {
+      "id": "createPreferenceSignal",
+      "owner": "preferences",
+      "method": "POST",
+      "path": "/api/v2/preferences/signals"
+    },
+    {
       "id": "createRun",
       "owner": "collection",
       "method": "POST",
@@ -90,6 +103,12 @@
       "owner": "collection",
       "method": "POST",
       "path": "/api/v2/tasks"
+    },
+    {
+      "id": "deletePreferenceSignal",
+      "owner": "preferences",
+      "method": "DELETE",
+      "path": "/api/v2/preferences/signals/{signalId}"
     },
     {
       "id": "explainRunFailure",
@@ -288,7 +307,8 @@
     { "id": "platform.job.created", "owner": "platform" },
     { "id": "platform.job.dead-lettered", "owner": "platform" },
     { "id": "platform.job.interrupted", "owner": "platform" },
-    { "id": "preferences.signal.updated", "owner": "preferences" }
+    { "id": "preferences.signal.updated", "owner": "preferences" },
+    { "id": "preferences.trend-source.updated", "owner": "preferences" }
   ],
   "tables": [
     { "id": "analysis_artifacts", "owner": "analytics" },

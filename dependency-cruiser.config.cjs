@@ -1,15 +1,27 @@
 /* global module */
 
+const pluginDirectories = [
+  'ai-assistance',
+  'analytics',
+  'collection',
+  'corpus',
+  'datasets',
+  'legacy-runtime',
+  'outputs',
+  'platform',
+  'preferences',
+];
+
 module.exports = {
   forbidden: [
-    {
-      name: 'no-cross-plugin-implementation-import',
+    ...pluginDirectories.map((plugin) => ({
+      name: `no-${plugin}-cross-plugin-implementation-import`,
       severity: 'error',
       comment:
         'Plugins collaborate through stable contracts and services, never implementation imports.',
-      from: { path: '^plugins/' },
-      to: { path: '^plugins/' },
-    },
+      from: { path: `^plugins/${plugin}/` },
+      to: { path: `^plugins/(?!${plugin}/)` },
+    })),
     {
       name: 'renderer-does-not-import-server-implementation',
       severity: 'error',

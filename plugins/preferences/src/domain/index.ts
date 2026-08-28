@@ -1,0 +1,16 @@
+export {
+  BILIBILI_SOURCE_KEY,
+  BILIBILI_TREND_PLAN,
+  DOUYIN_SOURCE_KEY,
+  FANQIE_SOURCE_KEY,
+  FANQIE_TREND_PLAN,
+  HONGGUO_SOURCE_KEY,
+  HONGGUO_TREND_PLAN,
+  TREND_SOURCE_CATALOG,
+  buildPreferenceProfile,
+  buildTrendTerms,
+  contentResolver,
+  normalizeTrendRecords,
+  sourceCatalogEntry,
+  type TrendSourceCatalogEntry,
+} from '@zhiyun/preferences';
