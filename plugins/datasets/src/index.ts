@@ -1,11 +1,18 @@
 import { createServiceToken, type PluginDescriptor } from '@zhiyun/kernel';
+import type { Dataset, DatasetCommitInput, DatasetCommitResult } from './contracts/index.js';
+import { datasetsRoutes } from './http/index.js';
+import { datasetsUiContributions } from './ui/index.js';
 
 export interface DatasetReadService {
-  getDataset(id: string): Promise<unknown | null>;
+  getDataset(id: string): Promise<Dataset | null>;
 }
 
 export interface DatasetSnapshotService {
   createSnapshot(datasetId: string): Promise<{ id: string; fingerprint: string }>;
+}
+
+export interface DatasetIngestionService {
+  commitRunRecords(input: DatasetCommitInput): Promise<DatasetCommitResult>;
 }
 
 export const datasetReadService = createServiceToken<DatasetReadService>(
@@ -18,31 +25,18 @@ export const datasetSnapshotService = createServiceToken<DatasetSnapshotService>
   '1.0.0',
   'datasets',
 );
+export const datasetIngestionService = createServiceToken<DatasetIngestionService>(
+  'datasets.ingestion',
+  '1.0.0',
+  'datasets',
+);
 
 export const datasetsPlugin: PluginDescriptor = {
   id: 'datasets',
   version: '1.0.0',
   optionalCapabilities: ['artifact.store'],
-  providedServices: [datasetReadService, datasetSnapshotService],
-  routes: [
-    { operationId: 'listDatasets', method: 'GET', path: '/api/v2/datasets' },
-    { operationId: 'getDataset', method: 'GET', path: '/api/v2/datasets/{datasetId}' },
-    {
-      operationId: 'listDatasetRecords',
-      method: 'GET',
-      path: '/api/v2/datasets/{datasetId}/records',
-    },
-    {
-      operationId: 'listDatasetChanges',
-      method: 'GET',
-      path: '/api/v2/datasets/{datasetId}/changes',
-    },
-    {
-      operationId: 'createDatasetSnapshot',
-      method: 'POST',
-      path: '/api/v2/datasets/{datasetId}/snapshots',
-    },
-  ],
+  providedServices: [datasetReadService, datasetSnapshotService, datasetIngestionService],
+  routes: datasetsRoutes,
   events: [
     { type: 'dataset.projected', durable: true },
     { type: 'dataset.snapshot.created', durable: true },
@@ -53,10 +47,15 @@ export const datasetsPlugin: PluginDescriptor = {
       tables: ['records', 'datasets', 'dataset_records', 'record_changes', 'dataset_snapshots'],
     },
   ],
-  uiContributions: [
-    { id: 'datasets.route', kind: 'route' },
-    { id: 'datasets.task-panel', kind: 'panel' },
-  ],
+  uiContributions: datasetsUiContributions,
   backgroundHandlers: [{ type: 'datasets.snapshot.prepare', resourceClass: 'io' }],
   activate() {},
 };
+
+export * from './application/index.js';
+export * from './contracts/index.js';
+export * from './domain/index.js';
+export * from './http/index.js';
+export * from './persistence/postgres/index.js';
+export * from './persistence/sqlite/index.js';
+export * from './ui/index.js';

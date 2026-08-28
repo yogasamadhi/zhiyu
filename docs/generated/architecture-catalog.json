@@ -26,6 +26,7 @@
   "services": [
     { "id": "artifact.store", "owner": "platform" },
     { "id": "collection.read", "owner": "collection" },
+    { "id": "datasets.ingestion", "owner": "datasets" },
     { "id": "datasets.read", "owner": "datasets" },
     { "id": "datasets.snapshot", "owner": "datasets" },
     { "id": "outputs.service", "owner": "outputs" },
@@ -124,10 +125,22 @@
       "path": "/api/v2/preferences/signals/{signalId}"
     },
     {
+      "id": "diffDataset",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/diff"
+    },
+    {
       "id": "explainRunFailure",
       "owner": "ai-assistance",
       "method": "POST",
       "path": "/api/v2/runs/{runId}/explain-failure"
+    },
+    {
+      "id": "exportDataset",
+      "owner": "datasets",
+      "method": "POST",
+      "path": "/api/v2/datasets/{datasetId}/exports"
     },
     {
       "id": "getAnalysisResult",
@@ -158,6 +171,12 @@
       "owner": "datasets",
       "method": "GET",
       "path": "/api/v2/datasets/{datasetId}"
+    },
+    {
+      "id": "getDatasetSnapshot",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/snapshots/{snapshotId}"
     },
     {
       "id": "getHealth",

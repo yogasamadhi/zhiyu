@@ -402,6 +402,15 @@
       "version": "1.0.0",
       "dependencies": {
         "@zhiyun/kernel": "workspace:*",
+        "@zhiyun/shared": "workspace:*",
+        "better-sqlite3": "13.0.3",
+        "postgres": "^3.4.7",
+      },
+      "devDependencies": {
+        "@types/better-sqlite3": "^9.6.0",
+        "@zhiyun/platform-core": "workspace:*",
+        "@zhiyun/storage-postgres-v1": "workspace:*",
+        "@zhiyun/storage-sqlite-v1": "workspace:*",
       },
     },
     "plugins/legacy-runtime": {
