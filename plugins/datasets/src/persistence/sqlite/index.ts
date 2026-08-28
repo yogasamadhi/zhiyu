@@ -217,7 +217,7 @@ export class SqliteDatasetRepository implements DatasetRepository {
       const fingerprintRows = this.sqlite
         .prepare('SELECT record_key,content_hash,removed FROM dataset_records WHERE dataset_id=?')
         .all(datasetId) as SqlRow[];
-      stats.current = fingerprintRows.filter((row) => !Boolean(row.removed)).length;
+      stats.current = fingerprintRows.filter((row) => !row.removed).length;
       this.sqlite
         .prepare('UPDATE datasets SET current_count=?,updated_at=? WHERE id=?')
         .run(stats.current, timestamp, datasetId);

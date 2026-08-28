@@ -26,6 +26,7 @@
   "services": [
     { "id": "artifact.store", "owner": "platform" },
     { "id": "collection.read", "owner": "collection" },
+    { "id": "collection.services", "owner": "collection" },
     { "id": "datasets.ingestion", "owner": "datasets" },
     { "id": "datasets.read", "owner": "datasets" },
     { "id": "datasets.snapshot", "owner": "datasets" },
@@ -39,6 +40,12 @@
       "owner": "ai-assistance",
       "method": "POST",
       "path": "/api/v2/tasks/{taskId}/rule-analysis"
+    },
+    {
+      "id": "cancelRun",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/runs/{runId}/cancel"
     },
     {
       "id": "clearPreferenceSignals",
@@ -95,6 +102,12 @@
       "path": "/api/v2/preferences/signals"
     },
     {
+      "id": "createRule",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/rules"
+    },
+    {
       "id": "createRun",
       "owner": "collection",
       "method": "POST",
@@ -123,6 +136,12 @@
       "owner": "preferences",
       "method": "DELETE",
       "path": "/api/v2/preferences/signals/{signalId}"
+    },
+    {
+      "id": "deleteTask",
+      "owner": "collection",
+      "method": "DELETE",
+      "path": "/api/v2/tasks/{taskId}"
     },
     {
       "id": "diffDataset",
@@ -299,6 +318,30 @@
       "path": "/api/v2/preferences/signals"
     },
     {
+      "id": "listRules",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}/rules"
+    },
+    {
+      "id": "listRunLogs",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/runs/{runId}/logs"
+    },
+    {
+      "id": "listRunRequests",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/runs/{runId}/requests"
+    },
+    {
+      "id": "listRuns",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}/runs"
+    },
+    {
       "id": "listTasks",
       "owner": "collection",
       "method": "GET",
@@ -348,9 +391,17 @@
     { "id": "analysis.job.failed", "owner": "analytics" },
     { "id": "analysis.job.started", "owner": "analytics" },
     { "id": "analysis.job.succeeded", "owner": "analytics" },
-    { "id": "collection.run.created", "owner": "collection" },
+    { "id": "collection.rule.created", "owner": "collection" },
+    { "id": "collection.rule.version-created", "owner": "collection" },
+    { "id": "collection.run.cancel-requested", "owner": "collection" },
+    { "id": "collection.run.canceled", "owner": "collection" },
     { "id": "collection.run.failed", "owner": "collection" },
+    { "id": "collection.run.queued", "owner": "collection" },
+    { "id": "collection.run.started", "owner": "collection" },
     { "id": "collection.run.succeeded", "owner": "collection" },
+    { "id": "collection.task.created", "owner": "collection" },
+    { "id": "collection.task.deleted", "owner": "collection" },
+    { "id": "collection.task.updated", "owner": "collection" },
     { "id": "corpus.build.canceled", "owner": "corpus" },
     { "id": "corpus.build.created", "owner": "corpus" },
     { "id": "corpus.build.failed", "owner": "corpus" },
@@ -422,7 +473,8 @@
     { "id": "analytics.navigation", "owner": "analytics" },
     { "id": "analytics.route", "owner": "analytics" },
     { "id": "collection.navigation", "owner": "collection" },
-    { "id": "collection.tasks-route", "owner": "collection" },
+    { "id": "collection.route", "owner": "collection" },
+    { "id": "collection.run-panel", "owner": "collection" },
     { "id": "corpus.dataset-panel", "owner": "corpus" },
     { "id": "corpus.navigation", "owner": "corpus" },
     { "id": "corpus.route", "owner": "corpus" },

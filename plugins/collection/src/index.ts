@@ -1,12 +1,21 @@
 import { createServiceToken, type PluginDescriptor } from '@zhiyun/kernel';
+import type { CrawlRun } from '@zhiyun/shared';
+import type { CollectionServiceContract, CollectionTaskDetail } from './contracts/index.js';
+import { collectionRoutes } from './http/index.js';
+import { collectionUiContributions } from './ui/index.js';
 
 export interface CollectionReadService {
-  getTask(id: string): Promise<unknown | null>;
-  getRun(id: string): Promise<unknown | null>;
+  getTask(id: string): Promise<CollectionTaskDetail | null>;
+  getRun(id: string): Promise<CrawlRun | null>;
 }
 
 export const collectionReadService = createServiceToken<CollectionReadService>(
   'collection.read',
+  '1.0.0',
+  'collection',
+);
+export const collectionService = createServiceToken<CollectionServiceContract>(
+  'collection.services',
   '1.0.0',
   'collection',
 );
@@ -16,19 +25,20 @@ export const collectionPlugin: PluginDescriptor = {
   version: '1.0.0',
   dependencies: [{ id: 'datasets', range: '^1.0.0' }],
   optionalCapabilities: ['crawler.engine', 'scheduler'],
-  providedServices: [collectionReadService],
-  routes: [
-    { operationId: 'listTasks', method: 'GET', path: '/api/v2/tasks' },
-    { operationId: 'createTask', method: 'POST', path: '/api/v2/tasks' },
-    { operationId: 'getTask', method: 'GET', path: '/api/v2/tasks/{taskId}' },
-    { operationId: 'updateTask', method: 'PUT', path: '/api/v2/tasks/{taskId}' },
-    { operationId: 'createRun', method: 'POST', path: '/api/v2/tasks/{taskId}/runs' },
-    { operationId: 'getRun', method: 'GET', path: '/api/v2/runs/{runId}' },
-  ],
+  providedServices: [collectionReadService, collectionService],
+  routes: collectionRoutes,
   events: [
-    { type: 'collection.run.created', durable: true },
+    { type: 'collection.task.created', durable: true },
+    { type: 'collection.task.updated', durable: true },
+    { type: 'collection.task.deleted', durable: true },
+    { type: 'collection.rule.created', durable: true },
+    { type: 'collection.rule.version-created', durable: true },
+    { type: 'collection.run.queued', durable: true },
+    { type: 'collection.run.started', durable: true },
     { type: 'collection.run.succeeded', durable: true },
     { type: 'collection.run.failed', durable: true },
+    { type: 'collection.run.cancel-requested', durable: true },
+    { type: 'collection.run.canceled', durable: true },
   ],
   migrations: [
     {
@@ -45,10 +55,15 @@ export const collectionPlugin: PluginDescriptor = {
       ],
     },
   ],
-  uiContributions: [
-    { id: 'collection.tasks-route', kind: 'route' },
-    { id: 'collection.navigation', kind: 'navigation' },
-  ],
+  uiContributions: collectionUiContributions,
   backgroundHandlers: [{ type: 'collection.crawl.execute', resourceClass: 'browser-heavy' }],
   activate() {},
 };
+
+export * from './application/index.js';
+export * from './contracts/index.js';
+export * from './domain/index.js';
+export * from './http/index.js';
+export * from './persistence/postgres/index.js';
+export * from './persistence/sqlite/index.js';
+export * from './ui/index.js';

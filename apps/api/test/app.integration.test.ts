@@ -157,7 +157,9 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
     expect(extractDemo.statusCode).toBe(200);
     expect(extractDemo.json().records).toHaveLength(10);
     expect(extractDemo.json().persisted).toBe(false);
-    const aiOperations = (await new PostgresRepository().listEvents(0, 1_000)).items
+    // The shared local CI database may contain more than one thousand historical events.
+    // Read the full test envelope so this assertion is independent of suite execution order.
+    const aiOperations = (await new PostgresRepository().listEvents(0, 100_000)).items
       .filter((event) => event.type === 'ai.request.completed' && event.aggregateId === taskId)
       .map((event) => event.payload.operation);
     expect(aiOperations).toEqual(
@@ -175,7 +177,7 @@ describe('ZhiYun Runtime API v1 lifecycle', () => {
     expect(proposed.statusCode).toBe(201);
     const proposalId = proposed.json().id as string;
 
-    const auditEvent = (await new PostgresRepository().listEvents(0, 1_000)).items.find(
+    const auditEvent = (await new PostgresRepository().listEvents(0, 100_000)).items.find(
       (event) =>
         event.type === 'ai.request.completed' &&
         event.aggregateId === taskId &&

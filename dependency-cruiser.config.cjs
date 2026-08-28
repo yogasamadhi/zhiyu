@@ -19,7 +19,9 @@ module.exports = {
       severity: 'error',
       comment:
         'Plugins collaborate through stable contracts and services, never implementation imports.',
-      from: { path: `^plugins/${plugin}/` },
+      // Cross-Plugin test harnesses may compose concrete adapters for conformance and crash tests;
+      // production source remains contract-only.
+      from: { path: `^plugins/${plugin}/(?!test/)` },
       to: { path: `^plugins/(?!${plugin}/)` },
     })),
     {

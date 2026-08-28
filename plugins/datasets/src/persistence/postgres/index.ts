@@ -205,7 +205,7 @@ export class PostgresDatasetRepository implements DatasetRepository {
       const fingerprintRows = await transaction`
         SELECT record_key,content_hash,removed FROM dataset_records WHERE dataset_id=${dataset.id}
       `;
-      stats.current = fingerprintRows.filter((row) => !Boolean(row.removed)).length;
+      stats.current = fingerprintRows.filter((row) => !row.removed).length;
       const updatedDatasets = await transaction`
         UPDATE datasets SET current_count=${stats.current},updated_at=${timestamp}
         WHERE id=${dataset.id} RETURNING *
