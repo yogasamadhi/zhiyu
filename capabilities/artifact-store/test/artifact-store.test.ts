@@ -40,6 +40,35 @@ describe('local artifact store', () => {
     await store.removeWorkspace('job-1');
   });
 
+  it('reuses an existing content-addressed file only when the checksum matches', async () => {
+    const { store } = await fixture();
+    const firstWorkspace = await store.openWorkspace('job-first');
+    await writeFile(await firstWorkspace.resolve('snapshot.parquet'), 'same-content');
+    const first = await store.commitWorkspaceFile(
+      'job-first',
+      'snapshot.parquet',
+      'datasets/fingerprint/snapshot.parquet',
+    );
+
+    const secondWorkspace = await store.openWorkspace('job-second');
+    await writeFile(await secondWorkspace.resolve('snapshot.parquet'), 'same-content');
+    const reused = await store.commitWorkspaceFile(
+      'job-second',
+      'snapshot.parquet',
+      'datasets/fingerprint/snapshot.parquet',
+    );
+    expect(reused).toEqual(first);
+
+    await writeFile(await secondWorkspace.resolve('different.parquet'), 'different-content');
+    await expect(
+      store.commitWorkspaceFile(
+        'job-second',
+        'different.parquet',
+        'datasets/fingerprint/snapshot.parquet',
+      ),
+    ).rejects.toThrow('different content');
+  });
+
   it('rejects traversal, absolute paths and unsafe Job IDs', async () => {
     const { store } = await fixture();
     await expect(store.openWorkspace('../escape')).rejects.toThrow('Invalid Job ID');

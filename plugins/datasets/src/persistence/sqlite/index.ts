@@ -9,6 +9,7 @@ import type {
   DatasetRepository,
   DatasetSnapshot,
   RecordChangePage,
+  SnapshotMaterializationClaim,
 } from '../../contracts/index.js';
 import { datasetFingerprint, normalizeDatasetInputs } from '../../domain/index.js';
 import { datasetsSqliteMigration001 } from '../../migrations/sqlite/index.js';
@@ -19,8 +20,10 @@ const SCHEMA_VERSION = 1;
 
 export class SqliteDatasetRepository implements DatasetRepository {
   private readonly sqlite: Database.Database;
+  private readonly filePath: string;
 
   constructor(filePath: string) {
+    this.filePath = filePath;
     this.sqlite = new Database(filePath);
     this.sqlite.pragma('journal_mode = WAL');
     this.sqlite.pragma('foreign_keys = ON');
@@ -392,6 +395,132 @@ export class SqliteDatasetRepository implements DatasetRepository {
       )
       .get(datasetId, fingerprint) as SqlRow | undefined;
     return row ? snapshotRow(row) : null;
+  }
+
+  async withConsistentSnapshotRead<T>(
+    datasetId: string,
+    consume: (read: {
+      dataset: Dataset;
+      records: AsyncIterable<{
+        recordKey: string;
+        sourceUrl: string;
+        data: Record<string, unknown>;
+        contentHash: string;
+        removed: boolean;
+      }>;
+    }) => Promise<T>,
+  ): Promise<T> {
+    if (this.filePath === ':memory:') {
+      throw new Error('Consistent Snapshot streaming requires a file-backed SQLite database');
+    }
+    const reader = new Database(this.filePath, { readonly: true, fileMustExist: true });
+    reader.pragma('query_only = ON');
+    reader.exec('BEGIN');
+    try {
+      const dataset = reader.prepare('SELECT * FROM datasets WHERE id=?').get(datasetId) as
+        SqlRow | undefined;
+      if (!dataset) throw new Error(`Dataset not found: ${datasetId}`);
+      const statement = reader.prepare(
+        `SELECT record_key,source_url,data,content_hash,removed
+         FROM dataset_records WHERE dataset_id=? ORDER BY record_key ASC`,
+      );
+      const records = async function* () {
+        for (const row of statement.iterate(datasetId) as Iterable<SqlRow>) {
+          yield {
+            recordKey: String(row.record_key),
+            sourceUrl: String(row.source_url),
+            data: parseObject(row.data),
+            contentHash: String(row.content_hash),
+            removed: Boolean(row.removed),
+          };
+        }
+      };
+      return await consume({ dataset: datasetRow(dataset), records: records() });
+    } finally {
+      reader.exec('ROLLBACK');
+      reader.close();
+    }
+  }
+
+  async claimSnapshotMaterialization(
+    datasetId: string,
+    fingerprint: string,
+  ): Promise<SnapshotMaterializationClaim> {
+    return this.sqlite.transaction(() => {
+      const rows = this.sqlite
+        .prepare(
+          `SELECT * FROM dataset_snapshots
+           WHERE dataset_id=? AND fingerprint=?
+           ORDER BY status='ready' DESC,status='preparing' DESC,created_at DESC,id DESC`,
+        )
+        .all(datasetId, fingerprint) as SqlRow[];
+      const selected = rows[0];
+      if (!selected) throw new Error('Projected Dataset Snapshot was not found for fingerprint');
+      const snapshot = snapshotRow(selected);
+      if (snapshot.status === 'ready') return { snapshot, claimed: false, reused: true };
+      if (snapshot.status === 'preparing') return { snapshot, claimed: false, reused: false };
+      const timestamp = new Date().toISOString();
+      const updated = this.sqlite
+        .prepare(
+          `UPDATE dataset_snapshots SET status='preparing',warnings='[]',updated_at=?
+           WHERE id=? AND status IN ('projected','failed') RETURNING *`,
+        )
+        .get(timestamp, snapshot.id) as SqlRow | undefined;
+      if (!updated) {
+        const current = this.sqlite
+          .prepare('SELECT * FROM dataset_snapshots WHERE id=?')
+          .get(snapshot.id) as SqlRow;
+        return { snapshot: snapshotRow(current), claimed: false, reused: false };
+      }
+      return { snapshot: snapshotRow(updated), claimed: true, reused: false };
+    })();
+  }
+
+  async completeSnapshotMaterialization(input: {
+    snapshotId: string;
+    parquetArtifactId: string;
+    manifestArtifactId: string;
+    rowCount: number;
+    warnings: string[];
+  }): Promise<DatasetSnapshot> {
+    return this.sqlite.transaction(() => {
+      const timestamp = new Date().toISOString();
+      const updated = this.sqlite
+        .prepare(
+          `UPDATE dataset_snapshots SET
+             status='ready',parquet_artifact_id=?,manifest_artifact_id=?,row_count=?,warnings=?,
+             updated_at=?
+           WHERE id=? AND status='preparing' RETURNING *`,
+        )
+        .get(
+          input.parquetArtifactId,
+          input.manifestArtifactId,
+          input.rowCount,
+          JSON.stringify(input.warnings),
+          timestamp,
+          input.snapshotId,
+        ) as SqlRow | undefined;
+      if (!updated) throw new Error('Dataset Snapshot is not in preparing state');
+      const snapshot = snapshotRow(updated);
+      appendEvent(this.sqlite, 'dataset.snapshot.ready', snapshot.datasetId, {
+        snapshotId: snapshot.id,
+        fingerprint: snapshot.fingerprint,
+        rowCount: snapshot.rowCount,
+      });
+      return snapshot;
+    })();
+  }
+
+  async failSnapshotMaterialization(snapshotId: string, warning: string): Promise<DatasetSnapshot> {
+    const updated = this.sqlite
+      .prepare(
+        `UPDATE dataset_snapshots SET status='failed',warnings=?,updated_at=?
+         WHERE id=? AND status='preparing' RETURNING *`,
+      )
+      .get(JSON.stringify([warning.slice(0, 4_000)]), new Date().toISOString(), snapshotId) as
+      SqlRow | undefined;
+    if (!updated) throw new Error('Dataset Snapshot is not in preparing state');
+    return snapshotRow(updated);
   }
 }
 

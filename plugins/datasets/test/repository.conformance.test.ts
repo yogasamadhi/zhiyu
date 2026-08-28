@@ -10,6 +10,7 @@ import { openSqlitePlatformRepository } from '@zhiyun/storage-sqlite-v1';
 import type { DatasetRepository } from '../src/contracts/index.js';
 import { PostgresDatasetRepository } from '../src/persistence/postgres/index.js';
 import { SqliteDatasetRepository } from '../src/persistence/sqlite/index.js';
+import { DatasetFingerprintBuilder } from '../src/domain/index.js';
 
 interface Fixture {
   repository: DatasetRepository;
@@ -165,6 +166,43 @@ function defineDatasetConformance(name: string, create: () => Promise<Fixture>):
       ).not.toBeNull();
       const events = await fixture.platform.listEvents(0, 1_000);
       expect(events.map(({ type }) => type)).toContain('dataset.projected');
+    });
+
+    it('streams one consistent ordered view and atomically materializes its Snapshot', async () => {
+      const streamed = await fixture.repository.withConsistentSnapshotRead(
+        datasetId,
+        async ({ dataset, records }) => {
+          const builder = new DatasetFingerprintBuilder(dataset.schemaVersion, dataset.settings);
+          const keys: string[] = [];
+          for await (const record of records) {
+            keys.push(record.recordKey);
+            builder.add(record);
+          }
+          return { keys, fingerprint: builder.digest() };
+        },
+      );
+      expect(streamed.keys).toEqual([...streamed.keys].sort());
+      expect(streamed.fingerprint).toBe(secondFingerprint);
+      const claim = await fixture.repository.claimSnapshotMaterialization(
+        datasetId,
+        secondFingerprint,
+      );
+      expect(claim).toMatchObject({
+        claimed: true,
+        reused: false,
+        snapshot: { status: 'preparing' },
+      });
+      const ready = await fixture.repository.completeSnapshotMaterialization({
+        snapshotId: claim.snapshot.id,
+        parquetArtifactId: randomUUID(),
+        manifestArtifactId: randomUUID(),
+        rowCount: 2,
+        warnings: ['fixture warning'],
+      });
+      expect(ready).toMatchObject({ status: 'ready', rowCount: 2, warnings: ['fixture warning'] });
+      await expect(
+        fixture.repository.claimSnapshotMaterialization(datasetId, secondFingerprint),
+      ).resolves.toMatchObject({ claimed: false, reused: true, snapshot: { id: ready.id } });
     });
   });
 }

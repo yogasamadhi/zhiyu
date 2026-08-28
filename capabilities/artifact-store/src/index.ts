@@ -63,6 +63,7 @@ export class LocalArtifactStore implements ArtifactStore {
     if (!sourceStat.isFile() || sourceStat.isSymbolicLink()) {
       throw new Error('Artifact source must be a regular workspace file');
     }
+    const sourceChecksum = await sha256File(source);
 
     const segments = validateRelativePath(storageKey);
     const canonicalParent = await ensureControlledDirectory(
@@ -70,6 +71,17 @@ export class LocalArtifactStore implements ArtifactStore {
       segments.slice(0, -1),
     );
     const canonicalDestination = join(canonicalParent, segments.at(-1)!);
+    if (await pathExists(canonicalDestination)) {
+      const destinationStat = await lstat(canonicalDestination);
+      if (!destinationStat.isFile() || destinationStat.isSymbolicLink()) {
+        throw new Error('Existing Artifact destination is not a regular file');
+      }
+      const checksum = await sha256File(canonicalDestination);
+      if (checksum !== sourceChecksum) {
+        throw new Error('Artifact storage key already exists with different content');
+      }
+      return { storageKey: segments.join('/'), size: destinationStat.size, checksum };
+    }
     const temporary = `${canonicalDestination}.partial-${randomUUID()}`;
     try {
       await copyFile(source, temporary);
@@ -79,11 +91,8 @@ export class LocalArtifactStore implements ArtifactStore {
       await unlink(temporary).catch(() => undefined);
       throw error;
     }
-    const [metadata, checksum] = await Promise.all([
-      stat(canonicalDestination),
-      sha256File(canonicalDestination),
-    ]);
-    return { storageKey: segments.join('/'), size: metadata.size, checksum };
+    const metadata = await stat(canonicalDestination);
+    return { storageKey: segments.join('/'), size: metadata.size, checksum: sourceChecksum };
   }
 
   async resolveArtifact(storageKey: string): Promise<string> {
@@ -138,7 +147,7 @@ async function ensureControlledDirectory(root: string, segments: string[]): Prom
   let current = root;
   for (const segment of segments) {
     const candidate = join(current, segment);
-    if (!(await pathExists(candidate))) await mkdir(candidate);
+    await mkdir(candidate, { recursive: true });
     current = await realpath(candidate);
     assertChild(root, current);
   }

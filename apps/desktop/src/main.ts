@@ -386,7 +386,7 @@ if (singleInstance) {
       const workerLaunch = analyticsWorkerLaunch();
       analyticsSupervisor = new AnalyticsWorkerSupervisor({
         ...workerLaunch,
-        workspaceRoot: join(app.getPath('userData'), 'job-workspaces', 'analytics-worker'),
+        workspaceRoot: join(app.getPath('userData'), 'job-workspaces'),
         onStateChange: publishAnalyticsWorkerState,
         onLog(stream, message) {
           const output = stream === 'stdout' ? process.stdout : process.stderr;

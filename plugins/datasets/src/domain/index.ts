@@ -38,21 +38,48 @@ export function datasetFingerprint(
   rows: Array<{ recordKey: string; contentHash: string; removed: boolean }>,
   projectionSettings: Record<string, unknown>,
 ): string {
-  const hash = createHash('sha256');
-  hash.update(String(schemaVersion));
-  hash.update('\0');
+  const builder = new DatasetFingerprintBuilder(schemaVersion, projectionSettings);
   for (const row of [...rows].sort((left, right) =>
     left.recordKey.localeCompare(right.recordKey),
   )) {
-    hash.update(row.recordKey);
-    hash.update('\0');
-    hash.update(row.contentHash);
-    hash.update('\0');
-    hash.update(row.removed ? '1' : '0');
-    hash.update('\0');
+    builder.add(row);
   }
-  hash.update(canonicalJson(projectionSettings));
-  return hash.digest('hex');
+  return builder.digest();
+}
+
+export class DatasetFingerprintBuilder {
+  private readonly hash = createHash('sha256');
+  private lastRecordKey: string | undefined;
+  private complete = false;
+
+  constructor(
+    schemaVersion: number,
+    private readonly projectionSettings: Record<string, unknown>,
+  ) {
+    this.hash.update(String(schemaVersion));
+    this.hash.update('\0');
+  }
+
+  add(row: { recordKey: string; contentHash: string; removed: boolean }): void {
+    if (this.complete) throw new Error('Dataset fingerprint was already finalized');
+    if (this.lastRecordKey !== undefined && row.recordKey.localeCompare(this.lastRecordKey) < 0) {
+      throw new Error('Dataset fingerprint rows must be sorted by Record Key');
+    }
+    this.hash.update(row.recordKey);
+    this.hash.update('\0');
+    this.hash.update(row.contentHash);
+    this.hash.update('\0');
+    this.hash.update(row.removed ? '1' : '0');
+    this.hash.update('\0');
+    this.lastRecordKey = row.recordKey;
+  }
+
+  digest(): string {
+    if (this.complete) throw new Error('Dataset fingerprint was already finalized');
+    this.complete = true;
+    this.hash.update(canonicalJson(this.projectionSettings));
+    return this.hash.digest('hex');
+  }
 }
 
 export function hashJson(value: unknown): string {

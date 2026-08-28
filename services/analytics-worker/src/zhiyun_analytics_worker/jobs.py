@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import os
+import threading
 from collections.abc import AsyncIterator
 from pathlib import Path
 
 import orjson
 
-from .methods import MethodRegistry
+from .methods import MethodContext, MethodRegistry, WorkerMethodError
 from .models import (
     WorkerJob,
     WorkerJobError,
@@ -45,6 +46,7 @@ class JobManager:
         self._events: dict[str, list[WorkerJobEvent]] = {}
         self._conditions: dict[str, asyncio.Condition] = {}
         self._tasks: dict[str, asyncio.Task[None]] = {}
+        self._cancellations: dict[str, threading.Event] = {}
         self._semaphore = asyncio.Semaphore(1)
 
     def get(self, job_id: str) -> WorkerJob:
@@ -67,8 +69,11 @@ class JobManager:
         if descriptor.version != submission.methodVersion:
             raise JobConflict("Requested method version is unavailable")
         workspace = create_job_workspace(self.workspace_root, submission.jobId)
-        if submission.inputArtifactRef is not None:
+        input_path = (
             resolve_input(workspace, submission.inputArtifactRef)
+            if submission.inputArtifactRef is not None
+            else None
+        )
         resolve_output(workspace, submission.outputArtifactRef)
         job = WorkerJob(
             id=submission.jobId,
@@ -83,8 +88,9 @@ class JobManager:
         self._submissions[job.id] = submission
         self._events[job.id] = []
         self._conditions[job.id] = asyncio.Condition()
+        self._cancellations[job.id] = threading.Event()
         await self._publish(job)
-        self._tasks[job.id] = asyncio.create_task(self._run(submission, workspace))
+        self._tasks[job.id] = asyncio.create_task(self._run(submission, workspace, input_path))
         return job
 
     async def _publish(self, job: WorkerJob) -> None:
@@ -108,10 +114,15 @@ class JobManager:
         job.progress = min(1, max(0, progress))
         await self._publish(job)
 
-    async def _run(self, submission: WorkerJobSubmission, workspace: Path) -> None:
+    async def _run(
+        self, submission: WorkerJobSubmission, workspace: Path, input_path: Path | None
+    ) -> None:
         job = self.get(submission.jobId)
+        cancellation = self._cancellations[job.id]
         try:
             async with self._semaphore:
+                if cancellation.is_set():
+                    raise asyncio.CancelledError
                 job.state = "running"
                 job.phase = "preparing"
                 job.startedAt = utc_now()
@@ -119,10 +130,28 @@ class JobManager:
                 handler = self.methods.handler(submission.methodId)
                 if handler is None:
                     raise MethodNotFound(submission.methodId)
-                result = await handler(
-                    submission.parameters,
-                    lambda phase, progress: self._report(job, phase, progress),
+                main_loop = asyncio.get_running_loop()
+
+                async def report_from_worker_thread(phase: str, progress: float) -> None:
+                    if cancellation.is_set():
+                        raise asyncio.CancelledError
+                    future = asyncio.run_coroutine_threadsafe(
+                        self._report(job, phase, progress), main_loop
+                    )
+                    await asyncio.wrap_future(future)
+                    if cancellation.is_set():
+                        raise asyncio.CancelledError
+
+                context = MethodContext(
+                    parameters=submission.parameters,
+                    workspace=workspace,
+                    input_path=input_path,
+                    report=report_from_worker_thread,
+                    cancelled=cancellation.is_set,
                 )
+                result = await asyncio.to_thread(lambda: asyncio.run(handler(context)))
+                if cancellation.is_set():
+                    raise asyncio.CancelledError
                 job.phase = "persisting"
                 job.progress = 0.9
                 await self._publish(job)
@@ -139,6 +168,14 @@ class JobManager:
         except asyncio.CancelledError:
             job.state = "canceled"
             job.phase = "canceled"
+            job.completedAt = utc_now()
+            await self._publish(job)
+        except WorkerMethodError as error:
+            job.state = "failed"
+            job.phase = "failed"
+            job.error = WorkerJobError(
+                code=error.code, message=str(error), retryable=error.retryable
+            )
             job.completedAt = utc_now()
             await self._publish(job)
         except (WorkspaceViolation, ValueError) as error:
@@ -164,10 +201,13 @@ class JobManager:
         job = self.get(job_id)
         if job.state in {"canceled", "succeeded", "failed"}:
             return job
+        was_queued = job.state == "queued"
         job.state = "canceling"
         job.phase = "canceling"
         await self._publish(job)
-        self._tasks.get(job_id, asyncio.current_task()).cancel()
+        self._cancellations[job_id].set()
+        if was_queued:
+            self._tasks.get(job_id, asyncio.current_task()).cancel()
         return job
 
     async def events(self, job_id: str, after: int = 0) -> AsyncIterator[WorkerJobEvent]:
@@ -188,8 +228,9 @@ class JobManager:
     async def close(self) -> None:
         self.accepting = False
         pending = [task for task in self._tasks.values() if not task.done()]
+        for cancellation in self._cancellations.values():
+            cancellation.set()
         for task in pending:
             task.cancel()
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
-

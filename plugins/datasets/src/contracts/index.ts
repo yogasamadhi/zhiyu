@@ -52,6 +52,45 @@ export interface RecordChangePage {
   nextCursor: string | null;
 }
 
+export interface SnapshotExportRecord {
+  recordKey: string;
+  sourceUrl: string;
+  data: Record<string, unknown>;
+  contentHash: string;
+  removed: boolean;
+}
+
+export interface ConsistentSnapshotRead {
+  dataset: Dataset;
+  records: AsyncIterable<SnapshotExportRecord>;
+}
+
+export interface SnapshotMaterializationClaim {
+  snapshot: DatasetSnapshot;
+  claimed: boolean;
+  reused: boolean;
+}
+
+export interface SnapshotWorkerJob {
+  id: string;
+  state: 'queued' | 'running' | 'canceling' | 'canceled' | 'succeeded' | 'failed';
+  outputArtifactRef?: string | null;
+  error?: { code: string; message: string; retryable: boolean } | null;
+}
+
+export interface SnapshotWorkerClient {
+  submit(input: {
+    jobId: string;
+    methodId: string;
+    methodVersion: string;
+    inputArtifactRef?: string | null;
+    outputArtifactRef?: string;
+    parameters?: Record<string, unknown>;
+  }): Promise<SnapshotWorkerJob>;
+  job(jobId: string): Promise<SnapshotWorkerJob>;
+  cancel(jobId: string): Promise<SnapshotWorkerJob>;
+}
+
 export interface DatasetRepository {
   migrate(): Promise<void>;
   close(): Promise<void>;
@@ -83,6 +122,22 @@ export interface DatasetRepository {
     datasetId: string,
     fingerprint: string,
   ): Promise<DatasetSnapshot | null>;
+  withConsistentSnapshotRead<T>(
+    datasetId: string,
+    consume: (read: ConsistentSnapshotRead) => Promise<T>,
+  ): Promise<T>;
+  claimSnapshotMaterialization(
+    datasetId: string,
+    fingerprint: string,
+  ): Promise<SnapshotMaterializationClaim>;
+  completeSnapshotMaterialization(input: {
+    snapshotId: string;
+    parquetArtifactId: string;
+    manifestArtifactId: string;
+    rowCount: number;
+    warnings: string[];
+  }): Promise<DatasetSnapshot>;
+  failSnapshotMaterialization(snapshotId: string, warning: string): Promise<DatasetSnapshot>;
 }
 
 export interface DatasetsServiceContract {

@@ -39,7 +39,7 @@ export const datasetsPlugin: PluginDescriptor = {
   routes: datasetsRoutes,
   events: [
     { type: 'dataset.projected', durable: true },
-    { type: 'dataset.snapshot.created', durable: true },
+    { type: 'dataset.snapshot.ready', durable: true },
   ],
   migrations: [
     {

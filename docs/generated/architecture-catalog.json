@@ -409,7 +409,7 @@
     { "id": "corpus.build.started", "owner": "corpus" },
     { "id": "corpus.version.created", "owner": "corpus" },
     { "id": "dataset.projected", "owner": "datasets" },
-    { "id": "dataset.snapshot.created", "owner": "datasets" },
+    { "id": "dataset.snapshot.ready", "owner": "datasets" },
     { "id": "outputs.api-token.updated", "owner": "outputs" },
     { "id": "outputs.bindings.updated", "owner": "outputs" },
     { "id": "outputs.delivery.failed", "owner": "outputs" },

@@ -9,6 +9,7 @@ import type {
   DatasetRepository,
   DatasetSnapshot,
   RecordChangePage,
+  SnapshotMaterializationClaim,
 } from '../../contracts/index.js';
 import { datasetFingerprint, normalizeDatasetInputs } from '../../domain/index.js';
 import { datasetsPostgresMigration001 } from '../../migrations/postgres/index.js';
@@ -354,6 +355,130 @@ export class PostgresDatasetRepository implements DatasetRepository {
       ORDER BY (status='ready') DESC,created_at DESC LIMIT 1
     `;
     return rows[0] ? snapshotRow(rows[0] as PgRow) : null;
+  }
+
+  async withConsistentSnapshotRead<T>(
+    datasetId: string,
+    consume: (read: {
+      dataset: Dataset;
+      records: AsyncIterable<{
+        recordKey: string;
+        sourceUrl: string;
+        data: Record<string, unknown>;
+        contentHash: string;
+        removed: boolean;
+      }>;
+    }) => Promise<T>,
+  ): Promise<T> {
+    const connection = await this.sql.reserve();
+    await connection.unsafe('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    try {
+      const datasets = await connection`SELECT * FROM datasets WHERE id=${datasetId}`;
+      if (!datasets[0]) throw new Error(`Dataset not found: ${datasetId}`);
+      const query = connection`
+        SELECT record_key,source_url,data,content_hash,removed
+        FROM dataset_records WHERE dataset_id=${datasetId} ORDER BY record_key ASC
+      `.cursor(1_000);
+      const records = async function* () {
+        for await (const batch of query) {
+          for (const row of batch) {
+            yield {
+              recordKey: String(row.record_key),
+              sourceUrl: String(row.source_url),
+              data: objectValue(row.data),
+              contentHash: String(row.content_hash),
+              removed: Boolean(row.removed),
+            };
+          }
+        }
+      };
+      return await consume({ dataset: datasetRow(datasets[0] as PgRow), records: records() });
+    } finally {
+      await connection.unsafe('ROLLBACK').catch(() => undefined);
+      connection.release();
+    }
+  }
+
+  async claimSnapshotMaterialization(
+    datasetId: string,
+    fingerprint: string,
+  ): Promise<SnapshotMaterializationClaim> {
+    return this.sql.begin(async (transaction) => {
+      await transaction`
+        SELECT pg_advisory_xact_lock(hashtextextended(${`${datasetId}:${fingerprint}`},2))
+      `;
+      const rows = await transaction`
+        SELECT * FROM dataset_snapshots
+        WHERE dataset_id=${datasetId} AND fingerprint=${fingerprint}
+        ORDER BY (status='ready') DESC,(status='preparing') DESC,created_at DESC,id DESC
+        FOR UPDATE
+      `;
+      const selected = rows[0];
+      if (!selected) throw new Error('Projected Dataset Snapshot was not found for fingerprint');
+      const snapshot = snapshotRow(selected as PgRow);
+      if (snapshot.status === 'ready') return { snapshot, claimed: false, reused: true };
+      if (snapshot.status === 'preparing') return { snapshot, claimed: false, reused: false };
+      const updated = await transaction`
+        UPDATE dataset_snapshots SET
+          status='preparing',warnings=${transaction.json(jsonValue([]))},updated_at=${new Date()}
+        WHERE id=${snapshot.id} AND status IN ('projected','failed') RETURNING *
+      `;
+      if (!updated[0]) {
+        const current = await transaction`SELECT * FROM dataset_snapshots WHERE id=${snapshot.id}`;
+        return {
+          snapshot: snapshotRow(current[0] as PgRow),
+          claimed: false,
+          reused: false,
+        };
+      }
+      return { snapshot: snapshotRow(updated[0] as PgRow), claimed: true, reused: false };
+    });
+  }
+
+  async completeSnapshotMaterialization(input: {
+    snapshotId: string;
+    parquetArtifactId: string;
+    manifestArtifactId: string;
+    rowCount: number;
+    warnings: string[];
+  }): Promise<DatasetSnapshot> {
+    return this.sql.begin(async (transaction) => {
+      const rows = await transaction`
+        UPDATE dataset_snapshots SET
+          status='ready',parquet_artifact_id=${input.parquetArtifactId},
+          manifest_artifact_id=${input.manifestArtifactId},row_count=${input.rowCount},
+          warnings=${transaction.json(jsonValue(input.warnings))},updated_at=${new Date()}
+        WHERE id=${input.snapshotId} AND status='preparing' RETURNING *
+      `;
+      if (!rows[0]) throw new Error('Dataset Snapshot is not in preparing state');
+      const snapshot = snapshotRow(rows[0] as PgRow);
+      await transaction`
+        INSERT INTO platform_events(
+          id,type,schema_version,producer_plugin_id,aggregate_type,aggregate_id,payload,occurred_at
+        ) VALUES (
+          ${randomUUID()},'dataset.snapshot.ready',1,'datasets','dataset',${snapshot.datasetId},
+          ${transaction.json(
+            jsonValue({
+              snapshotId: snapshot.id,
+              fingerprint: snapshot.fingerprint,
+              rowCount: snapshot.rowCount,
+            }),
+          )},${new Date()}
+        )
+      `;
+      return snapshot;
+    });
+  }
+
+  async failSnapshotMaterialization(snapshotId: string, warning: string): Promise<DatasetSnapshot> {
+    const rows = await this.sql`
+      UPDATE dataset_snapshots SET
+        status='failed',warnings=${this.sql.json(jsonValue([warning.slice(0, 4_000)]))},
+        updated_at=${new Date()}
+      WHERE id=${snapshotId} AND status='preparing' RETURNING *
+    `;
+    if (!rows[0]) throw new Error('Dataset Snapshot is not in preparing state');
+    return snapshotRow(rows[0] as PgRow);
   }
 }
 

@@ -26,7 +26,7 @@ export async function buildApp() {
   const runtimeHolder: { current?: ZhiYunRuntime } = {};
   const workerSupervisor = new AnalyticsWorkerSupervisor({
     ...analyticsWorkerLaunch(),
-    workspaceRoot: join(dataDirectory, 'job-workspaces', 'analytics-worker'),
+    workspaceRoot: join(dataDirectory, 'job-workspaces'),
     onStateChange(state) {
       const runtime = runtimeHolder.current;
       if (!runtime) return;
