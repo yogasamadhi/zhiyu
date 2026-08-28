@@ -24,6 +24,7 @@
     }
   ],
   "services": [
+    { "id": "ai-assistance.service", "owner": "ai-assistance" },
     { "id": "artifact.store", "owner": "platform" },
     { "id": "collection.read", "owner": "collection" },
     { "id": "collection.services", "owner": "collection" },
@@ -469,6 +470,11 @@
     { "id": "001-initial", "owner": "preferences" }
   ],
   "uiContributions": [
+    {
+      "id": "ai-assistance.failure-explanation-panel",
+      "owner": "ai-assistance"
+    },
+    { "id": "ai-assistance.rule-analysis-panel", "owner": "ai-assistance" },
     { "id": "analytics.dataset-panel", "owner": "analytics" },
     { "id": "analytics.navigation", "owner": "analytics" },
     { "id": "analytics.route", "owner": "analytics" },

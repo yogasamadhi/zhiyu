@@ -79,7 +79,7 @@ import {
   type TaskCredentialBindings,
   type TaskUpdate,
 } from '@zhiyun/contracts';
-import { analyzePage } from './analyzer.js';
+import { analyzePage } from '@zhiyun/plugin-ai-assistance';
 import { InspectionManager } from './inspection.js';
 
 const idParams = z.object({ id: z.string().uuid() });
@@ -3205,4 +3205,4 @@ export async function buildRuntime(
   };
 }
 
-export { analyzePage } from './analyzer.js';
+export { analyzePage } from '@zhiyun/plugin-ai-assistance';

@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createAiProvider } from '@zhiyun/ai-runtime';
-import { analyzePage } from '../src/analyzer.js';
+import { analyzePage } from '../src/application/analyzer.js';
 
 const servers: ReturnType<typeof createServer>[] = [];
 

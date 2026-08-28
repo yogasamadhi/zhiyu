@@ -14,6 +14,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@zhiyun/ai-runtime": "workspace:*",
+    "@zhiyun/browser-runtime": "workspace:*",
+    "@zhiyun/contracts": "workspace:*",
+    "@zhiyun/crawler-runtime": "workspace:*",
+    "@zhiyun/extraction": "workspace:*",
     "@zhiyun/kernel": "workspace:*"
   }
 }

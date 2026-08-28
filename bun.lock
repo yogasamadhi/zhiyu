@@ -293,6 +293,7 @@
         "@zhiyun/kernel": "workspace:*",
         "@zhiyun/outputs": "workspace:*",
         "@zhiyun/platform": "workspace:*",
+        "@zhiyun/plugin-ai-assistance": "workspace:*",
         "@zhiyun/preferences": "workspace:*",
         "@zhiyun/product-profiles": "workspace:*",
         "@zhiyun/rules": "workspace:*",
@@ -373,6 +374,11 @@
       "name": "@zhiyun/plugin-ai-assistance",
       "version": "1.0.0",
       "dependencies": {
+        "@zhiyun/ai-runtime": "workspace:*",
+        "@zhiyun/browser-runtime": "workspace:*",
+        "@zhiyun/contracts": "workspace:*",
+        "@zhiyun/crawler-runtime": "workspace:*",
+        "@zhiyun/extraction": "workspace:*",
         "@zhiyun/kernel": "workspace:*",
       },
     },
@@ -388,6 +394,16 @@
       "version": "1.0.0",
       "dependencies": {
         "@zhiyun/kernel": "workspace:*",
+        "@zhiyun/shared": "workspace:*",
+        "better-sqlite3": "13.0.3",
+        "postgres": "^3.4.7",
+      },
+      "devDependencies": {
+        "@types/better-sqlite3": "^9.6.0",
+        "@zhiyun/platform-core": "workspace:*",
+        "@zhiyun/plugin-datasets": "workspace:*",
+        "@zhiyun/storage-postgres-v1": "workspace:*",
+        "@zhiyun/storage-sqlite-v1": "workspace:*",
       },
     },
     "plugins/corpus": {

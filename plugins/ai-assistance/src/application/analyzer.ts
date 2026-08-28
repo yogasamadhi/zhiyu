@@ -9,23 +9,12 @@ import {
   normalizeCrawlPlan,
   type AiProvider,
   type AnalysisResult,
-  type BrowserSettings,
   type CrawlPlanDefinition,
-  type RequestSettings,
-  type NetworkPolicy,
   ZhiYunError,
 } from '@zhiyun/contracts';
+import type { AnalyzeTaskRuleInput } from '../contracts/index.js';
 
-export interface AnalyzeInput {
-  taskId?: string;
-  url: string;
-  instruction: string;
-  requestSettings: RequestSettings;
-  browserSettings: BrowserSettings;
-  useAi: boolean;
-  forceBrowser: boolean;
-  networkPolicy?: NetworkPolicy;
-}
+export type AnalyzeInput = AnalyzeTaskRuleInput;
 
 function jsonCandidate(payload: unknown): CrawlPlanDefinition {
   const object = payload as { items?: unknown[] };

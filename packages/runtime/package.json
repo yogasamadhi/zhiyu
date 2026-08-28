@@ -23,6 +23,7 @@
     "@zhiyun/extraction": "workspace:*",
     "@zhiyun/kernel": "workspace:*",
     "@zhiyun/platform": "workspace:*",
+    "@zhiyun/plugin-ai-assistance": "workspace:*",
     "@zhiyun/preferences": "workspace:*",
     "@zhiyun/product-profiles": "workspace:*",
     "@zhiyun/outputs": "workspace:*",
