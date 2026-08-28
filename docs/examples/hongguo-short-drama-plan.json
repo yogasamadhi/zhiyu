@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "list": {
+    "mode": "http",
+    "actions": [],
+    "rule": {
+      "type": "css",
+      "container": "body",
+      "fields": {
+        "detailUrl": {
+          "selector": "a",
+          "value": "attribute",
+          "attribute": "href",
+          "dataType": "url"
+        }
+      }
+    }
+  },
+  "discovery": {
+    "type": "sitemap",
+    "urlField": "detailUrl",
+    "lastModifiedField": "lastModified",
+    "include": ["/detail?series_id="],
+    "exclude": ["/player/"],
+    "sameOrigin": true,
+    "maxDepth": 1,
+    "maxSitemaps": 24,
+    "maxUrls": 20
+  },
+  "pagination": { "type": "none" },
+  "detail": {
+    "urlField": "detailUrl",
+    "mode": "http",
+    "actions": [],
+    "source": {
+      "type": "script-json-assignment",
+      "selector": "script",
+      "marker": "_ROUTER_DATA ="
+    },
+    "rule": {
+      "type": "json",
+      "container": "$.loaderData.detail_page.seriesDetail",
+      "fields": {
+        "seriesId": { "path": "$.series_id", "dataType": "string" },
+        "title": { "path": "$.series_name", "dataType": "string" },
+        "introduction": { "path": "$.series_intro", "dataType": "string" },
+        "coverUrl": { "path": "$.series_cover", "dataType": "url" },
+        "episodeCount": { "path": "$.episode_cnt", "dataType": "number" },
+        "accessibleEpisodeCount": {
+          "path": "$.accessible_episode_cnt",
+          "dataType": "number"
+        },
+        "payType": { "path": "$.pay_type", "dataType": "number" },
+        "episodeLabel": { "path": "$.episode_right_text", "dataType": "string" },
+        "tags": { "path": "$.tags", "dataType": "json" },
+        "celebrities": { "path": "$.celebrities", "dataType": "json" },
+        "episodeInfo": { "path": "$.series_episode_info", "dataType": "json" }
+      }
+    },
+    "mergeStrategy": "detailWins",
+    "onError": "keep-list-record",
+    "concurrency": 1
+  },
+  "dedupe": { "strategy": "fields", "fields": ["seriesId"] },
+  "limits": { "maxRequests": 25, "maxRuntimeMs": 600000, "maxRecords": 20 }
+}

@@ -1,0 +1,178 @@
+import { createHmac } from 'node:crypto';
+import { createServer } from 'node:http';
+import postgres from 'postgres';
+import { afterEach, describe, expect, it } from 'vitest';
+import { PostgresOutputAdapter, WebhookOutputAdapter } from '../src/index.js';
+
+const servers: ReturnType<typeof createServer>[] = [];
+afterEach(async () => {
+  await Promise.all(
+    servers
+      .splice(0)
+      .map((server) => new Promise<void>((resolve) => server.close(() => resolve()))),
+  );
+});
+
+describe('Webhook output integration', () => {
+  it('signs, batches and identifies deliveries', async () => {
+    let received: { body: string; timestamp: string; signature: string; key: string } | undefined;
+    const server = createServer((request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      request.on('end', () => {
+        received = {
+          body: Buffer.concat(chunks).toString(),
+          timestamp: String(request.headers['x-zhiyun-timestamp']),
+          signature: String(request.headers['x-zhiyun-signature']),
+          key: String(request.headers['x-zhiyun-idempotency-key']),
+        };
+        response.writeHead(202).end();
+      });
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Fixture did not listen');
+    const result = await new WebhookOutputAdapter().deliver({
+      destination: {
+        id: crypto.randomUUID(),
+        name: 'fixture',
+        type: 'webhook',
+        config: { url: `http://127.0.0.1:${address.port}/delivery` },
+        credentialRef: null,
+        enabled: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      taskId: crypto.randomUUID(),
+      runId: crypto.randomUUID(),
+      datasetSettings: { mode: 'upsert', keyFields: ['id'], detectRemoved: false },
+      records: [{ sourceUrl: 'https://example.com/1', data: { id: 1, name: '织云' } }],
+      credential: { secret: 'test-secret' },
+    });
+    expect(result.delivered).toBe(1);
+    expect(received?.key).toMatch(/:1$/);
+    expect(received?.signature).toBe(
+      `sha256=${createHmac('sha256', 'test-secret').update(`${received!.timestamp}.${received!.body}`).digest('hex')}`,
+    );
+  });
+
+  it('streams records and splits Webhook payloads before the 1 MB limit', async () => {
+    const keys: string[] = [];
+    const sizes: number[] = [];
+    const events: string[] = [];
+    const server = createServer((request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      request.on('end', () => {
+        keys.push(String(request.headers['x-zhiyun-idempotency-key']));
+        const body = Buffer.concat(chunks);
+        sizes.push(body.byteLength);
+        events.push(String((JSON.parse(body.toString()) as { event: string }).event));
+        response.writeHead(202).end();
+      });
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Fixture did not listen');
+    const runId = crypto.randomUUID();
+    async function* records() {
+      for (let index = 0; index < 3; index += 1) {
+        yield {
+          sourceUrl: `https://example.com/${index}`,
+          data: { id: index, content: 'x'.repeat(600_000) },
+        };
+      }
+    }
+    const result = await new WebhookOutputAdapter().deliver({
+      destination: {
+        id: crypto.randomUUID(),
+        name: 'stream fixture',
+        type: 'webhook',
+        config: {
+          url: `http://127.0.0.1:${address.port}/delivery`,
+          event: 'dataset.changed',
+        },
+        credentialRef: null,
+        enabled: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      taskId: crypto.randomUUID(),
+      runId,
+      datasetSettings: { mode: 'upsert', keyFields: ['id'], detectRemoved: false },
+      datasetStats: { added: 3, updated: 0, removed: 0, unchanged: 0, current: 3 },
+      records: records(),
+      credential: null,
+    });
+    expect(result.delivered).toBe(3);
+    expect(keys).toEqual([`${runId}:dataset:1`, `${runId}:dataset:2`, `${runId}:dataset:3`]);
+    expect(events).toEqual(['dataset.changed', 'dataset.changed', 'dataset.changed']);
+    expect(sizes.every((size) => size <= 1024 * 1024)).toBe(true);
+  });
+});
+
+describe('PostgreSQL output integration', () => {
+  it('upserts current records and appends immutable records in batches', async () => {
+    const connectionString =
+      process.env.DATABASE_URL ?? 'postgresql://zhiyun:zhiyun@localhost:45432/zhiyun';
+    const table = `zhiyun_output_test_${Date.now()}`;
+    const sql = postgres(connectionString, { max: 1 });
+    const adapter = new PostgresOutputAdapter();
+    const taskId = crypto.randomUUID();
+    const destination = {
+      id: crypto.randomUUID(),
+      name: 'PostgreSQL fixture',
+      type: 'postgres' as const,
+      config: { schema: 'public', table },
+      credentialRef: null,
+      enabled: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const credential = { connectionString };
+    try {
+      await adapter.test({ destination, credential });
+      const first = await adapter.deliver({
+        destination,
+        taskId,
+        runId: crypto.randomUUID(),
+        datasetSettings: { mode: 'upsert', keyFields: ['id'], detectRemoved: false },
+        records: [{ sourceUrl: 'https://example.com/1', data: { id: 1, name: 'first' } }],
+        credential,
+      });
+      expect(first.delivered).toBe(1);
+      await adapter.deliver({
+        destination,
+        taskId,
+        runId: crypto.randomUUID(),
+        datasetSettings: { mode: 'upsert', keyFields: ['id'], detectRemoved: false },
+        records: [{ sourceUrl: 'https://example.com/1', data: { id: 1, name: 'updated' } }],
+        credential,
+      });
+      let rows = await sql<Array<{ data: { name: string } }>>`
+        SELECT data FROM ${sql('public')}.${sql(table)} WHERE task_id=${taskId}
+      `;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.data.name).toBe('updated');
+
+      await adapter.deliver({
+        destination,
+        taskId,
+        runId: crypto.randomUUID(),
+        datasetSettings: { mode: 'append', keyFields: ['id'], detectRemoved: false },
+        records: [{ sourceUrl: 'https://example.com/1', data: { id: 1, name: 'append' } }],
+        credential,
+      });
+      rows = await sql<Array<{ data: { name: string } }>>`
+        SELECT data FROM ${sql('public')}.${sql(table)} WHERE task_id=${taskId}
+      `;
+      expect(rows).toHaveLength(2);
+      expect(rows.map((row) => row.data.name).sort()).toEqual(['append', 'updated']);
+    } finally {
+      await sql`DROP TABLE IF EXISTS ${sql('public')}.${sql(table)}`;
+      await sql.end({ timeout: 5 });
+    }
+  });
+});

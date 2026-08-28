@@ -1,0 +1,65 @@
+name: Signed Desktop Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  signed-installers:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: x64
+          - os: windows-2025
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.4.0 }
+      - run: bun install --frozen-lockfile
+      - name: Require macOS signing and notarization credentials
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MAC_CODESIGN_IDENTITY: ${{ secrets.MAC_CODESIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          test -n "$MAC_CODESIGN_IDENTITY"
+          test -n "$APPLE_ID"
+          test -n "$APPLE_APP_SPECIFIC_PASSWORD"
+          test -n "$APPLE_TEAM_ID"
+      - name: Prepare Windows Authenticode certificate
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          test -n "$WINDOWS_CERTIFICATE_BASE64"
+          test -n "$WINDOWS_CERTIFICATE_PASSWORD"
+          printf '%s' "$WINDOWS_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/zhiyun-signing.pfx"
+          echo "WINDOWS_CERTIFICATE_FILE=$RUNNER_TEMP/zhiyun-signing.pfx" >> "$GITHUB_ENV"
+      - run: bun run desktop:browser
+      - run: bun run desktop:test
+      - run: bun run desktop:package -- --arch=${{ matrix.arch }}
+      - run: bun run --filter @zhiyun/desktop test:packaged
+      - run: bun run desktop:make -- --arch=${{ matrix.arch }}
+        env:
+          MAC_CODESIGN_IDENTITY: ${{ secrets.MAC_CODESIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zhiyun-signed-${{ runner.os }}-${{ matrix.arch }}
+          path: apps/desktop/out/make/**
+          if-no-files-found: error

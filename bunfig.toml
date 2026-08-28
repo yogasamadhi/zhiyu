@@ -1,0 +1,6 @@
+[install]
+exact = false
+
+[run]
+shell = "system"
+noOrphans = true

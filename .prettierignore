@@ -1,0 +1,7 @@
+node_modules
+dist
+.venv
+coverage
+bun.lock
+services/ai/uv.lock
+docs/ZhiYun（织云）项目初始化任务书.md

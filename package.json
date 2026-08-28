@@ -1,0 +1,77 @@
+{
+  "name": "zhiyun",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Practical Intelligent Web Data Extraction Platform",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "bun@1.4.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "fixtures"
+  ],
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "scripts": {
+    "dev": "bun run.ts",
+    "dev:headless": "bun run.ts --headless",
+    "dev:api": "bun run --filter @zhiyun/api dev",
+    "dev:web": "bun run --filter @zhiyun/web dev",
+    "dev:fixtures": "bun run --filter @zhiyun/fixtures dev",
+    "desktop:dev": "bun run.ts --desktop",
+    "desktop:build": "bun run --filter @zhiyun/desktop build",
+    "desktop:package": "bun run --filter @zhiyun/desktop package",
+    "desktop:make": "bun run --filter @zhiyun/desktop make",
+    "desktop:test": "bun run --filter @zhiyun/desktop test",
+    "desktop:browser": "bun run --filter @zhiyun/desktop browser:prepare",
+    "build": "tsc --noEmit && bun run --workspaces --if-present build",
+    "test": "vitest run",
+    "test:unit": "vitest run packages",
+    "test:integration": "vitest run apps/api/test",
+    "test:conformance": "vitest run -t conformance",
+    "test:security": "vitest run -t security",
+    "test:performance": "ZHIYUN_PERFORMANCE=1 vitest run -t performance --testTimeout=240000",
+    "test:watch": "vitest",
+    "test:e2e": "docker compose up -d && bun run db:migrate && playwright test -c apps/web/playwright.config.ts",
+    "test:e2e:web": "bun run test:e2e",
+    "test:e2e:desktop": "bun run desktop:test",
+    "test:smoke:desktop-package": "bun run desktop:package && bun run --filter @zhiyun/desktop test:packaged",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit && bun run --workspaces --if-present typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "bun run --filter @zhiyun/storage db:generate",
+    "db:migrate": "bun run --filter @zhiyun/storage db:migrate",
+    "db:studio": "bun run --filter @zhiyun/storage db:studio",
+    "browser:install": "playwright install chromium",
+    "client:generate": "bun run --filter @zhiyun/client generate",
+    "client:check": "bun run --filter @zhiyun/client check:generated",
+    "release:verify": "bun run lint && bun run format:check && bun run client:check && bun run typecheck && bun run test && bun run build && bun run test:e2e:web && bun run test:e2e:desktop && bun run test:smoke:desktop-package"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.62.1",
+    "@types/bun": "^1.4.0",
+    "@types/node": "^24.10.13",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.3.0",
+    "prettier": "^3.8.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^4.1.0"
+  },
+  "overrides": {
+    "@sapphire/shapeshift": "3.9.7"
+  },
+  "trustedDependencies": [
+    "esbuild",
+    "better-sqlite3",
+    "electron",
+    "msgpackr-extract",
+    "playwright",
+    "sharp"
+  ]
+}

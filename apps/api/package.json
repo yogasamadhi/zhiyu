@@ -1,0 +1,22 @@
+{
+  "name": "@zhiyun/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zhiyun/ai-runtime": "workspace:*",
+    "@zhiyun/config": "workspace:*",
+    "@zhiyun/crawler-runtime": "workspace:*",
+    "@zhiyun/platform": "workspace:*",
+    "@zhiyun/runtime": "workspace:*",
+    "@zhiyun/scheduler": "workspace:*",
+    "@zhiyun/storage": "workspace:*",
+    "fastify": "^5.12.1"
+  }
+}

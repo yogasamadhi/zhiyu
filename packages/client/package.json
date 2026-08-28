@@ -1,0 +1,26 @@
+{
+  "name": "@zhiyun/client",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "development": "./src/index.ts",
+    "bun": "./src/index.ts",
+    "types": "./src/index.ts",
+    "default": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target browser --format esm --packages external",
+    "typecheck": "tsc --noEmit",
+    "generate": "bun scripts/generate.ts",
+    "check:generated": "bun scripts/generate.ts --check"
+  },
+  "dependencies": {
+    "@zhiyun/contracts": "workspace:*",
+    "@zhiyun/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.10.1",
+    "prettier": "^3.8.2"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@zhiyun/browser-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "development": "./src/index.ts",
+    "bun": "./src/index.ts",
+    "types": "./src/index.ts",
+    "default": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external",
+    "typecheck": "tsc --noEmit",
+    "demo:stagehand": "bun src/stagehand-demo.ts"
+  },
+  "dependencies": {
+    "@browserbasehq/stagehand": "4.0.2",
+    "@zhiyun/shared": "workspace:*",
+    "playwright": "1.62.1"
+  }
+}

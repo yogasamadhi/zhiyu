@@ -1,0 +1,203 @@
+import { join } from 'node:path';
+import { createAiProvider } from '@zhiyun/ai-runtime';
+import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
+import { FileArtifactStore, HostCredentialStore } from '@zhiyun/platform';
+import { LocalQueue, LocalScheduler } from '@zhiyun/scheduler';
+import { SqliteRepository } from '@zhiyun/sqlite-storage';
+import type { ArtifactDescriptor, RuntimeCapabilities, RuntimeMetadata } from '@zhiyun/contracts';
+import { buildRuntime, type ZhiYunRuntime } from './index.js';
+
+interface BootstrapMessage {
+  type: 'bootstrap';
+  dataDirectory: string;
+  hostBaseUrl: string;
+  hostToken: string;
+  sessionNonce: string;
+  generation: number;
+  browserResources?: string;
+  rendererOrigin?: string;
+  ai?: { baseUrl?: string; model?: string; apiKeyRef?: string };
+}
+
+interface ParentPortLike {
+  on(
+    event: 'message',
+    listener: (event: {
+      data:
+        | BootstrapMessage
+        | { type: 'shutdown' }
+        | { type: 'issue-session-nonce'; nonce: string; requestId: string };
+    }) => void,
+  ): void;
+  postMessage(message: unknown): void;
+}
+
+const parentPort = (process as unknown as { parentPort?: ParentPortLike }).parentPort;
+if (!parentPort)
+  throw new Error('ZhiYun desktop Runtime must be started as an Electron utilityProcess');
+const desktopParentPort = parentPort;
+
+let runtime: ZhiYunRuntime | undefined;
+
+async function hostRequest<T>(message: BootstrapMessage, path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${message.hostBaseUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${message.hostToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`Host capability request failed: HTTP ${response.status}`);
+  return (await response.json()) as T;
+}
+
+async function bootstrap(message: BootstrapMessage): Promise<void> {
+  if (runtime) throw new Error('Runtime is already bootstrapped');
+  if (message.browserResources) process.env.PLAYWRIGHT_BROWSERS_PATH = message.browserResources;
+  const repository = new SqliteRepository(join(message.dataDirectory, 'zhiyun.sqlite3'));
+  const queue = new LocalQueue(repository);
+  const scheduler = new LocalScheduler(repository, queue);
+  const credentialStore = new HostCredentialStore(message.hostBaseUrl, message.hostToken);
+  const metadata: RuntimeMetadata = {
+    runtimeId: crypto.randomUUID(),
+    generation: message.generation,
+    apiVersion: 'v1',
+    mode: 'desktop',
+    version: '0.2.0',
+    startedAt: new Date().toISOString(),
+  };
+  const capabilities: RuntimeCapabilities = {
+    platform: process.platform === 'darwin' ? 'darwin' : 'win32',
+    browser: true,
+    cron: true,
+    credentials: true,
+    artifactSaveDialog: true,
+    notifications: true,
+    tray: true,
+  };
+  const ai = createAiProvider({
+    ...(message.ai?.baseUrl && message.ai.model && message.ai.apiKeyRef
+      ? {
+          baseUrl: message.ai.baseUrl,
+          model: message.ai.model,
+          apiKey: () => credentialStore.resolve<string>(message.ai!.apiKeyRef!),
+        }
+      : {}),
+    onUsage: async (usage) => {
+      await repository
+        .appendEvent({
+          type: 'ai.request.completed',
+          aggregateType: usage.taskId ? 'task' : 'runtime',
+          aggregateId: usage.taskId ?? metadata.runtimeId,
+          payload: { ...usage },
+        })
+        .catch(() => undefined);
+    },
+  });
+  runtime = await buildRuntime(
+    {
+      repository,
+      queue,
+      scheduler,
+      crawler: new CrawlerRuntime(),
+      ai,
+      credentialStore,
+      artifactStore: new FileArtifactStore(join(message.dataDirectory, 'artifacts')),
+      host: {
+        metadata,
+        capabilities,
+        async saveArtifact(
+          artifact: ArtifactDescriptor,
+          source: { storageKey: string } | { data: Buffer },
+        ) {
+          return hostRequest<{ saved: boolean }>(message, '/artifacts/save', {
+            artifact,
+            ...('storageKey' in source
+              ? { storageKey: source.storageKey }
+              : { data: source.data.toString('base64') }),
+          });
+        },
+        async notify(title: string, body: string) {
+          await hostRequest(message, '/notifications/show', { title, body });
+        },
+        async createLoginSession(url: string) {
+          return hostRequest<{ reference: string } | { canceled: true }>(
+            message,
+            '/credentials/login',
+            { url },
+          );
+        },
+        async promptCredential(kind) {
+          return hostRequest<{ reference: string } | { canceled: true }>(
+            message,
+            '/credentials/prompt',
+            { kind },
+          );
+        },
+        async saveBackup(filename: string, data: Buffer) {
+          return hostRequest<{ saved: boolean }>(message, '/artifacts/save', {
+            artifact: { filename },
+            data: data.toString('base64'),
+          });
+        },
+        async selectRestoreBackup() {
+          const result = await hostRequest<{ canceled: true } | { data: string }>(
+            message,
+            '/database/select-restore',
+            {},
+          );
+          return 'canceled' in result ? result : { data: Buffer.from(result.data, 'base64') };
+        },
+        async restartRuntime() {
+          await hostRequest(message, '/runtime/restart', {});
+        },
+      },
+    },
+    {
+      sessionNonce: message.sessionNonce,
+      allowedOrigins: ['app://zhiyun', ...(message.rendererOrigin ? [message.rendererOrigin] : [])],
+      logger: { level: 'info' },
+    },
+  );
+  const address = await runtime.listen({ host: '127.0.0.1', port: 0 });
+  desktopParentPort.postMessage({
+    type: 'ready',
+    baseUrl: address,
+    runtimeId: metadata.runtimeId,
+    generation: metadata.generation,
+    apiVersion: metadata.apiVersion,
+  });
+}
+
+desktopParentPort.on('message', (event) => {
+  const message = event.data;
+  if (message.type === 'bootstrap') {
+    void bootstrap(message).catch((error) => {
+      desktopParentPort.postMessage({
+        type: 'fatal',
+        message: error instanceof Error ? error.message : String(error),
+      });
+      process.exitCode = 1;
+    });
+  } else if (message.type === 'shutdown') {
+    void runtime?.close().finally(() => process.exit(0));
+  } else if (message.type === 'issue-session-nonce') {
+    runtime?.issueSessionNonce(message.nonce);
+    desktopParentPort.postMessage({ type: 'session-nonce-issued', requestId: message.requestId });
+  }
+});
+
+process.on('uncaughtException', (error) => {
+  desktopParentPort.postMessage({ type: 'fatal', message: error.message });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (error) => {
+  desktopParentPort.postMessage({
+    type: 'fatal',
+    message: error instanceof Error ? error.message : String(error),
+  });
+  process.exit(1);
+});

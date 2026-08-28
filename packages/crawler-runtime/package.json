@@ -1,0 +1,27 @@
+{
+  "name": "@zhiyun/crawler-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "development": "./src/index.ts",
+    "bun": "./src/index.ts",
+    "types": "./src/index.ts",
+    "default": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@crawlee/cheerio": "3.18.1",
+    "@crawlee/core": "3.18.1",
+    "@crawlee/playwright": "3.18.1",
+    "@crawlee/utils": "3.18.1",
+    "@zhiyun/browser-runtime": "workspace:*",
+    "@zhiyun/extraction": "workspace:*",
+    "@zhiyun/shared": "workspace:*",
+    "playwright": "1.62.1",
+    "robots-parser": "3.0.1"
+  }
+}

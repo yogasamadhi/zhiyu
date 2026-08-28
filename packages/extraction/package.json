@@ -1,0 +1,25 @@
+{
+  "name": "@zhiyun/extraction",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "development": "./src/index.ts",
+    "bun": "./src/index.ts",
+    "types": "./src/index.ts",
+    "default": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zhiyun/shared": "workspace:*",
+    "cheerio": "^1.1.2",
+    "jsdom": "^27.2.0",
+    "jsonpath-plus": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^27.0.0"
+  }
+}

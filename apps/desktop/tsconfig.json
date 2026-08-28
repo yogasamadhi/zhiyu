@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["node", "bun", "vite/client"]
+  },
+  "include": [
+    "src",
+    "scripts",
+    "forge.config.ts",
+    "vite.config.ts",
+    "playwright.config.ts",
+    "playwright.packaged.config.ts",
+    "test",
+    "e2e",
+    "e2e-packaged"
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1787832000000,
+      "tag": "0000_initial",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787900000000,
+      "tag": "0001_desktop_contracts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788000000000,
+      "tag": "0002_zhiyun_1_0",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788050000000,
+      "tag": "0003_repair_proposal_testing",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788060000000,
+      "tag": "0004_data_api_rate_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788070000000,
+      "tag": "0005_backfill_output_bindings",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788080000000,
+      "tag": "0006_dataset_cursor_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788090000000,
+      "tag": "0007_dataset_run_provenance",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788100000000,
+      "tag": "0008_drop_legacy_dataset_run_cascade",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788110000000,
+      "tag": "0009_run_record_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788120000000,
+      "tag": "0010_scheduler_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788130000000,
+      "tag": "0011_preferences_and_trends",
+      "breakpoints": true
+    }
+  ]
+}

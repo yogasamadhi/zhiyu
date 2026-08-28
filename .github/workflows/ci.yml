@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: zhiyun
+          POSTGRES_PASSWORD: zhiyun
+          POSTGRES_DB: zhiyun
+        ports: ['45432:5432']
+        options: >-
+          --health-cmd "pg_isready -U zhiyun"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['46379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.4.0 }
+      - run: bun install --frozen-lockfile
+      - run: bun run db:migrate
+      - run: bun run lint
+      - run: bun run format:check
+      - run: bun run client:check
+      - run: bun run typecheck
+      - run: bun run test:unit
+      - run: bun run test:integration
+      - run: bun run test:conformance
+      - run: bun run test:security
+      - run: bun run build
+      - run: bun run browser:install
+      - run: bun run test:e2e
+
+  desktop-installers:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: x64
+          - os: windows-2025
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.4.0 }
+      - run: bun install --frozen-lockfile
+      - run: bun run desktop:browser
+      - run: bun run desktop:test
+      - run: bun run desktop:package -- --arch=${{ matrix.arch }}
+      - run: bun run --filter @zhiyun/desktop test:packaged
+      - run: bun run desktop:make -- --arch=${{ matrix.arch }}
+        env:
+          MAC_CODESIGN_IDENTITY: ${{ secrets.MAC_CODESIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_CERTIFICATE_FILE: ${{ secrets.WINDOWS_CERTIFICATE_FILE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zhiyun-${{ runner.os }}-${{ matrix.arch }}
+          path: apps/desktop/out/make/**

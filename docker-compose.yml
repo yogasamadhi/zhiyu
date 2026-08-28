@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: zhiyun
+      POSTGRES_PASSWORD: zhiyun
+      POSTGRES_DB: zhiyun
+    ports:
+      - '${POSTGRES_PORT:-45432}:5432'
+    volumes:
+      - zhiyun-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U zhiyun -d zhiyun']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - '${REDIS_PORT:-46379}:6379'
+    volumes:
+      - zhiyun-redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  zhiyun-postgres:
+  zhiyun-redis:
