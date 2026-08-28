@@ -498,6 +498,231 @@ function analysisResultOpenApiSchema() {
   };
 }
 
+function corpusInputOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name', 'datasetId'],
+    properties: {
+      name: { type: 'string', minLength: 1, maxLength: 200 },
+      datasetId: { type: 'string', format: 'uuid' },
+    },
+  };
+}
+
+function corpusOpenApiSchema() {
+  const input = corpusInputOpenApiSchema();
+  return {
+    ...input,
+    required: [...input.required, 'id', 'revision', 'createdAt', 'updatedAt'],
+    properties: {
+      ...input.properties,
+      id: { type: 'string', format: 'uuid' },
+      revision: { type: 'integer', minimum: 1 },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  };
+}
+
+function corpusRecipeInputOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'name',
+      'snapshotPolicy',
+      'selectedTextFields',
+      'metadataFields',
+      'stripHtml',
+      'unicodeNormalization',
+      'deduplication',
+      'nearDuplicateThreshold',
+      'chunkSize',
+      'chunkOverlap',
+      'languagePolicy',
+      'outputFormats',
+    ],
+    properties: {
+      name: { type: 'string', minLength: 1, maxLength: 200 },
+      snapshotPolicy: {
+        oneOf: [
+          {
+            type: 'object',
+            additionalProperties: false,
+            required: ['mode'],
+            properties: { mode: { const: 'latest' } },
+          },
+          {
+            type: 'object',
+            additionalProperties: false,
+            required: ['mode', 'snapshotId'],
+            properties: {
+              mode: { const: 'pinned' },
+              snapshotId: { type: 'string', format: 'uuid' },
+            },
+          },
+        ],
+      },
+      selectedTextFields: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 100,
+        uniqueItems: true,
+        items: { type: 'string' },
+      },
+      metadataFields: {
+        type: 'array',
+        maxItems: 100,
+        uniqueItems: true,
+        items: { type: 'string' },
+      },
+      stripHtml: { type: 'boolean' },
+      unicodeNormalization: { type: 'string', enum: ['NFC', 'NFKC'] },
+      deduplication: { type: 'string', enum: ['none', 'exact', 'exact-and-near'] },
+      nearDuplicateThreshold: { type: 'number', minimum: 0.5, maximum: 1 },
+      chunkSize: { type: 'integer', minimum: 100, maximum: 10000 },
+      chunkOverlap: { type: 'integer', minimum: 0, maximum: 2000 },
+      languagePolicy: { type: 'string', enum: ['zh-en-first', 'generic'] },
+      outputFormats: {
+        type: 'array',
+        uniqueItems: true,
+        items: { type: 'string', enum: ['parquet', 'jsonl', 'markdown'] },
+      },
+    },
+  };
+}
+
+function corpusRecipeOpenApiSchema() {
+  const input = corpusRecipeInputOpenApiSchema();
+  return {
+    ...input,
+    required: [
+      ...input.required,
+      'id',
+      'corpusId',
+      'datasetId',
+      'revision',
+      'createdAt',
+      'updatedAt',
+    ],
+    properties: {
+      ...input.properties,
+      id: { type: 'string', format: 'uuid' },
+      corpusId: { type: 'string', format: 'uuid' },
+      datasetId: { type: 'string', format: 'uuid' },
+      revision: { type: 'integer', minimum: 1 },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  };
+}
+
+function corpusBuildOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'id',
+      'corpusId',
+      'recipeId',
+      'recipeRevision',
+      'datasetId',
+      'snapshotId',
+      'versionId',
+      'state',
+      'phase',
+      'progress',
+      'attempt',
+      'error',
+      'createdAt',
+      'startedAt',
+      'completedAt',
+    ],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      corpusId: { type: 'string', format: 'uuid' },
+      recipeId: { type: 'string', format: 'uuid' },
+      recipeRevision: { type: 'integer', minimum: 1 },
+      datasetId: { type: 'string', format: 'uuid' },
+      snapshotId: { type: 'string', format: 'uuid' },
+      versionId: { type: ['string', 'null'], format: 'uuid' },
+      state: {
+        type: 'string',
+        enum: [
+          'queued',
+          'claimed',
+          'running',
+          'persisting',
+          'canceling',
+          'canceled',
+          'interrupted',
+          'succeeded',
+          'failed',
+        ],
+      },
+      phase: { type: 'string' },
+      progress: { type: 'number', minimum: 0, maximum: 1 },
+      attempt: { type: 'integer', minimum: 0 },
+      error: { type: ['object', 'null'], additionalProperties: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      startedAt: { type: ['string', 'null'], format: 'date-time' },
+      completedAt: { type: ['string', 'null'], format: 'date-time' },
+    },
+  };
+}
+
+function corpusVersionOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'id',
+      'corpusId',
+      'buildId',
+      'datasetId',
+      'snapshotId',
+      'snapshotFingerprint',
+      'recipeId',
+      'recipeRevision',
+      'fingerprint',
+      'workerVersion',
+      'stats',
+      'artifacts',
+      'createdAt',
+    ],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      corpusId: { type: 'string', format: 'uuid' },
+      buildId: { type: 'string', format: 'uuid' },
+      datasetId: { type: 'string', format: 'uuid' },
+      snapshotId: { type: 'string', format: 'uuid' },
+      snapshotFingerprint: { type: 'string' },
+      recipeId: { type: 'string', format: 'uuid' },
+      recipeRevision: { type: 'integer', minimum: 1 },
+      fingerprint: { type: 'string' },
+      workerVersion: { type: 'string' },
+      stats: { type: 'object', additionalProperties: true },
+      artifacts: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'kind', 'contentType', 'filename', 'checksum', 'size'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            kind: { type: 'string' },
+            contentType: { type: 'string' },
+            filename: { type: 'string' },
+            checksum: { type: 'string' },
+            size: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+  };
+}
+
 export function openApiDocument() {
   const paths: Record<string, Record<string, Record<string, unknown>>> = {
     '/api/v2/session': { post: { operationId: 'createRuntimeSession' } },
@@ -630,6 +855,35 @@ export function openApiDocument() {
     '/api/v2/analytics/results/{resultId}/exports': {
       post: { operationId: 'exportAnalysisResult' },
     },
+    '/api/v2/corpora': {
+      get: { operationId: 'listCorpora' },
+      post: { operationId: 'createCorpus' },
+    },
+    '/api/v2/corpora/{corpusId}': {
+      get: { operationId: 'getCorpus' },
+      put: { operationId: 'updateCorpus' },
+      delete: { operationId: 'deleteCorpus' },
+    },
+    '/api/v2/corpora/{corpusId}/recipes': {
+      get: { operationId: 'listCorpusRecipes' },
+      post: { operationId: 'createCorpusRecipe' },
+    },
+    '/api/v2/corpora/{corpusId}/recipes/{recipeId}': {
+      put: { operationId: 'updateCorpusRecipe' },
+      delete: { operationId: 'deleteCorpusRecipe' },
+    },
+    '/api/v2/corpora/{corpusId}/builds': { post: { operationId: 'createCorpusBuild' } },
+    '/api/v2/corpus-builds': { get: { operationId: 'listCorpusBuilds' } },
+    '/api/v2/corpus-builds/{buildId}': { get: { operationId: 'getCorpusBuild' } },
+    '/api/v2/corpus-builds/{buildId}/cancel': { post: { operationId: 'cancelCorpusBuild' } },
+    '/api/v2/corpus-builds/{buildId}/retry': { post: { operationId: 'retryCorpusBuild' } },
+    '/api/v2/corpora/{corpusId}/versions': { get: { operationId: 'listCorpusVersions' } },
+    '/api/v2/corpora/{corpusId}/versions/{versionId}': {
+      get: { operationId: 'getCorpusVersion' },
+    },
+    '/api/v2/corpora/{corpusId}/versions/{versionId}/exports': {
+      post: { operationId: 'exportCorpusVersion' },
+    },
     '/api/v2/inspection-sessions': { post: { operationId: 'createInspectionSession' } },
     '/api/v2/inspection-sessions/{id}/screenshot': {
       get: { operationId: 'getInspectionScreenshot' },
@@ -687,7 +941,17 @@ export function openApiDocument() {
         required: true,
         schema: {
           type: 'string',
-          format: ['id', 'ruleId', 'proposalId', 'recipeId', 'jobId', 'resultId'].includes(name)
+          format: [
+            'id',
+            'ruleId',
+            'proposalId',
+            'recipeId',
+            'jobId',
+            'resultId',
+            'corpusId',
+            'buildId',
+            'versionId',
+          ].includes(name)
             ? 'uuid'
             : undefined,
         },
@@ -933,6 +1197,111 @@ export function openApiDocument() {
   paths['/api/v2/analytics/results/{resultId}/exports']!.post!.responses = responses(
     ref('AnalysisResult'),
   );
+  Object.assign(paths['/api/v2/corpora']!.get!, {
+    parameters: [
+      { name: 'cursor', in: 'query', schema: { type: 'string' } },
+      { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 200 } },
+    ],
+    responses: responses(page(ref('Corpus'))),
+  });
+  Object.assign(paths['/api/v2/corpora']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body(ref('CorpusInput')),
+    responses: responses(ref('Corpus'), '201'),
+  });
+  paths['/api/v2/corpora/{corpusId}']!.get!.responses = responses(ref('Corpus'));
+  Object.assign(paths['/api/v2/corpora/{corpusId}']!.put!, {
+    requestBody: body(ref('CorpusInput')),
+    responses: responses(ref('Corpus')),
+  });
+  appendParameters(paths['/api/v2/corpora/{corpusId}']!.put!, idempotencyHeader(), ifMatchHeader());
+  appendParameters(
+    paths['/api/v2/corpora/{corpusId}']!.delete!,
+    idempotencyHeader(),
+    ifMatchHeader(),
+  );
+  paths['/api/v2/corpora/{corpusId}']!.delete!.responses = responses({
+    type: 'object',
+    required: ['deleted'],
+    properties: { deleted: { type: 'boolean' } },
+  });
+  paths['/api/v2/corpora/{corpusId}/recipes']!.get!.responses = responses({
+    type: 'array',
+    items: ref('CorpusRecipe'),
+  });
+  Object.assign(paths['/api/v2/corpora/{corpusId}/recipes']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body(ref('CorpusRecipeInput')),
+    responses: responses(ref('CorpusRecipe'), '201'),
+  });
+  Object.assign(paths['/api/v2/corpora/{corpusId}/recipes/{recipeId}']!.put!, {
+    requestBody: body(ref('CorpusRecipeInput')),
+    responses: responses(ref('CorpusRecipe')),
+  });
+  appendParameters(
+    paths['/api/v2/corpora/{corpusId}/recipes/{recipeId}']!.put!,
+    idempotencyHeader(),
+    ifMatchHeader(),
+  );
+  appendParameters(
+    paths['/api/v2/corpora/{corpusId}/recipes/{recipeId}']!.delete!,
+    idempotencyHeader(),
+    ifMatchHeader(),
+  );
+  paths['/api/v2/corpora/{corpusId}/recipes/{recipeId}']!.delete!.responses = responses({
+    type: 'object',
+    required: ['deleted'],
+    properties: { deleted: { type: 'boolean' } },
+  });
+  Object.assign(paths['/api/v2/corpora/{corpusId}/builds']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['recipeId', 'snapshotId'],
+      properties: {
+        recipeId: { type: 'string', format: 'uuid' },
+        snapshotId: { type: 'string', format: 'uuid' },
+      },
+    }),
+    responses: responses(ref('CorpusBuild'), '202'),
+  });
+  Object.assign(paths['/api/v2/corpus-builds']!.get!, {
+    parameters: [
+      { name: 'corpusId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+      { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 1000 } },
+    ],
+    responses: responses({ type: 'array', items: ref('CorpusBuild') }),
+  });
+  paths['/api/v2/corpus-builds/{buildId}']!.get!.responses = responses(ref('CorpusBuild'));
+  for (const path of [
+    '/api/v2/corpus-builds/{buildId}/cancel',
+    '/api/v2/corpus-builds/{buildId}/retry',
+  ]) {
+    appendParameters(paths[path]!.post!, idempotencyHeader());
+    paths[path]!.post!.responses = responses(ref('CorpusBuild'), '202');
+  }
+  Object.assign(paths['/api/v2/corpora/{corpusId}/versions']!.get!, {
+    parameters: [
+      { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 1000 } },
+    ],
+    responses: responses({ type: 'array', items: ref('CorpusVersion') }),
+  });
+  paths['/api/v2/corpora/{corpusId}/versions/{versionId}']!.get!.responses = responses(
+    ref('CorpusVersion'),
+  );
+  appendParameters(
+    paths['/api/v2/corpora/{corpusId}/versions/{versionId}/exports']!.post!,
+    idempotencyHeader(),
+  );
+  paths['/api/v2/corpora/{corpusId}/versions/{versionId}/exports']!.post!.responses = responses({
+    type: 'object',
+    required: ['versionId', 'artifacts'],
+    properties: {
+      versionId: { type: 'string', format: 'uuid' },
+      artifacts: corpusVersionOpenApiSchema().properties.artifacts,
+    },
+  });
   paths['/api/v2/data/tasks/{id}/records']!.get!.security = [{ dataApiBearer: [] }];
   return {
     openapi: '3.1.0',
@@ -953,6 +1322,12 @@ export function openApiDocument() {
         AnalysisJobInput: analysisJobInputOpenApiSchema(),
         AnalysisJob: analysisJobOpenApiSchema(),
         AnalysisResult: analysisResultOpenApiSchema(),
+        CorpusInput: corpusInputOpenApiSchema(),
+        Corpus: corpusOpenApiSchema(),
+        CorpusRecipeInput: corpusRecipeInputOpenApiSchema(),
+        CorpusRecipe: corpusRecipeOpenApiSchema(),
+        CorpusBuild: corpusBuildOpenApiSchema(),
+        CorpusVersion: corpusVersionOpenApiSchema(),
         RuleVersion: z.toJSONSchema(ruleVersionSchema),
         DatasetRecord: z.toJSONSchema(datasetRecordSchema),
         DatasetStats: z.toJSONSchema(datasetStatsSchema),

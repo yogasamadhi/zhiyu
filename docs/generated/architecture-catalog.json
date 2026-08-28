@@ -50,6 +50,12 @@
       "path": "/api/v2/analytics/jobs/{jobId}/cancel"
     },
     {
+      "id": "cancelCorpusBuild",
+      "owner": "corpus",
+      "method": "POST",
+      "path": "/api/v2/corpus-builds/{buildId}/cancel"
+    },
+    {
       "id": "cancelRun",
       "owner": "collection",
       "method": "POST",
@@ -90,6 +96,12 @@
       "owner": "corpus",
       "method": "POST",
       "path": "/api/v2/corpora/{corpusId}/builds"
+    },
+    {
+      "id": "createCorpusRecipe",
+      "owner": "corpus",
+      "method": "POST",
+      "path": "/api/v2/corpora/{corpusId}/recipes"
     },
     {
       "id": "createDatasetSnapshot",
@@ -140,6 +152,18 @@
       "path": "/api/v2/analytics/recipes/{recipeId}"
     },
     {
+      "id": "deleteCorpus",
+      "owner": "corpus",
+      "method": "DELETE",
+      "path": "/api/v2/corpora/{corpusId}"
+    },
+    {
+      "id": "deleteCorpusRecipe",
+      "owner": "corpus",
+      "method": "DELETE",
+      "path": "/api/v2/corpora/{corpusId}/recipes/{recipeId}"
+    },
+    {
       "id": "deleteOutputDestination",
       "owner": "outputs",
       "method": "DELETE",
@@ -174,6 +198,12 @@
       "owner": "analytics",
       "method": "POST",
       "path": "/api/v2/analytics/results/{resultId}/exports"
+    },
+    {
+      "id": "exportCorpusVersion",
+      "owner": "corpus",
+      "method": "POST",
+      "path": "/api/v2/corpora/{corpusId}/versions/{versionId}/exports"
     },
     {
       "id": "exportDataset",
@@ -216,6 +246,12 @@
       "owner": "corpus",
       "method": "GET",
       "path": "/api/v2/corpus-builds/{buildId}"
+    },
+    {
+      "id": "getCorpusVersion",
+      "owner": "corpus",
+      "method": "GET",
+      "path": "/api/v2/corpora/{corpusId}/versions/{versionId}"
     },
     {
       "id": "getDataset",
@@ -314,6 +350,24 @@
       "path": "/api/v2/corpora"
     },
     {
+      "id": "listCorpusBuilds",
+      "owner": "corpus",
+      "method": "GET",
+      "path": "/api/v2/corpus-builds"
+    },
+    {
+      "id": "listCorpusRecipes",
+      "owner": "corpus",
+      "method": "GET",
+      "path": "/api/v2/corpora/{corpusId}/recipes"
+    },
+    {
+      "id": "listCorpusVersions",
+      "owner": "corpus",
+      "method": "GET",
+      "path": "/api/v2/corpora/{corpusId}/versions"
+    },
+    {
       "id": "listDatasetChanges",
       "owner": "datasets",
       "method": "GET",
@@ -392,6 +446,12 @@
       "path": "/api/v2/analytics/jobs/{jobId}/retry"
     },
     {
+      "id": "retryCorpusBuild",
+      "owner": "corpus",
+      "method": "POST",
+      "path": "/api/v2/corpus-builds/{buildId}/retry"
+    },
+    {
       "id": "revokeApiToken",
       "owner": "outputs",
       "method": "DELETE",
@@ -414,6 +474,18 @@
       "owner": "analytics",
       "method": "PUT",
       "path": "/api/v2/analytics/recipes/{recipeId}"
+    },
+    {
+      "id": "updateCorpus",
+      "owner": "corpus",
+      "method": "PUT",
+      "path": "/api/v2/corpora/{corpusId}"
+    },
+    {
+      "id": "updateCorpusRecipe",
+      "owner": "corpus",
+      "method": "PUT",
+      "path": "/api/v2/corpora/{corpusId}/recipes/{recipeId}"
     },
     {
       "id": "updateOutputDestination",
@@ -453,6 +525,12 @@
     { "id": "corpus.build.created", "owner": "corpus" },
     { "id": "corpus.build.failed", "owner": "corpus" },
     { "id": "corpus.build.started", "owner": "corpus" },
+    { "id": "corpus.created", "owner": "corpus" },
+    { "id": "corpus.deleted", "owner": "corpus" },
+    { "id": "corpus.recipe.created", "owner": "corpus" },
+    { "id": "corpus.recipe.deleted", "owner": "corpus" },
+    { "id": "corpus.recipe.updated", "owner": "corpus" },
+    { "id": "corpus.updated", "owner": "corpus" },
     { "id": "corpus.version.created", "owner": "corpus" },
     { "id": "dataset.projected", "owner": "datasets" },
     { "id": "dataset.snapshot.ready", "owner": "datasets" },

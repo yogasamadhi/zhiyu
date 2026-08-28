@@ -70,6 +70,12 @@ with tempfile.TemporaryDirectory(prefix="zhiyun-worker-smoke-") as workspace:
                     "data": {
                         "value": value,
                         "capturedAt": f"2026-08-2{index}T00:00:00Z",
+                        "title": "知云语料" if index < 3 else "ZhiYun corpus",
+                        "body": (
+                            "中文数据清洗。" * 40
+                            if index < 3
+                            else "A packaged bilingual corpus sentence. " * 20
+                        ),
                     },
                 }
             )
@@ -139,6 +145,61 @@ with tempfile.TemporaryDirectory(prefix="zhiyun-worker-smoke-") as workspace:
     descriptive_rows = analysis_result.get("tables", [{}])[0].get("rows", [])
     if not descriptive_rows or descriptive_rows[0].get("mean") != 25:
         raise RuntimeError("Packaged Worker returned an invalid descriptive result")
+
+    corpus_job_id = "packaged-corpus-smoke"
+    corpus_workspace = Path(workspace) / corpus_job_id
+    corpus_workspace.mkdir()
+    shutil.copyfile(job_workspace / "snapshot.parquet", corpus_workspace / "snapshot.parquet")
+    status, corpus_job = request_json(
+        f"{ready['baseUrl']}/worker/v1/jobs",
+        headers,
+        {
+            "jobId": corpus_job_id,
+            "methodId": "corpus.build",
+            "methodVersion": "1.0.0",
+            "inputArtifactRef": "snapshot.parquet",
+            "outputArtifactRef": "corpus-result.json",
+            "parameters": {
+                "datasetId": "11111111-1111-4111-8111-111111111111",
+                "snapshotId": "22222222-2222-4222-8222-222222222222",
+                "snapshotFingerprint": "b" * 64,
+                "sourceRunId": None,
+                "recipeId": "33333333-3333-4333-8333-333333333333",
+                "recipeRevision": 1,
+                "selectedTextFields": ["title", "body"],
+                "metadataFields": ["value"],
+                "stripHtml": True,
+                "unicodeNormalization": "NFKC",
+                "deduplication": "exact-and-near",
+                "nearDuplicateThreshold": 0.9,
+                "chunkSize": 200,
+                "chunkOverlap": 20,
+                "languagePolicy": "zh-en-first",
+                "outputFormats": ["parquet", "jsonl"],
+            },
+        },
+    )
+    if status != 202:
+        raise RuntimeError("Packaged Worker rejected Corpus build")
+    deadline = time.monotonic() + 30
+    while corpus_job["state"] not in {"succeeded", "failed", "canceled"}:
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Packaged Worker Corpus smoke exceeded its budget")
+        time.sleep(0.05)
+        _, corpus_job = request_json(f"{ready['baseUrl']}/worker/v1/jobs/{corpus_job_id}", headers)
+    if corpus_job["state"] != "succeeded":
+        raise RuntimeError(f"Packaged Worker Corpus smoke failed: {corpus_job}")
+    corpus_result = json.loads(
+        (corpus_workspace / "corpus-result.json").read_text(encoding="utf-8")
+    )
+    if corpus_result.get("manifest", {}).get("documentCount") != 2:
+        raise RuntimeError("Packaged Worker returned invalid Corpus deduplication statistics")
+    for filename in ("documents.parquet", "chunks.parquet"):
+        if not (corpus_workspace / filename).read_bytes().startswith(b"PAR1"):
+            raise RuntimeError(f"Packaged Worker did not create valid {filename}")
+    for filename in ("corpus.jsonl", "manifest.json"):
+        if not (corpus_workspace / filename).is_file():
+            raise RuntimeError(f"Packaged Worker did not create {filename}")
 
     with urlopen(
         Request(f"{ready['baseUrl']}/worker/v1/shutdown", headers=headers, method="POST"),

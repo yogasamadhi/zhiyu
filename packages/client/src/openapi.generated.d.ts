@@ -224,6 +224,198 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
+  '/api/v2/corpora': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listCorpora'];
+    put?: never;
+    post: operations['createCorpus'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpora/{corpusId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getCorpus'];
+    put: operations['updateCorpus'];
+    post?: never;
+    delete: operations['deleteCorpus'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpora/{corpusId}/builds': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['createCorpusBuild'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpora/{corpusId}/recipes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listCorpusRecipes'];
+    put?: never;
+    post: operations['createCorpusRecipe'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpora/{corpusId}/recipes/{recipeId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations['updateCorpusRecipe'];
+    post?: never;
+    delete: operations['deleteCorpusRecipe'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpora/{corpusId}/versions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listCorpusVersions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpora/{corpusId}/versions/{versionId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getCorpusVersion'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpora/{corpusId}/versions/{versionId}/exports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['exportCorpusVersion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpus-builds': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listCorpusBuilds'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpus-builds/{buildId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getCorpusBuild'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpus-builds/{buildId}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['cancelCorpusBuild'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/corpus-builds/{buildId}/retry': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['retryCorpusBuild'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v2/data/tasks/{id}/records': {
     parameters: {
       query?: never;
@@ -1423,6 +1615,158 @@ export type components = {
       /** Format: uuid */
       runId: string;
       size: number;
+    };
+    Corpus: {
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      datasetId: string;
+      /** Format: uuid */
+      id: string;
+      name: string;
+      revision: number;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CorpusBuild: {
+      attempt: number;
+      /** Format: date-time */
+      completedAt: string | null;
+      /** Format: uuid */
+      corpusId: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      datasetId: string;
+      error: {
+        [key: string]: unknown;
+      } | null;
+      /** Format: uuid */
+      id: string;
+      phase: string;
+      progress: number;
+      /** Format: uuid */
+      recipeId: string;
+      recipeRevision: number;
+      /** Format: uuid */
+      snapshotId: string;
+      /** Format: date-time */
+      startedAt: string | null;
+      /** @enum {string} */
+      state:
+        | 'queued'
+        | 'claimed'
+        | 'running'
+        | 'persisting'
+        | 'canceling'
+        | 'canceled'
+        | 'interrupted'
+        | 'succeeded'
+        | 'failed';
+      /** Format: uuid */
+      versionId: string | null;
+    };
+    CorpusInput: {
+      /** Format: uuid */
+      datasetId: string;
+      name: string;
+    };
+    CorpusRecipe: {
+      chunkOverlap: number;
+      chunkSize: number;
+      /** Format: uuid */
+      corpusId: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      datasetId: string;
+      /** @enum {string} */
+      deduplication: 'none' | 'exact' | 'exact-and-near';
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      languagePolicy: 'zh-en-first' | 'generic';
+      metadataFields: string[];
+      name: string;
+      nearDuplicateThreshold: number;
+      outputFormats: ('parquet' | 'jsonl' | 'markdown')[];
+      revision: number;
+      selectedTextFields: string[];
+      snapshotPolicy:
+        | {
+            /** @constant */
+            mode: 'latest';
+          }
+        | {
+            /** @constant */
+            mode: 'pinned';
+            /** Format: uuid */
+            snapshotId: string;
+          };
+      stripHtml: boolean;
+      /** @enum {string} */
+      unicodeNormalization: 'NFC' | 'NFKC';
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CorpusRecipeInput: {
+      chunkOverlap: number;
+      chunkSize: number;
+      /** @enum {string} */
+      deduplication: 'none' | 'exact' | 'exact-and-near';
+      /** @enum {string} */
+      languagePolicy: 'zh-en-first' | 'generic';
+      metadataFields: string[];
+      name: string;
+      nearDuplicateThreshold: number;
+      outputFormats: ('parquet' | 'jsonl' | 'markdown')[];
+      selectedTextFields: string[];
+      snapshotPolicy:
+        | {
+            /** @constant */
+            mode: 'latest';
+          }
+        | {
+            /** @constant */
+            mode: 'pinned';
+            /** Format: uuid */
+            snapshotId: string;
+          };
+      stripHtml: boolean;
+      /** @enum {string} */
+      unicodeNormalization: 'NFC' | 'NFKC';
+    };
+    CorpusVersion: {
+      artifacts: {
+        checksum: string;
+        contentType: string;
+        filename: string;
+        /** Format: uuid */
+        id: string;
+        kind: string;
+        size: number;
+      }[];
+      /** Format: uuid */
+      buildId: string;
+      /** Format: uuid */
+      corpusId: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      datasetId: string;
+      fingerprint: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      recipeId: string;
+      recipeRevision: number;
+      snapshotFingerprint: string;
+      /** Format: uuid */
+      snapshotId: string;
+      stats: {
+        [key: string]: unknown;
+      };
+      workerVersion: string;
     };
     CrawlPlanDefinition: {
       /**
@@ -5582,6 +5926,601 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['RuntimeCapabilities'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listCorpora: {
+    parameters: {
+      query?: {
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['Corpus'][];
+            nextCursor: string | null;
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  createCorpus: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CorpusInput'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Corpus'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getCorpus: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        corpusId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Corpus'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  updateCorpus: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+        'If-Match': string;
+      };
+      path: {
+        corpusId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CorpusInput'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Corpus'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  deleteCorpus: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+        'If-Match': string;
+      };
+      path: {
+        corpusId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            deleted: boolean;
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  createCorpusBuild: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: uuid */
+          recipeId: string;
+          /** Format: uuid */
+          snapshotId: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Success */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusBuild'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listCorpusRecipes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        corpusId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusRecipe'][];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  createCorpusRecipe: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CorpusRecipeInput'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusRecipe'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  updateCorpusRecipe: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+        'If-Match': string;
+      };
+      path: {
+        corpusId: string;
+        recipeId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CorpusRecipeInput'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusRecipe'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  deleteCorpusRecipe: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+        'If-Match': string;
+      };
+      path: {
+        corpusId: string;
+        recipeId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            deleted: boolean;
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listCorpusVersions: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusVersion'][];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getCorpusVersion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        corpusId: string;
+        versionId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusVersion'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  exportCorpusVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path: {
+        corpusId: string;
+        versionId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            artifacts: {
+              checksum: string;
+              contentType: string;
+              filename: string;
+              /** Format: uuid */
+              id: string;
+              kind: string;
+              size: number;
+            }[];
+            /** Format: uuid */
+            versionId: string;
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listCorpusBuilds: {
+    parameters: {
+      query?: {
+        corpusId?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusBuild'][];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getCorpusBuild: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        buildId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusBuild'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  cancelCorpusBuild: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path: {
+        buildId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusBuild'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  retryCorpusBuild: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path: {
+        buildId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorpusBuild'];
         };
       };
       /** @description Problem Details */

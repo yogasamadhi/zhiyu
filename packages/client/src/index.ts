@@ -55,6 +55,12 @@ export type AnalysisRecipe = ApiSchemas['AnalysisRecipe'];
 export type AnalysisJobInput = ApiSchemas['AnalysisJobInput'];
 export type AnalysisJob = ApiSchemas['AnalysisJob'];
 export type AnalyticsResult = ApiSchemas['AnalysisResult'];
+export type CorpusInput = ApiSchemas['CorpusInput'];
+export type Corpus = ApiSchemas['Corpus'];
+export type CorpusRecipeInput = ApiSchemas['CorpusRecipeInput'];
+export type CorpusRecipe = ApiSchemas['CorpusRecipe'];
+export type CorpusBuild = ApiSchemas['CorpusBuild'];
+export type CorpusVersion = ApiSchemas['CorpusVersion'];
 
 export interface RuntimeBridge {
   getBootstrap(): Promise<RuntimeBootstrap>;
@@ -465,6 +471,107 @@ export class ZhiYunClient {
   exportAnalysisResult(id: string) {
     return this.request<AnalyticsResult>(
       `/api/v2/analytics/results/${encodeURIComponent(id)}/exports`,
+      { method: 'POST' },
+    );
+  }
+
+  listCorpora(limit = 100, cursor?: string) {
+    return this.request<{ items: Corpus[]; nextCursor: string | null }>(
+      `/api/v2/corpora${search({ limit, cursor })}`,
+    );
+  }
+
+  createCorpus(input: CorpusInput) {
+    return this.request<Corpus>('/api/v2/corpora', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  getCorpus(id: string) {
+    return this.request<Corpus>(`/api/v2/corpora/${encodeURIComponent(id)}`);
+  }
+
+  updateCorpus(id: string, input: CorpusInput) {
+    return this.request<Corpus>(`/api/v2/corpora/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  }
+
+  deleteCorpus(id: string) {
+    return this.request<{ deleted: boolean }>(`/api/v2/corpora/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  listCorpusRecipes(corpusId: string) {
+    return this.request<CorpusRecipe[]>(`/api/v2/corpora/${encodeURIComponent(corpusId)}/recipes`);
+  }
+
+  createCorpusRecipe(corpusId: string, input: CorpusRecipeInput) {
+    return this.request<CorpusRecipe>(`/api/v2/corpora/${encodeURIComponent(corpusId)}/recipes`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateCorpusRecipe(corpusId: string, recipeId: string, input: CorpusRecipeInput) {
+    return this.request<CorpusRecipe>(
+      `/api/v2/corpora/${encodeURIComponent(corpusId)}/recipes/${encodeURIComponent(recipeId)}`,
+      { method: 'PUT', body: JSON.stringify(input) },
+    );
+  }
+
+  deleteCorpusRecipe(corpusId: string, recipeId: string) {
+    return this.request<{ deleted: boolean }>(
+      `/api/v2/corpora/${encodeURIComponent(corpusId)}/recipes/${encodeURIComponent(recipeId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  createCorpusBuild(corpusId: string, input: { recipeId: string; snapshotId: string }) {
+    return this.request<CorpusBuild>(`/api/v2/corpora/${encodeURIComponent(corpusId)}/builds`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  listCorpusBuilds(corpusId?: string, limit = 100) {
+    return this.request<CorpusBuild[]>(`/api/v2/corpus-builds${search({ corpusId, limit })}`);
+  }
+
+  getCorpusBuild(id: string) {
+    return this.request<CorpusBuild>(`/api/v2/corpus-builds/${encodeURIComponent(id)}`);
+  }
+
+  cancelCorpusBuild(id: string) {
+    return this.request<CorpusBuild>(`/api/v2/corpus-builds/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  retryCorpusBuild(id: string) {
+    return this.request<CorpusBuild>(`/api/v2/corpus-builds/${encodeURIComponent(id)}/retry`, {
+      method: 'POST',
+    });
+  }
+
+  listCorpusVersions(corpusId: string, limit = 100) {
+    return this.request<CorpusVersion[]>(
+      `/api/v2/corpora/${encodeURIComponent(corpusId)}/versions${search({ limit })}`,
+    );
+  }
+
+  getCorpusVersion(corpusId: string, versionId: string) {
+    return this.request<CorpusVersion>(
+      `/api/v2/corpora/${encodeURIComponent(corpusId)}/versions/${encodeURIComponent(versionId)}`,
+    );
+  }
+
+  exportCorpusVersion(corpusId: string, versionId: string) {
+    return this.request<{ versionId: string; artifacts: CorpusVersion['artifacts'] }>(
+      `/api/v2/corpora/${encodeURIComponent(corpusId)}/versions/${encodeURIComponent(versionId)}/exports`,
       { method: 'POST' },
     );
   }

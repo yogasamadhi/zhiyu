@@ -12,6 +12,12 @@ from .analytics import (
     AnalysisValidationError,
     execute_analysis,
 )
+from .corpus import (
+    CORPUS_BUILD_METHOD,
+    CorpusResourceError,
+    CorpusValidationError,
+    build_corpus,
+)
 from .models import MethodDescriptor
 from .normalization import (
     NORMALIZE_SNAPSHOT_METHOD,
@@ -93,6 +99,23 @@ def analysis_handler(method_id: str) -> MethodHandler:
     return run
 
 
+async def corpus_build_handler(context: MethodContext) -> dict[str, Any]:
+    if context.input_path is None:
+        raise WorkerMethodError("INVALID_INPUT", "Corpus build requires a Snapshot Artifact")
+    try:
+        return await build_corpus(
+            input_path=context.input_path,
+            workspace=context.workspace,
+            parameters=context.parameters,
+            report=context.report,
+            cancelled=context.cancelled,
+        )
+    except CorpusResourceError as error:
+        raise WorkerMethodError("RESOURCE_LIMIT_EXCEEDED", str(error)) from error
+    except CorpusValidationError as error:
+        raise WorkerMethodError("METHOD_INCOMPATIBLE", str(error)) from error
+
+
 SELF_TEST_METHOD = MethodDescriptor(
     id="worker.self_test",
     version="1.0.0",
@@ -121,11 +144,13 @@ class MethodRegistry:
         self._descriptors = {
             SELF_TEST_METHOD.id: SELF_TEST_METHOD,
             NORMALIZE_SNAPSHOT_METHOD.id: NORMALIZE_SNAPSHOT_METHOD,
+            CORPUS_BUILD_METHOD.id: CORPUS_BUILD_METHOD,
             **{item.id: item for item in ANALYSIS_METHODS},
         }
         self._handlers: dict[str, MethodHandler] = {
             SELF_TEST_METHOD.id: self_test_handler,
             NORMALIZE_SNAPSHOT_METHOD.id: normalize_snapshot_handler,
+            CORPUS_BUILD_METHOD.id: corpus_build_handler,
             **{item.id: analysis_handler(item.id) for item in ANALYSIS_METHODS},
         }
 
