@@ -1,6 +1,6 @@
 {
   "name": "zhiyun",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Practical Intelligent Web Data Extraction Platform",
   "license": "Apache-2.0",
@@ -40,7 +40,7 @@
     "test:security": "vitest run -t security",
     "test:performance": "ZHIYUN_PERFORMANCE=1 vitest run -t performance --testTimeout=240000",
     "test:watch": "vitest",
-    "test:e2e": "docker compose up -d && bun run db:migrate && playwright test -c apps/web/playwright.config.ts",
+    "test:e2e": "docker compose up -d && playwright test -c apps/web/playwright.config.ts",
     "test:e2e:web": "bun run test:e2e",
     "test:e2e:desktop": "bun run desktop:test",
     "test:smoke:desktop-package": "bun run desktop:package && bun run --filter @zhiyun/desktop test:packaged",
@@ -48,9 +48,6 @@
     "typecheck": "tsc --noEmit && bun run --workspaces --if-present typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:generate": "bun run --filter @zhiyun/storage db:generate",
-    "db:migrate": "bun run --filter @zhiyun/storage db:migrate",
-    "db:studio": "bun run --filter @zhiyun/storage db:studio",
     "browser:install": "playwright install chromium",
     "client:generate": "bun run --filter @zhiyun/client generate",
     "client:check": "bun run --filter @zhiyun/client check:generated",
@@ -67,7 +64,9 @@
     "architecture:generate": "bun run --filter @zhiyun/product-profiles architecture:generate",
     "architecture:check": "bun run --filter @zhiyun/product-profiles architecture:check",
     "architecture:deps": "depcruise --config dependency-cruiser.config.cjs packages plugins capabilities profiles apps --output-type err",
-    "release:verify": "bun run lint && bun run worker:lint && bun run format:check && bun run client:check && bun run worker:client:check && bun run typecheck && bun run worker:test && bun run test && bun run build && bun run test:e2e:web && bun run test:e2e:desktop && bun run test:smoke:desktop-package"
+    "dependency:audit": "bun audit --registry=https://registry.npmjs.org --audit-level=high --ignore=GHSA-jmr9-qjv8-65gv --ignore=GHSA-w3rx-r6r6-pgpr --ignore=GHSA-5p2g-fcmc-qvqq",
+    "compliance:licenses": "bun scripts/generate-node-licenses.ts && cd services/analytics-worker && uv run python scripts/export_licenses.py ../../dist/compliance/python.json",
+    "release:verify": "bun run lint && bun run worker:lint && bun run format:check && bun run architecture:deps && bun run architecture:check && bun run client:check && bun run worker:client:check && bun run typecheck && bun run worker:test && bun run test && bun run build && bun run dependency:audit && bun run compliance:licenses && bun run test:e2e:web && bun run test:e2e:desktop && bun run test:smoke:desktop-package"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -84,7 +83,9 @@
     "vitest": "^4.1.0"
   },
   "overrides": {
-    "@sapphire/shapeshift": "3.9.7"
+    "@electron/rebuild": "4.2.0",
+    "@sapphire/shapeshift": "3.9.7",
+    "tmp": "0.2.7"
   },
   "trustedDependencies": [
     "esbuild",

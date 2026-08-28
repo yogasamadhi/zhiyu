@@ -28,6 +28,24 @@ export const platformPlugin: PluginDescriptor = {
     { operationId: 'getProductOpenApi', method: 'GET', path: '/api/v2/openapi.json' },
     { operationId: 'streamDomainEvents', method: 'GET', path: '/api/v2/events/domain' },
     { operationId: 'streamRealtimeEvents', method: 'GET', path: '/api/v2/events/realtime' },
+    {
+      operationId: 'saveArtifactWithHost',
+      method: 'POST',
+      path: '/api/v2/artifacts/{artifactId}/save',
+    },
+    {
+      operationId: 'getArtifactContent',
+      method: 'GET',
+      path: '/api/v2/artifacts/{artifactId}/content',
+    },
+    { operationId: 'getRuntimeSummary', method: 'GET', path: '/api/v2/runtime/summary' },
+    {
+      operationId: 'getDesktopDiagnostics',
+      method: 'GET',
+      path: '/api/v2/desktop/diagnostics',
+    },
+    { operationId: 'pauseScheduler', method: 'POST', path: '/api/v2/scheduler/pause' },
+    { operationId: 'resumeScheduler', method: 'POST', path: '/api/v2/scheduler/resume' },
   ],
   events: [
     { type: 'platform.job.created', durable: true },

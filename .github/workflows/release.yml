@@ -6,6 +6,35 @@ on:
   workflow_dispatch:
 
 jobs:
+  headless-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.4.0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m pip install uv==0.11.14
+      - run: bun install --frozen-lockfile
+      - run: bun run dependency:audit
+      - run: bun run worker:sync
+      - run: bun run worker:build
+      - run: bun run worker:smoke
+      - run: bun run --filter @zhiyun/api package:linux
+      - run: bun run --filter @zhiyun/api test:packaged
+      - run: docker build -f apps/api/Dockerfile -t zhiyun-headless:1.0.0 .
+      - uses: anchore/sbom-action@v0
+        with:
+          path: apps/api/dist/headless/linux-x64
+          output-file: apps/api/dist/headless/zhiyun-headless-1.0.0-linux-x64.spdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zhiyun-headless-linux-x64
+          path: |
+            apps/api/dist/headless/zhiyun-headless-1.0.0-linux-x64.tar.gz
+            apps/api/dist/headless/zhiyun-headless-1.0.0-linux-x64.spdx.json
+          if-no-files-found: error
+
   signed-installers:
     strategy:
       fail-fast: false
@@ -26,6 +55,7 @@ jobs:
         with: { python-version: '3.12' }
       - run: python -m pip install uv==0.11.14
       - run: bun install --frozen-lockfile
+      - run: bun run dependency:audit
       - run: bun run worker:sync
       - run: bun run worker:build
       - run: bun run worker:smoke
@@ -64,8 +94,14 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      - uses: anchore/sbom-action@v0
+        with:
+          path: apps/desktop/out
+          output-file: apps/desktop/out/zhiyun-desktop-${{ runner.os }}-${{ matrix.arch }}.spdx.json
       - uses: actions/upload-artifact@v4
         with:
           name: zhiyun-signed-${{ runner.os }}-${{ matrix.arch }}
-          path: apps/desktop/out/make/**
+          path: |
+            apps/desktop/out/make/**
+            apps/desktop/out/zhiyun-desktop-${{ runner.os }}-${{ matrix.arch }}.spdx.json
           if-no-files-found: error

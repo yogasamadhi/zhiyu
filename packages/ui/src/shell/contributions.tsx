@@ -57,7 +57,10 @@ export const routeContributionRegistry: readonly ShellRouteContribution[] = [
   },
   {
     id: 'datasets.route',
-    routes: [{ path: '/tasks/:id/dataset', component: DatasetPage }],
+    routes: [
+      { path: '/datasets/:datasetId', component: DatasetPage },
+      { path: '/tasks/:taskId/dataset', component: DatasetPage },
+    ],
   },
   {
     id: 'preferences.route',

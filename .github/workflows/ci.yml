@@ -33,13 +33,14 @@ jobs:
       - run: python -m pip install uv==0.11.14
       - run: bun install --frozen-lockfile
       - run: bun run worker:sync
-      - run: bun run db:migrate
       - run: bun run lint
       - run: bun run format:check
       - run: bun run client:check
       - run: bun run worker:client:check
       - run: bun run architecture:check
       - run: bun run architecture:deps
+      - run: bun run dependency:audit
+      - run: bun run compliance:licenses
       - run: bun run typecheck
       - run: bun run test:unit
       - run: bun run test:platform
@@ -51,6 +52,22 @@ jobs:
       - run: bun run build
       - run: bun run browser:install
       - run: bun run test:e2e
+
+  headless-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.4.0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m pip install uv==0.11.14
+      - run: bun install --frozen-lockfile
+      - run: bun run worker:sync
+      - run: bun run worker:build
+      - run: bun run --filter @zhiyun/api package:linux
+      - run: bun run --filter @zhiyun/api test:packaged
+      - run: docker build -f apps/api/Dockerfile -t zhiyun-headless:ci .
 
   desktop-installers:
     strategy:

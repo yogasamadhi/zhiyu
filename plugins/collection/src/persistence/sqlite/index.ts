@@ -310,8 +310,9 @@ export class SqliteCollectionRepository implements CollectionRepository {
       const timestamp = now();
       const result = this.sqlite
         .prepare(
-          `UPDATE runs SET status='running',started_at=?,phase='starting',progress=0.02,error=NULL
-           WHERE id=? AND task_id=? AND status='queued'`,
+          `UPDATE runs SET status='running',started_at=?,finished_at=NULL,phase='starting',
+             progress=0.02,error=NULL,error_code=NULL
+           WHERE id=? AND task_id=? AND status IN ('queued','failed')`,
         )
         .run(timestamp, runId, taskId);
       if (result.changes !== 1) return false;

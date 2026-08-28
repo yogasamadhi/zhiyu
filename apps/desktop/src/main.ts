@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, normalize, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
@@ -321,12 +321,24 @@ function analyticsWorkerLaunch(): { command: string; args: string[] } {
   const executable = process.platform === 'win32' ? 'analytics-worker.exe' : 'analytics-worker';
   const candidates = [join(root, executable), join(root, 'analytics-worker', executable)];
   return {
-    command: candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!,
+    command:
+      candidates.find((candidate) => {
+        try {
+          return statSync(candidate).isFile();
+        } catch {
+          return false;
+        }
+      }) ?? candidates[0]!,
     args: [],
   };
 }
 
 function publishAnalyticsWorkerState(state: AnalyticsWorkerSupervisorState): void {
+  if (state.status === 'degraded') {
+    console.warn('[desktop] analytics worker degraded', state.reason);
+  } else {
+    console.info('[desktop] analytics worker state', state.status, state.generation);
+  }
   if (state.status === 'ready') {
     supervisor?.setAnalyticsWorker(analyticsSupervisor?.connection(), 'ready');
   } else if (state.status === 'degraded') {

@@ -5,6 +5,7 @@ import {
   PlatformJobExecutionError,
   type ArtifactStore,
   type JobExecutionContext,
+  type PlatformJobQueue,
   type PlatformRepository,
 } from '@zhiyun/platform-core';
 import type {
@@ -44,11 +45,15 @@ export class MethodNotFoundError extends Error {
 }
 
 export class AnalyticsCatalog {
-  constructor(private readonly worker: AnalyticsWorkerControl | undefined) {}
+  constructor(
+    private readonly worker:
+      AnalyticsWorkerControl | (() => AnalyticsWorkerControl | undefined) | undefined,
+  ) {}
 
   async listMethods(): Promise<AnalysisMethodDescriptor[]> {
-    if (!this.worker) throw new AnalyticsUnavailableError('Analytics Worker is unavailable');
-    const methods = await this.worker.methods();
+    const worker = typeof this.worker === 'function' ? this.worker() : this.worker;
+    if (!worker) throw new AnalyticsUnavailableError('Analytics Worker is unavailable');
+    const methods = await worker.methods();
     return methods
       .map(normalizeMethodDescriptor)
       .sort((left, right) => left.id.localeCompare(right.id));
@@ -127,6 +132,7 @@ export class AnalysisJobService {
     private readonly platform: PlatformRepository,
     private readonly snapshots: DatasetSnapshotLookup,
     private readonly catalog: AnalyticsCatalog,
+    private readonly queue?: PlatformJobQueue,
   ) {}
 
   async create(input: CreateAnalysisJobInput, idempotencyKey: string): Promise<AnalysisJob> {
@@ -164,14 +170,16 @@ export class AnalysisJobService {
 
     const existingJob = await this.platform.getJob(jobId);
     if (!existingJob) {
-      await this.platform.enqueueJob({
+      const queuedJob = {
         id: jobId,
         ownerPluginId: 'analytics',
         type: 'analytics.job.execute',
         resourceClass: 'python-heavy',
         payload: { ...input },
         maxAttempts: 2,
-      });
+      } as const;
+      if (this.queue) await this.queue.enqueue(queuedJob);
+      else await this.platform.enqueueJob(queuedJob);
     }
     if (!(await this.repository.getJobMetadata(jobId))) {
       await this.repository.createJobMetadata(jobId, input);
@@ -201,7 +209,9 @@ export class AnalysisJobService {
   }
 
   async cancel(id: string): Promise<AnalysisJob | null> {
-    const canceled = await this.platform.requestJobCancel(id);
+    const canceled = this.queue
+      ? await this.queue.cancel(id)
+      : await this.platform.requestJobCancel(id);
     if (!canceled) return null;
     if (canceled.state === 'canceled') await this.repository.markJobCanceled(id);
     const metadata = await this.repository.getJobMetadata(id);

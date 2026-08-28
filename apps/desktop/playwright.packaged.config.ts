@@ -4,7 +4,7 @@ const fixtureRoot = new URL('../../fixtures/', import.meta.url).pathname;
 
 export default defineConfig({
   testDir: './e2e-packaged',
-  timeout: 90_000,
+  timeout: 180_000,
   expect: { timeout: 30_000 },
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,

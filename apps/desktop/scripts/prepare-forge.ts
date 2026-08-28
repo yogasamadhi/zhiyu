@@ -4,9 +4,13 @@ import { resolve } from 'node:path';
 const desktopRoot = resolve(import.meta.dir, '..');
 const workspaceRoot = resolve(desktopRoot, '../..');
 const stagingRoot = resolve(desktopRoot, '.forge-app');
+await run(['bun', 'run', 'compliance:licenses'], workspaceRoot, 'Compliance license collection');
 await rm(stagingRoot, { recursive: true, force: true });
 await mkdir(stagingRoot, { recursive: true });
 await cp(resolve(desktopRoot, 'dist'), resolve(stagingRoot, 'dist'), { recursive: true });
+await cp(resolve(workspaceRoot, 'dist/compliance'), resolve(stagingRoot, 'compliance'), {
+  recursive: true,
+});
 const workerPlatform =
   process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux';
 const workerArchitecture = process.arch === 'arm64' ? 'arm64' : 'x64';
@@ -32,7 +36,7 @@ await writeFile(
     {
       name: 'zhiyun-desktop-runtime',
       productName: 'ZhiYun',
-      version: '0.2.0',
+      version: '1.0.0',
       private: true,
       type: 'module',
       main: 'dist/main.js',
@@ -49,11 +53,19 @@ await writeFile(
     2,
   ),
 );
-const install = Bun.spawn(['bun', 'install', '--ignore-scripts', '--linker=hoisted'], {
-  cwd: stagingRoot,
-  stdin: 'inherit',
-  stdout: 'inherit',
-  stderr: 'inherit',
-});
-const exitCode = await install.exited;
-if (exitCode !== 0) throw new Error(`Forge staging dependency install exited with ${exitCode}`);
+await run(
+  ['bun', 'install', '--ignore-scripts', '--linker=hoisted'],
+  stagingRoot,
+  'Forge staging dependency install',
+);
+
+async function run(command: string[], cwd: string, label: string): Promise<void> {
+  const child = Bun.spawn(command, {
+    cwd,
+    stdin: 'inherit',
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+  const exitCode = await child.exited;
+  if (exitCode !== 0) throw new Error(`${label} exited with ${exitCode}`);
+}

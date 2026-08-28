@@ -25,6 +25,13 @@ test.beforeAll(async () => {
     electronApp.process().stderr?.on('data', (chunk) => process.stderr.write(String(chunk)));
   }
   page = await electronApp.firstWindow();
+  if (process.env.ZHIYUN_E2E_LOG === '1') {
+    page.on('console', (message) => console.log(`[renderer:${message.type()}] ${message.text()}`));
+    page.on('pageerror', (error) => console.error('[renderer:error]', error));
+    page.on('requestfailed', (request) =>
+      console.error(`[renderer:requestfailed] ${request.url()} ${request.failure()?.errorText}`),
+    );
+  }
   await page.waitForLoadState('domcontentloaded');
 });
 

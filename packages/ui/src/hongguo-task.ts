@@ -102,7 +102,7 @@ export function hongguoTask(language: string): TaskCreate {
       respectRobotsTxt: true,
       maxResponseBytes: 10 * 1024 * 1024,
       redirectLimit: 5,
-      userAgent: 'Mozilla/5.0 (compatible; ZhiYun/0.2; public-metadata-crawl)',
+      userAgent: 'Mozilla/5.0 (compatible; ZhiYun/1.0; public-metadata-crawl)',
     },
     browserSettings: { enabled: false, waitUntil: 'domcontentloaded', actions: [] },
     pagination: { type: 'none' },

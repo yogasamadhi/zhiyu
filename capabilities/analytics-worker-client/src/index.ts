@@ -150,10 +150,12 @@ export class AnalyticsWorkerSupervisor {
   private startPromise: Promise<AnalyticsWorkerPrivateBootstrap> | undefined;
   private restartTimer: NodeJS.Timeout | undefined;
   private restartTimes: number[] = [];
+  private lastState: AnalyticsWorkerSupervisorState = { status: 'stopped', generation: 0 };
 
   constructor(private readonly options: AnalyticsWorkerSupervisorOptions) {}
 
   private publish(state: AnalyticsWorkerSupervisorState): void {
+    this.lastState = state;
     this.options.onStateChange?.(state);
   }
 
@@ -307,7 +309,7 @@ export class AnalyticsWorkerSupervisor {
 
   diagnostics(): Record<string, unknown> {
     return {
-      status: this.privateBootstrap ? 'ready' : this.child ? 'starting' : 'degraded',
+      ...this.lastState,
       generation: this.generation,
       pid: this.child?.pid,
       workerVersion: this.privateBootstrap?.workerVersion,

@@ -12,7 +12,6 @@ const headlessFlag = argumentsSet.has('--headless');
 const options = {
   skipInstall: argumentsSet.has('--skip-install'),
   skipDocker: argumentsSet.has('--skip-docker'),
-  skipMigrate: argumentsSet.has('--skip-migrate'),
   stopInfra: argumentsSet.has('--stop-infra'),
   desktop: !headlessFlag,
 };
@@ -28,7 +27,6 @@ if (argumentsSet.has('--help') || argumentsSet.has('-h')) {
 选项:
   --skip-install   不检查 bun.lock 与 node_modules
   --skip-docker    不启动 PostgreSQL 和 Redis（仅 Headless）
-  --skip-migrate   不执行 Drizzle migration（仅 Headless）
   --stop-infra     退出时同时停止 Docker Compose 服务（仅 Headless）
   --desktop        显式启动桌面应用（默认行为，保留兼容）
   --headless       启动 Web、API、PostgreSQL、Redis 和 fixtures
@@ -44,14 +42,9 @@ if (desktopFlag && headlessFlag) {
 
 const unknownArguments = [...argumentsSet].filter(
   (argument) =>
-    ![
-      '--skip-install',
-      '--skip-docker',
-      '--skip-migrate',
-      '--stop-infra',
-      '--desktop',
-      '--headless',
-    ].includes(argument),
+    !['--skip-install', '--skip-docker', '--stop-infra', '--desktop', '--headless'].includes(
+      argument,
+    ),
 );
 
 if (unknownArguments.length > 0) {
@@ -286,10 +279,6 @@ async function main(): Promise<void> {
 
   if (!options.desktop && !options.skipDocker) {
     await runStep('启动 PostgreSQL 和 Redis', ['docker', 'compose', 'up', '-d', '--wait']);
-  }
-
-  if (!options.desktop && !options.skipMigrate) {
-    await runStep('执行数据库迁移', ['bun', 'run', 'db:migrate']);
   }
 
   const occupiedServices = (

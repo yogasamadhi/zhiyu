@@ -560,6 +560,21 @@ export class SqlitePlatformRepository implements PlatformRepository {
     }
   }
 
+  async getRuntimeSetting<T = unknown>(key: string): Promise<T | null> {
+    const row = this.sqlite.prepare('SELECT value FROM runtime_settings WHERE key=?').get(key) as
+      { value: string } | undefined;
+    return row ? (JSON.parse(row.value) as T) : null;
+  }
+
+  async setRuntimeSetting(key: string, value: unknown): Promise<void> {
+    this.sqlite
+      .prepare(
+        `INSERT INTO runtime_settings(key,value,updated_at) VALUES (?,?,?)
+         ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`,
+      )
+      .run(key, JSON.stringify(value), new Date().toISOString());
+  }
+
   async listMigrations(): Promise<MigrationRecord[]> {
     return (
       this.sqlite

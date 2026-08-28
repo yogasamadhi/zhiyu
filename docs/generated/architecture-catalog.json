@@ -44,6 +44,18 @@
       "path": "/api/v2/tasks/{taskId}/rule-analysis"
     },
     {
+      "id": "applyRuleRepairProposal",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/apply"
+    },
+    {
+      "id": "bootstrapTrendSources",
+      "owner": "preferences",
+      "method": "POST",
+      "path": "/api/v2/trend-sources/bootstrap"
+    },
+    {
       "id": "cancelAnalysisJob",
       "owner": "analytics",
       "method": "POST",
@@ -66,6 +78,12 @@
       "owner": "preferences",
       "method": "DELETE",
       "path": "/api/v2/preferences/signals"
+    },
+    {
+      "id": "closeInspectionSession",
+      "owner": "collection",
+      "method": "DELETE",
+      "path": "/api/v2/inspection-sessions/{sessionId}"
     },
     {
       "id": "createAnalysisJob",
@@ -110,6 +128,12 @@
       "path": "/api/v2/datasets/{datasetId}/snapshots"
     },
     {
+      "id": "createInspectionSession",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/inspection-sessions"
+    },
+    {
       "id": "createOutputDestination",
       "owner": "outputs",
       "method": "POST",
@@ -126,6 +150,18 @@
       "owner": "collection",
       "method": "POST",
       "path": "/api/v2/tasks/{taskId}/rules"
+    },
+    {
+      "id": "createRuleRepairProposal",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals"
+    },
+    {
+      "id": "createRuleVersion",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/versions"
     },
     {
       "id": "createRun",
@@ -182,10 +218,22 @@
       "path": "/api/v2/tasks/{taskId}"
     },
     {
+      "id": "deleteTaskCredential",
+      "owner": "collection",
+      "method": "DELETE",
+      "path": "/api/v2/tasks/{taskId}/credentials/{kind}"
+    },
+    {
       "id": "diffDataset",
       "owner": "datasets",
       "method": "GET",
       "path": "/api/v2/datasets/{datasetId}/diff"
+    },
+    {
+      "id": "diffRuleVersions",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/diff"
     },
     {
       "id": "explainRunFailure",
@@ -212,6 +260,18 @@
       "path": "/api/v2/datasets/{datasetId}/exports"
     },
     {
+      "id": "exportRunRecords",
+      "owner": "datasets",
+      "method": "POST",
+      "path": "/api/v2/runs/{runId}/exports"
+    },
+    {
+      "id": "extractTaskWithAi",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/ai/extract"
+    },
+    {
       "id": "getAnalysisJob",
       "owner": "analytics",
       "method": "GET",
@@ -228,6 +288,12 @@
       "owner": "analytics",
       "method": "GET",
       "path": "/api/v2/analytics/results/{resultId}"
+    },
+    {
+      "id": "getArtifactContent",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/artifacts/{artifactId}/content"
     },
     {
       "id": "getCapabilities",
@@ -266,10 +332,22 @@
       "path": "/api/v2/datasets/{datasetId}/snapshots/{snapshotId}"
     },
     {
+      "id": "getDesktopDiagnostics",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/desktop/diagnostics"
+    },
+    {
       "id": "getHealth",
       "owner": "platform",
       "method": "GET",
       "path": "/health"
+    },
+    {
+      "id": "getInspectionScreenshot",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/inspection-sessions/{sessionId}/screenshot"
     },
     {
       "id": "getOutputDestination",
@@ -308,6 +386,12 @@
       "path": "/api/v2/runtime/graph"
     },
     {
+      "id": "getRuntimeSummary",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/runtime/summary"
+    },
+    {
       "id": "getTask",
       "owner": "collection",
       "method": "GET",
@@ -318,6 +402,18 @@
       "owner": "platform",
       "method": "GET",
       "path": "/api/v2/version"
+    },
+    {
+      "id": "importPreference",
+      "owner": "preferences",
+      "method": "POST",
+      "path": "/api/v2/preferences/import"
+    },
+    {
+      "id": "interactWithInspection",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/inspection-sessions/{sessionId}/actions"
     },
     {
       "id": "listAnalysisJobs",
@@ -386,6 +482,12 @@
       "path": "/api/v2/datasets"
     },
     {
+      "id": "listDatasetSnapshots",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/snapshots"
+    },
+    {
       "id": "listDeliveryAttempts",
       "owner": "outputs",
       "method": "GET",
@@ -404,6 +506,12 @@
       "path": "/api/v2/preferences/signals"
     },
     {
+      "id": "listRuleRepairProposals",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals"
+    },
+    {
       "id": "listRules",
       "owner": "collection",
       "method": "GET",
@@ -414,6 +522,12 @@
       "owner": "collection",
       "method": "GET",
       "path": "/api/v2/runs/{runId}/logs"
+    },
+    {
+      "id": "listRunRecords",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/runs/{runId}/records"
     },
     {
       "id": "listRunRequests",
@@ -440,6 +554,48 @@
       "path": "/api/v2/trends"
     },
     {
+      "id": "listTrendSources",
+      "owner": "preferences",
+      "method": "GET",
+      "path": "/api/v2/trend-sources"
+    },
+    {
+      "id": "pauseScheduler",
+      "owner": "platform",
+      "method": "POST",
+      "path": "/api/v2/scheduler/pause"
+    },
+    {
+      "id": "promptOutputCredential",
+      "owner": "outputs",
+      "method": "POST",
+      "path": "/api/v2/output-destinations/{destinationId}/credential/prompt"
+    },
+    {
+      "id": "promptTaskCredential",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/credentials/{kind}"
+    },
+    {
+      "id": "queryDataApiRecords",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/data/tasks/{taskId}/records"
+    },
+    {
+      "id": "rejectRuleRepairProposal",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/reject"
+    },
+    {
+      "id": "resumeScheduler",
+      "owner": "platform",
+      "method": "POST",
+      "path": "/api/v2/scheduler/resume"
+    },
+    {
       "id": "retryAnalysisJob",
       "owner": "analytics",
       "method": "POST",
@@ -452,10 +608,58 @@
       "path": "/api/v2/corpus-builds/{buildId}/retry"
     },
     {
+      "id": "retryDeliveryAttempt",
+      "owner": "outputs",
+      "method": "POST",
+      "path": "/api/v2/delivery-attempts/{attemptId}/retry"
+    },
+    {
+      "id": "retryRun",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/runs/{runId}/retry"
+    },
+    {
       "id": "revokeApiToken",
       "owner": "outputs",
       "method": "DELETE",
       "path": "/api/v2/api-tokens/{tokenId}"
+    },
+    {
+      "id": "rollbackRuleVersion",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/rollback"
+    },
+    {
+      "id": "runTrendSource",
+      "owner": "preferences",
+      "method": "POST",
+      "path": "/api/v2/trend-sources/{sourceKey}/run"
+    },
+    {
+      "id": "runTrendSources",
+      "owner": "preferences",
+      "method": "POST",
+      "path": "/api/v2/trend-sources/run"
+    },
+    {
+      "id": "saveArtifactWithHost",
+      "owner": "platform",
+      "method": "POST",
+      "path": "/api/v2/artifacts/{artifactId}/save"
+    },
+    {
+      "id": "selectInspectionElement",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/inspection-sessions/{sessionId}/select"
+    },
+    {
+      "id": "startTaskLoginSession",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/browser-session/login"
     },
     {
       "id": "streamDomainEvents",
@@ -468,6 +672,24 @@
       "owner": "platform",
       "method": "GET",
       "path": "/api/v2/events/realtime"
+    },
+    {
+      "id": "testOutputDestination",
+      "owner": "outputs",
+      "method": "POST",
+      "path": "/api/v2/output-destinations/{destinationId}/test"
+    },
+    {
+      "id": "testRule",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/rules/test"
+    },
+    {
+      "id": "testRuleRepairProposal",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/test"
     },
     {
       "id": "updateAnalysisRecipe",
@@ -498,6 +720,12 @@
       "owner": "collection",
       "method": "PUT",
       "path": "/api/v2/tasks/{taskId}"
+    },
+    {
+      "id": "updateTrendSource",
+      "owner": "preferences",
+      "method": "PUT",
+      "path": "/api/v2/trend-sources/{sourceKey}"
     }
   ],
   "events": [

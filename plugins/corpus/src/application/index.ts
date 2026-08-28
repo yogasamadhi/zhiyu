@@ -5,6 +5,7 @@ import {
   PlatformJobExecutionError,
   type ArtifactStore,
   type JobExecutionContext,
+  type PlatformJobQueue,
   type PlatformRepository,
 } from '@zhiyun/platform-core';
 import type {
@@ -92,7 +93,8 @@ export class CorpusBuildService {
     private readonly repository: CorpusRepository,
     private readonly platform: PlatformRepository,
     private readonly snapshots: CorpusSnapshotLookup,
-    private readonly workerAvailable = true,
+    private readonly workerAvailable: boolean | (() => boolean) = true,
+    private readonly queue?: PlatformJobQueue,
   ) {}
 
   async create(
@@ -100,7 +102,9 @@ export class CorpusBuildService {
     input: CreateCorpusBuildInput,
     idempotencyKey: string,
   ): Promise<CorpusBuild> {
-    if (!this.workerAvailable) throw new CorpusUnavailableError('Analytics Worker is unavailable');
+    const available =
+      typeof this.workerAvailable === 'function' ? this.workerAvailable() : this.workerAvailable;
+    if (!available) throw new CorpusUnavailableError('Analytics Worker is unavailable');
     if (!idempotencyKey || idempotencyKey.length > 200) {
       throw new CorpusConflictError('A valid Idempotency-Key is required');
     }
@@ -148,14 +152,16 @@ export class CorpusBuildService {
       return replayed;
     }
     if (!(await this.platform.getJob(jobId))) {
-      await this.platform.enqueueJob({
+      const queuedJob = {
         id: jobId,
         ownerPluginId: 'corpus',
         type: 'corpus.build.execute',
         resourceClass: 'python-heavy',
         payload: request,
         maxAttempts: 2,
-      });
+      } as const;
+      if (this.queue) await this.queue.enqueue(queuedJob);
+      else await this.platform.enqueueJob(queuedJob);
     }
     if (!(await this.repository.getBuildMetadata(jobId))) {
       await this.repository.createBuildMetadata(jobId, {
@@ -193,7 +199,7 @@ export class CorpusBuildService {
   }
 
   async cancel(id: string): Promise<CorpusBuild | null> {
-    const job = await this.platform.requestJobCancel(id);
+    const job = this.queue ? await this.queue.cancel(id) : await this.platform.requestJobCancel(id);
     if (!job) return null;
     if (job.state === 'canceled') await this.repository.markBuildCanceled(id);
     const metadata = await this.repository.getBuildMetadata(id);

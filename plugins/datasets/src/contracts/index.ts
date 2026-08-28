@@ -52,6 +52,19 @@ export interface RecordChangePage {
   nextCursor: string | null;
 }
 
+export interface RunRecord {
+  id: string;
+  runId: string;
+  sourceUrl: string;
+  data: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface RunRecordPage {
+  items: RunRecord[];
+  nextCursor: string | null;
+}
+
 export interface SnapshotExportRecord {
   recordKey: string;
   sourceUrl: string;
@@ -108,7 +121,10 @@ export interface DatasetRepository {
     datasetId: string,
     cursor?: string,
     limit?: number,
-    options?: { includeRemoved?: boolean },
+    options?: {
+      includeRemoved?: boolean;
+      filter?: Record<string, string | number | boolean | null>;
+    },
   ): Promise<DatasetRecordPage>;
   listChanges(
     datasetId: string,
@@ -116,6 +132,7 @@ export interface DatasetRepository {
     limit?: number,
     sourceRunId?: string,
   ): Promise<RecordChangePage>;
+  listRunRecords(runId: string, cursor?: string, limit?: number): Promise<RunRecordPage>;
   listSnapshots(datasetId: string): Promise<DatasetSnapshot[]>;
   getSnapshot(id: string): Promise<DatasetSnapshot | null>;
   findSnapshotByFingerprint(

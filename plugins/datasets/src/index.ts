@@ -7,7 +7,7 @@ export interface DatasetReadService {
   getDataset(id: string): Promise<Dataset | null>;
 }
 
-export interface DatasetSnapshotService {
+export interface DatasetSnapshotContract {
   createSnapshot(datasetId: string): Promise<{ id: string; fingerprint: string }>;
 }
 
@@ -20,7 +20,7 @@ export const datasetReadService = createServiceToken<DatasetReadService>(
   '1.0.0',
   'datasets',
 );
-export const datasetSnapshotService = createServiceToken<DatasetSnapshotService>(
+export const datasetSnapshotService = createServiceToken<DatasetSnapshotContract>(
   'datasets.snapshot',
   '1.0.0',
   'datasets',

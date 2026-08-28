@@ -9,6 +9,7 @@ import type {
   DatasetRepository,
   DatasetSnapshot,
   RecordChangePage,
+  RunRecordPage,
   SnapshotMaterializationClaim,
 } from '../../contracts/index.js';
 import { datasetFingerprint, normalizeDatasetInputs } from '../../domain/index.js';
@@ -283,7 +284,10 @@ export class PostgresDatasetRepository implements DatasetRepository {
     datasetId: string,
     cursor?: string,
     limit = 100,
-    options: { includeRemoved?: boolean } = {},
+    options: {
+      includeRemoved?: boolean;
+      filter?: Record<string, string | number | boolean | null>;
+    } = {},
   ): Promise<DatasetRecordPage> {
     const pageSize = Math.min(Math.max(limit, 1), 500);
     const decoded = cursor ? decodeCursor(cursor) : null;
@@ -291,6 +295,7 @@ export class PostgresDatasetRepository implements DatasetRepository {
       SELECT * FROM dataset_records
       WHERE dataset_id=${datasetId}
         AND (${Boolean(options.includeRemoved)} OR removed=false)
+        AND data @> ${this.sql.json(jsonValue(options.filter ?? {}))}
         AND (${!decoded} OR last_seen_at<${decoded ? new Date(decoded.at) : new Date(0)}
           OR (last_seen_at=${decoded ? new Date(decoded.at) : new Date(0)} AND id<${decoded?.id ?? ''}))
       ORDER BY last_seen_at DESC,id DESC LIMIT ${pageSize + 1}
@@ -325,6 +330,30 @@ export class PostgresDatasetRepository implements DatasetRepository {
       ORDER BY created_at DESC,id DESC LIMIT ${pageSize + 1}
     `;
     const items = rows.slice(0, pageSize).map((row) => recordChangeRow(row as PgRow));
+    return {
+      items,
+      nextCursor:
+        rows.length > pageSize ? encodeCursor(items.at(-1)!.createdAt, items.at(-1)!.id) : null,
+    };
+  }
+
+  async listRunRecords(runId: string, cursor?: string, limit = 100): Promise<RunRecordPage> {
+    const pageSize = Math.min(Math.max(limit, 1), 500);
+    const decoded = cursor ? decodeCursor(cursor) : null;
+    const rows = await this.sql`
+      SELECT * FROM records
+      WHERE source_run_id=${runId}
+        AND (${!decoded} OR created_at<${decoded ? new Date(decoded.at) : new Date(0)}
+          OR (created_at=${decoded ? new Date(decoded.at) : new Date(0)} AND id<${decoded?.id ?? ''}))
+      ORDER BY created_at DESC,id DESC LIMIT ${pageSize + 1}
+    `;
+    const items = rows.slice(0, pageSize).map((row) => ({
+      id: String(row.id),
+      runId: String(row.source_run_id),
+      sourceUrl: String(row.source_url),
+      data: objectValue(row.data),
+      createdAt: iso(row.created_at),
+    }));
     return {
       items,
       nextCursor:

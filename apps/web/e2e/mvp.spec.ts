@@ -9,8 +9,15 @@ async function deleteTask(request: APIRequestContext, id: string) {
     data: { nonce: 'headless-development-session' },
   });
   const token = (await session.json()).token as string;
-  return request.delete(`${apiBaseUrl}/api/v2/tasks/${id}`, {
+  const task = await request.get(`${apiBaseUrl}/api/v2/tasks/${id}`, {
     headers: { authorization: `Bearer ${token}` },
+  });
+  return request.delete(`${apiBaseUrl}/api/v2/tasks/${id}`, {
+    headers: {
+      authorization: `Bearer ${token}`,
+      'idempotency-key': crypto.randomUUID(),
+      'if-match': task.headers().etag ?? '"0"',
+    },
   });
 }
 

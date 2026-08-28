@@ -4,12 +4,21 @@ import {
   AnalyticsWorkerClient,
   type AnalyticsWorkerPrivateBootstrap,
 } from '@zhiyun/analytics-worker-client';
+import { LocalArtifactStore } from '@zhiyun/artifact-store';
 import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
-import { FileArtifactStore, HostCredentialStore } from '@zhiyun/platform';
-import { LocalQueue, LocalScheduler } from '@zhiyun/scheduler';
-import { SqliteRepository } from '@zhiyun/sqlite-storage';
+import { HostCredentialStore } from '@zhiyun/platform';
+import { JobHandlerRegistry } from '@zhiyun/platform-core';
+import { SqliteAnalysisRepository } from '@zhiyun/plugin-analytics';
+import { SqliteCollectionRepository } from '@zhiyun/plugin-collection';
+import { SqliteCorpusRepository } from '@zhiyun/plugin-corpus';
+import { SqliteDatasetRepository } from '@zhiyun/plugin-datasets';
+import { SqliteOutputRepository } from '@zhiyun/plugin-outputs';
+import { SqlitePreferencesRepository } from '@zhiyun/plugin-preferences';
+import { resolveProductGraph } from '@zhiyun/product-profiles';
+import { LocalPlatformJobQueue } from '@zhiyun/queue-local-v1';
+import { openSqlitePlatformRepository } from '@zhiyun/storage-sqlite-v1';
 import type { ArtifactDescriptor, HostCapabilities, RuntimeCapabilities } from '@zhiyun/contracts';
-import { buildRuntime, type ZhiYunRuntime } from './index.js';
+import { buildLevel2Runtime, openApiDocument, type Level2Runtime } from './index.js';
 
 interface BootstrapMessage {
   type: 'bootstrap';
@@ -48,7 +57,7 @@ if (!parentPort)
   throw new Error('ZhiYun desktop Runtime must be started as an Electron utilityProcess');
 const desktopParentPort = parentPort;
 
-let runtime: ZhiYunRuntime | undefined;
+let runtime: Level2Runtime | undefined;
 let analyticsWorkerClient: AnalyticsWorkerClient | undefined;
 
 async function hostRequest<T>(message: BootstrapMessage, path: string, body: unknown): Promise<T> {
@@ -68,9 +77,26 @@ async function hostRequest<T>(message: BootstrapMessage, path: string, body: unk
 async function bootstrap(message: BootstrapMessage): Promise<void> {
   if (runtime) throw new Error('Runtime is already bootstrapped');
   if (message.browserResources) process.env.PLAYWRIGHT_BROWSERS_PATH = message.browserResources;
-  const repository = new SqliteRepository(join(message.dataDirectory, 'zhiyun.sqlite3'));
-  const queue = new LocalQueue(repository);
-  const scheduler = new LocalScheduler(repository, queue);
+  const databasePath = join(message.dataDirectory, 'zhiyun.sqlite3');
+  const graph = resolveProductGraph('desktop-studio');
+  const platform = await openSqlitePlatformRepository({
+    dataDirectory: message.dataDirectory,
+    filePath: databasePath,
+    graphRevision: graph.revision,
+  });
+  const repositories = {
+    platform,
+    datasets: new SqliteDatasetRepository(databasePath),
+    collection: new SqliteCollectionRepository(databasePath),
+    outputs: new SqliteOutputRepository(databasePath),
+    preferences: new SqlitePreferencesRepository(databasePath),
+    analytics: new SqliteAnalysisRepository(databasePath),
+    corpus: new SqliteCorpusRepository(databasePath),
+  };
+  const handlers = new JobHandlerRegistry();
+  const jobs = new LocalPlatformJobQueue(platform, handlers, {
+    capacities: { 'browser-heavy': 1, 'python-heavy': 1, io: 1, delivery: 1 },
+  });
   const credentialStore = new HostCredentialStore(message.hostBaseUrl, message.hostToken);
   let analyticsWorkerStatus = message.analyticsWorkerStatus ?? 'unavailable';
   if (message.analyticsWorker) {
@@ -110,9 +136,10 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
         }
       : {}),
     onUsage: async (usage) => {
-      await repository
+      await platform
         .appendEvent({
           type: 'ai.request.completed',
+          producerPluginId: 'ai-assistance',
           aggregateType: usage.taskId ? 'task' : 'runtime',
           aggregateId: usage.taskId ?? metadata.runtimeId,
           payload: { ...usage },
@@ -120,15 +147,17 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
         .catch(() => undefined);
     },
   });
-  runtime = await buildRuntime(
+  runtime = await buildLevel2Runtime(
     {
-      repository,
-      queue,
-      scheduler,
+      repositories,
+      handlers,
+      jobs,
       crawler: new CrawlerRuntime(),
       ai,
       credentialStore,
-      artifactStore: new FileArtifactStore(join(message.dataDirectory, 'artifacts')),
+      artifactStore: new LocalArtifactStore(message.dataDirectory),
+      ...(analyticsWorkerClient ? { analyticsWorker: analyticsWorkerClient } : {}),
+      openApiDocument: openApiDocument(),
       host: {
         metadata,
         capabilities,
@@ -181,7 +210,13 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
     },
     {
       sessionNonce: message.sessionNonce,
-      allowedOrigins: ['app://zhiyun', ...(message.rendererOrigin ? [message.rendererOrigin] : [])],
+      // Chromium serializes the opaque custom-protocol origin as `null` for CORS preflights.
+      // Session nonces and bearer authentication remain the authority boundary.
+      allowedOrigins: [
+        'app://zhiyun',
+        'null',
+        ...(message.rendererOrigin ? [message.rendererOrigin] : []),
+      ],
       logger: { level: 'info' },
       profileId: 'desktop-studio',
     },
@@ -223,7 +258,7 @@ desktopParentPort.on('message', (event) => {
       } else {
         analyticsWorkerClient = undefined;
       }
-      runtime?.setAnalyticsWorkerStatus(status);
+      runtime?.setAnalyticsWorker(analyticsWorkerClient, status);
     })();
   } else if (message.type === 'issue-session-nonce') {
     runtime?.issueSessionNonce(message.nonce);

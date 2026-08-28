@@ -111,6 +111,33 @@ export interface DatasetPageResult {
   stats: DatasetStats;
 }
 
+export interface DatasetResource {
+  id: string;
+  sourceTaskId: string;
+  settings: {
+    mode: 'snapshot' | 'upsert' | 'append';
+    keyFields: string[];
+    detectRemoved: boolean;
+  };
+  schemaVersion: number;
+  currentCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DatasetSnapshotResource {
+  id: string;
+  datasetId: string;
+  sourceRunId: string | null;
+  fingerprint: string;
+  schemaVersion: number;
+  status: 'projected' | 'preparing' | 'ready' | 'failed';
+  rowCount: number;
+  warnings: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DesktopDiagnostics {
   runtime: { version: string; generation: number; runtimeId: string; startedAt: string };
   browserResources: string | null;
@@ -188,6 +215,13 @@ export class ZhiYunClient {
       bootstrap.baseUrl === this.bootstrap.baseUrl
     )
       return;
+    if (!this.bootstrap.baseUrl) {
+      // The Desktop Main process can publish its first bootstrap while getBootstrap() is still
+      // resolving. This is initial connection establishment, not a Runtime reset: aborting and
+      // clearing the active Graph Query here would strand its observer in a pending state.
+      this.bootstrap = bootstrap;
+      return;
+    }
     this.controller.abort('Runtime generation changed');
     this.controller = new AbortController();
     this.bootstrap = bootstrap;
@@ -588,7 +622,7 @@ export class ZhiYunClient {
   }
 
   runTask(id: string) {
-    return this.request<{ runId: string; status: CrawlRun['status'] }>(`/api/v2/tasks/${id}/run`, {
+    return this.request<{ runId: string; status: CrawlRun['status'] }>(`/api/v2/tasks/${id}/runs`, {
       method: 'POST',
     });
   }
@@ -716,8 +750,42 @@ export class ZhiYunClient {
     });
   }
 
+  listDatasets(limit = 100, cursor?: string, sourceTaskId?: string) {
+    return this.request<{ items: DatasetResource[]; nextCursor: string | null }>(
+      `/api/v2/datasets${search({ limit, cursor, sourceTaskId })}`,
+    );
+  }
+
+  getDatasetResource(datasetId: string) {
+    return this.request<DatasetResource>(`/api/v2/datasets/${encodeURIComponent(datasetId)}`);
+  }
+
+  listDatasetSnapshots(datasetId: string) {
+    return this.request<DatasetSnapshotResource[]>(
+      `/api/v2/datasets/${encodeURIComponent(datasetId)}/snapshots`,
+    );
+  }
+
+  createDatasetSnapshot(datasetId: string) {
+    return this.request<DatasetSnapshotResource>(
+      `/api/v2/datasets/${encodeURIComponent(datasetId)}/snapshots`,
+      { method: 'POST' },
+    );
+  }
+
+  getDatasetSnapshot(datasetId: string, snapshotId: string) {
+    return this.request<DatasetSnapshotResource>(
+      `/api/v2/datasets/${encodeURIComponent(datasetId)}/snapshots/${encodeURIComponent(snapshotId)}`,
+    );
+  }
+
+  async findDatasetForTask(taskId: string) {
+    const page = await this.listDatasets(1, undefined, taskId);
+    return page.items[0] ?? null;
+  }
+
   getDataset(
-    taskId: string,
+    datasetId: string,
     options: {
       limit?: number;
       cursor?: string;
@@ -727,22 +795,24 @@ export class ZhiYunClient {
     } = {},
   ) {
     return this.request<DatasetPageResult>(
-      `/api/v2/tasks/${taskId}/dataset${search({ limit: options.limit ?? 100, ...options })}`,
+      `/api/v2/datasets/${encodeURIComponent(datasetId)}/records${search({ limit: options.limit ?? 100, ...options })}`,
     );
   }
 
-  getDatasetChanges(taskId: string, limit = 20, cursor?: string, runId?: string) {
+  getDatasetChanges(datasetId: string, limit = 20, cursor?: string, runId?: string) {
     return this.request<{ items: RecordChange[]; nextCursor: string | null }>(
-      `/api/v2/tasks/${taskId}/dataset/changes${search({ limit, cursor, runId })}`,
+      `/api/v2/datasets/${encodeURIComponent(datasetId)}/changes${search({ limit, cursor, sourceRunId: runId })}`,
     );
   }
 
-  diffDatasetRuns(taskId: string, from: string, to: string, limit = 100, cursor?: string) {
+  diffDatasetRuns(datasetId: string, from: string, to: string, limit = 100, cursor?: string) {
     return this.request<{
       items: DatasetDiffEntry[];
       nextCursor: string | null;
       stats: DatasetDiffStats;
-    }>(`/api/v2/tasks/${taskId}/dataset/diff${search({ from, to, limit, cursor })}`);
+    }>(
+      `/api/v2/datasets/${encodeURIComponent(datasetId)}/diff${search({ from, to, limit, cursor })}`,
+    );
   }
 
   getRun(id: string) {
@@ -884,14 +954,6 @@ export class ZhiYunClient {
     return this.request<DesktopDiagnostics>('/api/v2/desktop/diagnostics');
   }
 
-  createDesktopBackup() {
-    return this.request<{ saved: boolean }>('/api/v2/desktop/backup', { method: 'POST' });
-  }
-
-  restoreDesktopBackup() {
-    return this.request<{ canceled: boolean }>('/api/v2/desktop/restore', { method: 'POST' });
-  }
-
   async exportRun(
     runId: string,
     format: ArtifactDescriptor['format'],
@@ -912,7 +974,7 @@ export class ZhiYunClient {
   }
 
   async exportDataset(
-    taskId: string,
+    datasetId: string,
     format: ArtifactDescriptor['format'],
     options: {
       fields?: string[];
@@ -925,12 +987,12 @@ export class ZhiYunClient {
     } = {},
   ): Promise<ArtifactDescriptor> {
     const { signal, ...body } = options;
-    const result = await this.request<{ artifactRef: string; artifact: ArtifactDescriptor }>(
-      `/api/v2/tasks/${taskId}/dataset/exports`,
+    const artifact = await this.request<ArtifactDescriptor>(
+      `/api/v2/datasets/${encodeURIComponent(datasetId)}/exports`,
       { method: 'POST', body: JSON.stringify({ format, ...body }), ...(signal ? { signal } : {}) },
     );
-    await this.saveOrDownloadArtifact(result.artifactRef, result.artifact);
-    return result.artifact;
+    await this.saveOrDownloadArtifact(artifact.id, artifact);
+    return artifact;
   }
 
   private async saveOrDownloadArtifact(

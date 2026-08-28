@@ -21,6 +21,10 @@ test.beforeAll(async () => {
     args: [`--user-data-dir=${profile}`],
     env: { ...process.env, NODE_ENV: 'test' },
   });
+  if (process.env.ZHIYUN_E2E_LOG === '1') {
+    electronApp.process().stdout?.on('data', (chunk) => process.stdout.write(String(chunk)));
+    electronApp.process().stderr?.on('data', (chunk) => process.stderr.write(String(chunk)));
+  }
 });
 
 test.afterAll(async () => {
@@ -28,7 +32,7 @@ test.afterAll(async () => {
   if (profile) await rm(profile, { recursive: true, force: true });
 });
 
-test('runs a dynamic crawl from the self-contained packaged application', async () => {
+test('runs a dynamic crawl and analysis from the self-contained packaged application', async () => {
   const page = await electronApp.firstWindow();
   await page.waitForLoadState('domcontentloaded');
   expect(
@@ -54,4 +58,20 @@ test('runs a dynamic crawl from the self-contained packaged application', async 
   await expect(page.locator('.page-heading .badge')).toHaveText('succeeded', { timeout: 60_000 });
   await expect(page.getByRole('cell', { name: '织云商品 30', exact: true })).toBeVisible();
   await expect(page.getByText('Browser', { exact: true })).toBeVisible();
+
+  await page.goto(`app://zhiyun/tasks/${taskId}`);
+  await page.getByRole('link', { name: 'Dataset', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /Packaged smoke/ })).toBeVisible();
+  await page.getByRole('button', { name: '开始分析', exact: true }).click();
+  await expect(page).toHaveURL(/\/analytics\?datasetId=.*snapshotId=/, { timeout: 60_000 });
+  await expect(page.getByLabel('Snapshot ID')).not.toHaveValue('');
+  await page.getByRole('option', { name: /data\.profile/ }).click();
+  await page.getByRole('button', { name: '开始分析', exact: true }).click();
+  const analysisJob = page.locator('a[href*="/analytics/jobs/"]').first();
+  await expect(analysisJob).toBeVisible({ timeout: 30_000 });
+  await analysisJob.click();
+  await expect(page.locator('.job-status-line .badge')).toHaveText('succeeded', {
+    timeout: 60_000,
+  });
+  await expect(page.getByRole('heading', { name: '分析结果' })).toBeVisible();
 });

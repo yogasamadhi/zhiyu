@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { runtimeClient, type CorpusRecipeInput } from '@zhiyun/client';
 import { Badge, Button, Card, ErrorNotice, Input } from '../components/ui.js';
@@ -22,6 +22,7 @@ const defaultRecipe: CorpusRecipeInput = {
 
 export function CorpusDetailPage() {
   const { corpusId = '' } = useParams();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const corpus = useQuery({
@@ -44,7 +45,7 @@ export function CorpusDetailPage() {
   });
   const [recipe, setRecipe] = useState<CorpusRecipeInput>(defaultRecipe);
   const [selectedRecipeId, setSelectedRecipeId] = useState('');
-  const [snapshotId, setSnapshotId] = useState('');
+  const [snapshotId, setSnapshotId] = useState(searchParams.get('snapshotId') ?? '');
   useEffect(() => {
     if (!selectedRecipeId && recipes.data?.[0]) setSelectedRecipeId(recipes.data[0].id);
   }, [recipes.data, selectedRecipeId]);

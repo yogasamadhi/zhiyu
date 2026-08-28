@@ -9,6 +9,7 @@ import type {
   DatasetRepository,
   DatasetSnapshot,
   RecordChangePage,
+  RunRecordPage,
   SnapshotMaterializationClaim,
 } from '../../contracts/index.js';
 import { datasetFingerprint, normalizeDatasetInputs } from '../../domain/index.js';
@@ -305,13 +306,26 @@ export class SqliteDatasetRepository implements DatasetRepository {
     datasetId: string,
     cursor?: string,
     limit = 100,
-    options: { includeRemoved?: boolean } = {},
+    options: {
+      includeRemoved?: boolean;
+      filter?: Record<string, string | number | boolean | null>;
+    } = {},
   ): Promise<DatasetRecordPage> {
     const pageSize = Math.min(Math.max(limit, 1), 500);
     const decoded = cursor ? decodeCursor(cursor) : null;
     const clauses = ['dataset_id=?'];
     const parameters: unknown[] = [datasetId];
     if (!options.includeRemoved) clauses.push('removed=0');
+    for (const [field, value] of Object.entries(options.filter ?? {})) {
+      const path = `$."${field}"`;
+      if (value === null) {
+        clauses.push("json_type(data,?)='null'");
+        parameters.push(path);
+      } else {
+        clauses.push('json_extract(data,?)=?');
+        parameters.push(path, typeof value === 'boolean' ? Number(value) : value);
+      }
+    }
     if (decoded) {
       clauses.push('(last_seen_at<? OR (last_seen_at=? AND id<?))');
       parameters.push(decoded.at, decoded.at, decoded.id);
@@ -361,6 +375,38 @@ export class SqliteDatasetRepository implements DatasetRepository {
       )
       .all(...parameters, pageSize + 1) as SqlRow[];
     const items = rows.slice(0, pageSize).map(recordChangeRow);
+    return {
+      items,
+      nextCursor:
+        rows.length > pageSize ? encodeCursor(items.at(-1)!.createdAt, items.at(-1)!.id) : null,
+    };
+  }
+
+  async listRunRecords(runId: string, cursor?: string, limit = 100): Promise<RunRecordPage> {
+    const pageSize = Math.min(Math.max(limit, 1), 500);
+    const decoded = cursor ? decodeCursor(cursor) : null;
+    const rows = this.sqlite
+      .prepare(
+        `SELECT * FROM records
+         WHERE source_run_id=?
+           AND (? IS NULL OR created_at<? OR (created_at=? AND id<?))
+         ORDER BY created_at DESC,id DESC LIMIT ?`,
+      )
+      .all(
+        runId,
+        decoded?.at ?? null,
+        decoded?.at ?? '',
+        decoded?.at ?? '',
+        decoded?.id ?? '',
+        pageSize + 1,
+      ) as SqlRow[];
+    const items = rows.slice(0, pageSize).map((row) => ({
+      id: String(row.id),
+      runId: String(row.source_run_id),
+      sourceUrl: String(row.source_url),
+      data: parseObject(row.data),
+      createdAt: String(row.created_at),
+    }));
     return {
       items,
       nextCursor:

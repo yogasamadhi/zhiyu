@@ -19,6 +19,8 @@
     "@zhiyun/contracts": "workspace:*",
     "@zhiyun/crawler-runtime": "workspace:*",
     "@zhiyun/extraction": "workspace:*",
-    "@zhiyun/kernel": "workspace:*"
+    "@zhiyun/kernel": "workspace:*",
+    "@zhiyun/platform-core": "workspace:*",
+    "fastify": "^5.12.1"
   }
 }

@@ -195,6 +195,9 @@ export interface PlatformRepository {
     responseBody: unknown;
   }): Promise<void>;
 
+  getRuntimeSetting<T = unknown>(key: string): Promise<T | null>;
+  setRuntimeSetting(key: string, value: unknown): Promise<void>;
+
   listMigrations(): Promise<MigrationRecord[]>;
 }
 
@@ -281,6 +284,7 @@ export class DurableJobDispatcher {
   >();
   private stopping = false;
   private loopPromise: Promise<void> | undefined;
+  private loopController: AbortController | undefined;
 
   constructor(
     private readonly repository: PlatformRepository,
@@ -301,13 +305,14 @@ export class DurableJobDispatcher {
   start(): void {
     if (this.loopPromise) return;
     this.stopping = false;
-    this.loopPromise = this.loop();
+    this.loopController = new AbortController();
+    this.loopPromise = this.loop(this.loopController.signal);
   }
 
-  private async loop(): Promise<void> {
+  private async loop(signal: AbortSignal): Promise<void> {
     while (!this.stopping) {
       await this.tick();
-      await delay(this.pollIntervalMs);
+      await delay(this.pollIntervalMs, signal);
     }
   }
 
@@ -411,10 +416,12 @@ export class DurableJobDispatcher {
 
   async close(): Promise<void> {
     this.stopping = true;
+    this.loopController?.abort();
     for (const { controller } of this.running.values()) controller.abort('Dispatcher stopping');
     await Promise.allSettled([...this.running.values()].map(({ promise }) => promise));
     await this.loopPromise;
     this.loopPromise = undefined;
+    this.loopController = undefined;
   }
 }
 
@@ -493,6 +500,15 @@ function safeError(error: unknown): string {
   return error instanceof Error ? error.message.slice(0, 2_000) : String(error).slice(0, 2_000);
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve();
+    const timer = setTimeout(done, ms);
+    signal?.addEventListener('abort', done, { once: true });
+    function done() {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', done);
+      resolve();
+    }
+  });
 }

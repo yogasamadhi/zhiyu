@@ -1,10 +1,9 @@
 import { Fragment, useEffect, useState } from 'react';
 import { runtimeClient, type DesktopDiagnostics } from '@zhiyun/client';
-import { Button, Card, ErrorNotice } from '../components/ui.js';
+import { Card, ErrorNotice } from '../components/ui.js';
 
 export function SettingsPage() {
   const [diagnostics, setDiagnostics] = useState<DesktopDiagnostics | null>(null);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   useEffect(() => {
     void runtimeClient
@@ -12,33 +11,15 @@ export function SettingsPage() {
       .then(setDiagnostics)
       .catch((reason: Error) => setError(reason.message));
   }, []);
-  const backup = async () => {
-    try {
-      const result = await runtimeClient.createDesktopBackup();
-      setMessage(result.saved ? '备份已保存' : '已取消保存');
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    }
-  };
-  const restore = async () => {
-    if (!window.confirm('恢复会替换当前桌面数据库，并重启 Runtime。继续吗？')) return;
-    try {
-      const result = await runtimeClient.restoreDesktopBackup();
-      setMessage(result.canceled ? '恢复已取消' : '备份已验证，Runtime 正在重启');
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    }
-  };
   return (
     <>
       <div className="page-heading">
         <div>
-          <h1>Desktop 设置</h1>
-          <p>诊断、数据备份与恢复</p>
+          <h1>Runtime 设置</h1>
+          <p>运行状态与架构诊断</p>
         </div>
       </div>
       <ErrorNotice message={error} />
-      {message && <div className="notice notice-success">{message}</div>}
       <Card>
         <h2>Runtime</h2>
         {diagnostics ? (
@@ -65,14 +46,11 @@ export function SettingsPage() {
         )}
       </Card>
       <Card>
-        <h2>SQLite 数据</h2>
-        <p>备份使用 SQLite 在线 Backup API；恢复文件会先做完整性校验，并保留恢复前副本。</p>
-        <div className="row-actions">
-          <Button onClick={() => void backup()}>一键备份</Button>
-          <Button className="button-danger" onClick={() => void restore()}>
-            从备份恢复
-          </Button>
-        </div>
+        <h2>1.0 数据策略</h2>
+        <p>
+          ZhiYun 1.0 使用全新 Schema。首次检测到明确的 0.x
+          数据时会自动清空；本版本不提供旧数据备份、恢复或导入工具。
+        </p>
       </Card>
     </>
   );

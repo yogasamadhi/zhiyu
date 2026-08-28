@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "noEmit": true, "types": ["node", "bun"] },
-  "include": ["vitest.config.ts", "run.ts"]
+  "include": ["vitest.config.ts", "run.ts", "scripts/**/*.ts"]
 }

@@ -160,7 +160,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/api-tokens/{id}': {
+  '/api/v2/api-tokens/{tokenId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -176,7 +176,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/artifacts/{id}/content': {
+  '/api/v2/artifacts/{artifactId}/content': {
     parameters: {
       query?: never;
       header?: never;
@@ -192,7 +192,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/artifacts/{id}/save': {
+  '/api/v2/artifacts/{artifactId}/save': {
     parameters: {
       query?: never;
       header?: never;
@@ -201,7 +201,7 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    post: operations['saveArtifact'];
+    post: operations['saveArtifactWithHost'];
     delete?: never;
     options?: never;
     head?: never;
@@ -416,7 +416,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/data/tasks/{id}/records': {
+  '/api/v2/data/tasks/{taskId}/records': {
     parameters: {
       query?: never;
       header?: never;
@@ -424,6 +424,134 @@ export type paths = {
       cookie?: never;
     };
     get: operations['queryDataApiRecords'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/datasets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listDatasets'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/datasets/{datasetId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getDataset'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/datasets/{datasetId}/changes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listDatasetChanges'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/datasets/{datasetId}/diff': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['diffDataset'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/datasets/{datasetId}/exports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['exportDataset'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/datasets/{datasetId}/records': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listDatasetRecords'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/datasets/{datasetId}/snapshots': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listDatasetSnapshots'];
+    put?: never;
+    post: operations['createDatasetSnapshot'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/datasets/{datasetId}/snapshots/{snapshotId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getDatasetSnapshot'];
     put?: never;
     post?: never;
     delete?: never;
@@ -448,7 +576,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/delivery-attempts/{id}/retry': {
+  '/api/v2/delivery-attempts/{attemptId}/retry': {
     parameters: {
       query?: never;
       header?: never;
@@ -457,23 +585,7 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    post: operations['retryOutputDelivery'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v2/desktop/backup': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations['backupDesktopDatabase'];
+    post: operations['retryDeliveryAttempt'];
     delete?: never;
     options?: never;
     head?: never;
@@ -490,22 +602,6 @@ export type paths = {
     get: operations['getDesktopDiagnostics'];
     put?: never;
     post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v2/desktop/restore': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations['restoreDesktopDatabase'];
     delete?: never;
     options?: never;
     head?: never;
@@ -560,7 +656,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/inspection-sessions/{id}': {
+  '/api/v2/inspection-sessions/{sessionId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -576,7 +672,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/inspection-sessions/{id}/actions': {
+  '/api/v2/inspection-sessions/{sessionId}/actions': {
     parameters: {
       query?: never;
       header?: never;
@@ -592,7 +688,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/inspection-sessions/{id}/screenshot': {
+  '/api/v2/inspection-sessions/{sessionId}/screenshot': {
     parameters: {
       query?: never;
       header?: never;
@@ -608,7 +704,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/inspection-sessions/{id}/select': {
+  '/api/v2/inspection-sessions/{sessionId}/select': {
     parameters: {
       query?: never;
       header?: never;
@@ -631,7 +727,7 @@ export type paths = {
       path?: never;
       cookie?: never;
     };
-    get: operations['getOpenApiDocument'];
+    get: operations['getProductOpenApi'];
     put?: never;
     post?: never;
     delete?: never;
@@ -656,14 +752,14 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/output-destinations/{id}': {
+  '/api/v2/output-destinations/{destinationId}': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    get: operations['getOutputDestination'];
     put: operations['updateOutputDestination'];
     post?: never;
     delete: operations['deleteOutputDestination'];
@@ -672,7 +768,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/output-destinations/{id}/credential/prompt': {
+  '/api/v2/output-destinations/{destinationId}/credential/prompt': {
     parameters: {
       query?: never;
       header?: never;
@@ -688,7 +784,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/output-destinations/{id}/test': {
+  '/api/v2/output-destinations/{destinationId}/test': {
     parameters: {
       query?: never;
       header?: never;
@@ -713,7 +809,7 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    post: operations['importPreferenceContent'];
+    post: operations['importPreference'];
     delete?: never;
     options?: never;
     head?: never;
@@ -745,14 +841,14 @@ export type paths = {
     };
     get: operations['listPreferenceSignals'];
     put?: never;
-    post: operations['upsertPreferenceSignal'];
+    post: operations['createPreferenceSignal'];
     delete: operations['clearPreferenceSignals'];
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/v2/preferences/signals/{id}': {
+  '/api/v2/preferences/signals/{signalId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -768,7 +864,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/runs/{id}': {
+  '/api/v2/runs/{runId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -784,7 +880,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/runs/{id}/cancel': {
+  '/api/v2/runs/{runId}/cancel': {
     parameters: {
       query?: never;
       header?: never;
@@ -800,7 +896,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/runs/{id}/explain-failure': {
+  '/api/v2/runs/{runId}/explain-failure': {
     parameters: {
       query?: never;
       header?: never;
@@ -816,7 +912,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/runs/{id}/exports': {
+  '/api/v2/runs/{runId}/exports': {
     parameters: {
       query?: never;
       header?: never;
@@ -825,14 +921,14 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    post: operations['createRunExport'];
+    post: operations['exportRunRecords'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/v2/runs/{id}/logs': {
+  '/api/v2/runs/{runId}/logs': {
     parameters: {
       query?: never;
       header?: never;
@@ -848,7 +944,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/runs/{id}/records': {
+  '/api/v2/runs/{runId}/records': {
     parameters: {
       query?: never;
       header?: never;
@@ -864,7 +960,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/runs/{id}/requests': {
+  '/api/v2/runs/{runId}/requests': {
     parameters: {
       query?: never;
       header?: never;
@@ -880,7 +976,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/runs/{id}/retry': {
+  '/api/v2/runs/{runId}/retry': {
     parameters: {
       query?: never;
       header?: never;
@@ -903,7 +999,7 @@ export type paths = {
       path?: never;
       cookie?: never;
     };
-    get: operations['getRuntimeMetadata'];
+    get: operations['getRuntime'];
     put?: never;
     post?: never;
     delete?: never;
@@ -985,7 +1081,7 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    post: operations['createRuntimeSession'];
+    post: operations['createSession'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1008,7 +1104,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}': {
+  '/api/v2/tasks/{taskId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -1024,7 +1120,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/ai/extract': {
+  '/api/v2/tasks/{taskId}/ai/extract': {
     parameters: {
       query?: never;
       header?: never;
@@ -1033,14 +1129,14 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    post: operations['runAiExtractDemo'];
+    post: operations['extractTaskWithAi'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/browser-session/login': {
+  '/api/v2/tasks/{taskId}/browser-session/login': {
     parameters: {
       query?: never;
       header?: never;
@@ -1049,14 +1145,14 @@ export type paths = {
     };
     get?: never;
     put?: never;
-    post: operations['createTaskLoginSession'];
+    post: operations['startTaskLoginSession'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/credentials/{kind}': {
+  '/api/v2/tasks/{taskId}/credentials/{kind}': {
     parameters: {
       query?: never;
       header?: never;
@@ -1072,71 +1168,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/dataset': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations['listDatasetRecords'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v2/tasks/{id}/dataset/changes': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations['listDatasetChanges'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v2/tasks/{id}/dataset/diff': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations['diffDatasetRuns'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v2/tasks/{id}/dataset/exports': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations['createDatasetExport'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v2/tasks/{id}/rule-analysis': {
+  '/api/v2/tasks/{taskId}/rule-analysis': {
     parameters: {
       query?: never;
       header?: never;
@@ -1152,7 +1184,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/rules': {
+  '/api/v2/tasks/{taskId}/rules': {
     parameters: {
       query?: never;
       header?: never;
@@ -1168,7 +1200,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/rules/{ruleId}/diff': {
+  '/api/v2/tasks/{taskId}/rules/{ruleId}/diff': {
     parameters: {
       query?: never;
       header?: never;
@@ -1184,7 +1216,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/rules/{ruleId}/repair-proposals': {
+  '/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals': {
     parameters: {
       query?: never;
       header?: never;
@@ -1200,7 +1232,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/rules/{ruleId}/repair-proposals/{proposalId}/apply': {
+  '/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/apply': {
     parameters: {
       query?: never;
       header?: never;
@@ -1216,7 +1248,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/rules/{ruleId}/repair-proposals/{proposalId}/reject': {
+  '/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/reject': {
     parameters: {
       query?: never;
       header?: never;
@@ -1232,7 +1264,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/rules/{ruleId}/repair-proposals/{proposalId}/test': {
+  '/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/test': {
     parameters: {
       query?: never;
       header?: never;
@@ -1248,7 +1280,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/rules/{ruleId}/rollback': {
+  '/api/v2/tasks/{taskId}/rules/{ruleId}/rollback': {
     parameters: {
       query?: never;
       header?: never;
@@ -1264,7 +1296,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/rules/{ruleId}/versions': {
+  '/api/v2/tasks/{taskId}/rules/{ruleId}/versions': {
     parameters: {
       query?: never;
       header?: never;
@@ -1280,7 +1312,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/rules/test': {
+  '/api/v2/tasks/{taskId}/rules/test': {
     parameters: {
       query?: never;
       header?: never;
@@ -1296,23 +1328,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/tasks/{id}/run': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations['createRun'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v2/tasks/{id}/runs': {
+  '/api/v2/tasks/{taskId}/runs': {
     parameters: {
       query?: never;
       header?: never;
@@ -1321,7 +1337,7 @@ export type paths = {
     };
     get: operations['listRuns'];
     put?: never;
-    post?: never;
+    post: operations['createRun'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1344,7 +1360,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/trend-sources/{key}': {
+  '/api/v2/trend-sources/{sourceKey}': {
     parameters: {
       query?: never;
       header?: never;
@@ -1360,7 +1376,7 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
-  '/api/v2/trend-sources/{key}/run': {
+  '/api/v2/trend-sources/{sourceKey}/run': {
     parameters: {
       query?: never;
       header?: never;
@@ -1432,6 +1448,22 @@ export type paths = {
       cookie?: never;
     };
     get: operations['getVersion'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/health': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getHealth'];
     put?: never;
     post?: never;
     delete?: never;
@@ -5881,7 +5913,7 @@ export interface operations {
       };
     };
   };
-  saveArtifact: {
+  saveArtifactWithHost: {
     parameters: {
       query?: never;
       header?: never;
@@ -6563,6 +6595,283 @@ export interface operations {
       };
     };
   };
+  listDatasets: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getDataset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        datasetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listDatasetChanges: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        datasetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['RecordChange'][];
+            nextCursor: string | null;
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  diffDataset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        datasetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['DatasetDiffEntry'][];
+            nextCursor: string | null;
+            stats: components['schemas']['DatasetDiffStats'];
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  exportDataset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        datasetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listDatasetRecords: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        datasetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['DatasetRecord'][];
+            nextCursor: string | null;
+            stats: components['schemas']['DatasetStats'];
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listDatasetSnapshots: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        datasetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  createDatasetSnapshot: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        datasetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getDatasetSnapshot: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        datasetId: string;
+        snapshotId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
   listDeliveryAttempts: {
     parameters: {
       query?: never;
@@ -6592,7 +6901,7 @@ export interface operations {
       };
     };
   };
-  retryOutputDelivery: {
+  retryDeliveryAttempt: {
     parameters: {
       query?: never;
       header?: never;
@@ -6621,61 +6930,7 @@ export interface operations {
       };
     };
   };
-  backupDesktopDatabase: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Problem Details */
-      default: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
   getDesktopDiagnostics: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Problem Details */
-      default: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  restoreDesktopDatabase: {
     parameters: {
       query?: never;
       header?: never;
@@ -6788,7 +7043,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        id: string;
+        sessionId: string;
       };
       cookie?: never;
     };
@@ -6817,7 +7072,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        id: string;
+        sessionId: string;
       };
       cookie?: never;
     };
@@ -6846,7 +7101,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        id: string;
+        sessionId: string;
       };
       cookie?: never;
     };
@@ -6875,7 +7130,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        id: string;
+        sessionId: string;
       };
       cookie?: never;
     };
@@ -6899,7 +7154,7 @@ export interface operations {
       };
     };
   };
-  getOpenApiDocument: {
+  getProductOpenApi: {
     parameters: {
       query?: never;
       header?: never;
@@ -6979,6 +7234,24 @@ export interface operations {
         content: {
           'application/json': components['schemas']['ProblemDetails'];
         };
+      };
+    };
+  };
+  getOutputDestination: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
@@ -7098,7 +7371,7 @@ export interface operations {
       };
     };
   };
-  importPreferenceContent: {
+  importPreference: {
     parameters: {
       query?: never;
       header?: never;
@@ -7195,7 +7468,7 @@ export interface operations {
       };
     };
   };
-  upsertPreferenceSignal: {
+  createPreferenceSignal: {
     parameters: {
       query?: never;
       header?: never;
@@ -7377,7 +7650,7 @@ export interface operations {
       };
     };
   };
-  createRunExport: {
+  exportRunRecords: {
     parameters: {
       query?: never;
       header?: never;
@@ -7537,7 +7810,7 @@ export interface operations {
       };
     };
   };
-  getRuntimeMetadata: {
+  getRuntime: {
     parameters: {
       query?: never;
       header?: never;
@@ -7688,7 +7961,7 @@ export interface operations {
       };
     };
   };
-  createRuntimeSession: {
+  createSession: {
     parameters: {
       query?: never;
       header?: never;
@@ -7891,7 +8164,7 @@ export interface operations {
       };
     };
   };
-  runAiExtractDemo: {
+  extractTaskWithAi: {
     parameters: {
       query?: never;
       header?: never;
@@ -7920,7 +8193,7 @@ export interface operations {
       };
     };
   };
-  createTaskLoginSession: {
+  startTaskLoginSession: {
     parameters: {
       query?: never;
       header?: never;
@@ -7986,139 +8259,6 @@ export interface operations {
       path: {
         id: string;
         kind: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Problem Details */
-      default: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  listDatasetRecords: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            items: components['schemas']['DatasetRecord'][];
-            nextCursor: string | null;
-            stats: components['schemas']['DatasetStats'];
-          };
-        };
-      };
-      /** @description Problem Details */
-      default: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  listDatasetChanges: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            items: components['schemas']['RecordChange'][];
-            nextCursor: string | null;
-          };
-        };
-      };
-      /** @description Problem Details */
-      default: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  diffDatasetRuns: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            items: components['schemas']['DatasetDiffEntry'][];
-            nextCursor: string | null;
-            stats: components['schemas']['DatasetDiffStats'];
-          };
-        };
-      };
-      /** @description Problem Details */
-      default: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  createDatasetExport: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
       };
       cookie?: never;
     };
@@ -8510,6 +8650,40 @@ export interface operations {
       };
     };
   };
+  listRuns: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['CrawlRun'][];
+            nextCursor: string | null;
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
   createRun: {
     parameters: {
       query?: never;
@@ -8531,40 +8705,6 @@ export interface operations {
             /** Format: uuid */
             runId: string;
             status: string;
-          };
-        };
-      };
-      /** @description Problem Details */
-      default: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  listRuns: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            items: components['schemas']['CrawlRun'][];
-            nextCursor: string | null;
           };
         };
       };
@@ -8811,6 +8951,24 @@ export interface operations {
         content: {
           'application/json': components['schemas']['ProblemDetails'];
         };
+      };
+    };
+  };
+  getHealth: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

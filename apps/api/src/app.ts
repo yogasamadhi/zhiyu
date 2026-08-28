@@ -1,16 +1,36 @@
-import { join, resolve } from 'node:path';
-import { AnalyticsWorkerSupervisor } from '@zhiyun/analytics-worker-client';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { AnalyticsWorkerClient, AnalyticsWorkerSupervisor } from '@zhiyun/analytics-worker-client';
 import { createAiProvider } from '@zhiyun/ai-runtime';
+import { LocalArtifactStore } from '@zhiyun/artifact-store';
 import { getConfig } from '@zhiyun/config';
 import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
-import { AesCredentialStore, FileArtifactStore } from '@zhiyun/platform';
-import { buildRuntime, type ZhiYunRuntime } from '@zhiyun/runtime';
-import { TaskQueue } from '@zhiyun/scheduler';
-import { PostgresRepository } from '@zhiyun/storage';
+import { AesCredentialStore } from '@zhiyun/platform';
+import { JobHandlerRegistry } from '@zhiyun/platform-core';
+import { PostgresAnalysisRepository } from '@zhiyun/plugin-analytics';
+import { PostgresCollectionRepository } from '@zhiyun/plugin-collection';
+import { PostgresCorpusRepository } from '@zhiyun/plugin-corpus';
+import { PostgresDatasetRepository } from '@zhiyun/plugin-datasets';
+import { PostgresOutputRepository } from '@zhiyun/plugin-outputs';
+import { PostgresPreferencesRepository } from '@zhiyun/plugin-preferences';
+import { resolveProductGraph } from '@zhiyun/product-profiles';
+import { RedisPlatformJobQueue, resetLegacyRedis } from '@zhiyun/queue-redis-v1';
+import { buildLevel2Runtime, openApiDocument, type Level2Runtime } from '@zhiyun/runtime';
+import { openPostgresPlatformRepository } from '@zhiyun/storage-postgres-v1';
 
 function analyticsWorkerLaunch(): { command: string; args: string[] } {
   if (process.env.ZHIYUN_ANALYTICS_WORKER_PATH) {
     return { command: process.env.ZHIYUN_ANALYTICS_WORKER_PATH, args: [] };
+  }
+  const bundled = join(
+    dirname(process.execPath),
+    'analytics-worker',
+    'linux-x64',
+    'analytics-worker',
+    'analytics-worker',
+  );
+  if (process.platform === 'linux' && process.arch === 'x64' && existsSync(bundled)) {
+    return { command: bundled, args: [] };
   }
   const workspaceRoot = resolve(import.meta.dirname, '../../..');
   const python =
@@ -23,16 +43,22 @@ function analyticsWorkerLaunch(): { command: string; args: string[] } {
 export async function buildApp() {
   const config = getConfig();
   const dataDirectory = join(process.cwd(), '.data', 'headless');
-  const runtimeHolder: { current?: ZhiYunRuntime } = {};
+  const runtimeHolder: { current?: Level2Runtime } = {};
   const workerSupervisor = new AnalyticsWorkerSupervisor({
     ...analyticsWorkerLaunch(),
     workspaceRoot: join(dataDirectory, 'job-workspaces'),
     onStateChange(state) {
       const runtime = runtimeHolder.current;
       if (!runtime) return;
-      if (state.status === 'ready') runtime.setAnalyticsWorkerStatus('ready');
-      if (state.status === 'degraded') runtime.setAnalyticsWorkerStatus('degraded');
-      if (state.status === 'stopped') runtime.setAnalyticsWorkerStatus('unavailable');
+      if (state.status === 'ready') {
+        const connection = workerSupervisor.connection();
+        runtime.setAnalyticsWorker(
+          connection ? new AnalyticsWorkerClient(connection) : undefined,
+          'ready',
+        );
+      }
+      if (state.status === 'degraded') runtime.setAnalyticsWorker(undefined, 'degraded');
+      if (state.status === 'stopped') runtime.setAnalyticsWorker(undefined, 'unavailable');
     },
     onLog(stream, message) {
       const output = stream === 'stdout' ? process.stdout : process.stderr;
@@ -48,8 +74,26 @@ export async function buildApp() {
     }
     return undefined;
   });
-  const repository = new PostgresRepository();
-  const queue = new TaskQueue(config.REDIS_URL);
+  const profileId = config.NODE_ENV === 'test' ? 'test' : 'headless-server';
+  const graph = resolveProductGraph(profileId);
+  const platform = await openPostgresPlatformRepository({
+    connectionString: config.DATABASE_URL,
+    graphRevision: graph.revision,
+  });
+  await resetLegacyRedis(config.REDIS_URL);
+  const repositories = {
+    platform,
+    datasets: new PostgresDatasetRepository(config.DATABASE_URL),
+    collection: new PostgresCollectionRepository(config.DATABASE_URL),
+    outputs: new PostgresOutputRepository(config.DATABASE_URL),
+    preferences: new PostgresPreferencesRepository(config.DATABASE_URL),
+    analytics: new PostgresAnalysisRepository(config.DATABASE_URL),
+    corpus: new PostgresCorpusRepository(config.DATABASE_URL),
+  };
+  const handlers = new JobHandlerRegistry();
+  const jobs = new RedisPlatformJobQueue(platform, config.REDIS_URL, handlers, {
+    capacities: { 'browser-heavy': 2, 'python-heavy': 1, io: 2, delivery: 2 },
+  });
   const credentials = new AesCredentialStore(
     join(dataDirectory, 'credentials'),
     config.ZHIYUN_CREDENTIAL_KEY,
@@ -76,9 +120,10 @@ export async function buildApp() {
         }
       : {}),
     onUsage: async (usage) => {
-      await repository
+      await platform
         .appendEvent({
           type: 'ai.request.completed',
+          producerPluginId: 'ai-assistance',
           aggregateType: usage.taskId ? 'task' : 'runtime',
           aggregateId: usage.taskId ?? metadata.runtimeId,
           payload: { ...usage },
@@ -86,15 +131,17 @@ export async function buildApp() {
         .catch(() => undefined);
     },
   });
-  const runtime = await buildRuntime(
+  const runtime = await buildLevel2Runtime(
     {
-      repository,
-      queue,
-      scheduler: queue,
+      repositories,
+      handlers,
+      jobs,
       crawler: new CrawlerRuntime(),
       ai,
       credentialStore: credentials,
-      artifactStore: new FileArtifactStore(join(dataDirectory, 'artifacts')),
+      artifactStore: new LocalArtifactStore(dataDirectory),
+      ...(workerConnection ? { analyticsWorker: new AnalyticsWorkerClient(workerConnection) } : {}),
+      openApiDocument: openApiDocument(),
       host: {
         metadata,
         capabilities: {
@@ -121,7 +168,7 @@ export async function buildApp() {
           .filter(Boolean) ?? []),
       ],
       logger: config.NODE_ENV === 'test' ? false : { level: 'info' },
-      profileId: config.NODE_ENV === 'test' ? 'test' : 'headless-server',
+      profileId,
     },
   );
   runtimeHolder.current = runtime;

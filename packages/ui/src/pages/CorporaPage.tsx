@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { runtimeClient } from '@zhiyun/client';
 import { Badge, Button, Card, ErrorNotice, Input } from '../components/ui.js';
@@ -8,9 +8,11 @@ import { Badge, Button, Card, ErrorNotice, Input } from '../components/ui.js';
 export function CorporaPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [datasetId, setDatasetId] = useState(searchParams.get('datasetId') ?? '');
+  const snapshotId = searchParams.get('snapshotId') ?? '';
   const corpora = useQuery({
     queryKey: ['corpus', 'list'],
     queryFn: () => runtimeClient.listCorpora(),
@@ -23,9 +25,11 @@ export function CorporaPage() {
   });
   const create = useMutation({
     mutationFn: () => runtimeClient.createCorpus({ name: name.trim(), datasetId }),
-    onSuccess: async () => {
+    onSuccess: async (created) => {
       setName('');
       await queryClient.invalidateQueries({ queryKey: ['corpus'] });
+      const query = snapshotId ? `?${new URLSearchParams({ snapshotId }).toString()}` : '';
+      await navigate(`/corpora/${created.id}${query}`);
     },
   });
   const error = corpora.error ?? builds.error ?? create.error;

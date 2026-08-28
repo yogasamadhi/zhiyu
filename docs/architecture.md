@@ -1,120 +1,169 @@
-# ZhiYun Architecture
+# ZhiYun 1.0 当前架构
 
-> 本文描述当前已经实现的 Level 1 Client / Runtime / Host 架构。
->
-> 下一阶段的大重构目标、TS/Python 分工、数据分析与语料库架构见
-> [ZhiYun Level 2 TS/Python 大重构架构方案](./architecture/ZHIYUN_LEVEL2_TS_PYTHON_REFACTOR.md)。
+本文描述 1.0 实际发布架构。详细设计、技术选型和非目标见 [ZHIYUN_LEVEL2_TS_PYTHON_REFACTOR.md](./architecture/ZHIYUN_LEVEL2_TS_PYTHON_REFACTOR.md)，唯一 owner 清单由 [Architecture Catalog](./generated/architecture-catalog.json) 生成并在 CI 检查 drift。
 
-## Level 1 Client / Runtime / Host
+## 1. 架构形态
 
 ```mermaid
 flowchart LR
-    subgraph Clients
-      Web[Web Entry]
-      DesktopUI[Electron Renderer]
-      UI[packages/ui]
-      Client[packages/client]
-      Web --> UI
-      DesktopUI --> UI
-      UI --> Client
-    end
+  subgraph Client
+    Web[Web]
+    Renderer[Electron Renderer]
+    UI[React UI Shell]
+    SDK[Generated TS Client]
+    Web --> UI
+    Renderer --> UI
+    UI --> SDK
+  end
 
-    subgraph Runtime
-      API[Fastify /api/v1]
-      Domain[Task / Rule / Run]
-      Worker[Crawl Worker]
-      AI[TypeScript AI Provider]
-      Crawl[Cheerio / JSON / Playwright]
-      Dataset[Run Snapshot / Dataset Projector]
-      Outputs[Webhook / PostgreSQL / Data API]
-      API --> Domain
-      Domain --> Worker
-      Domain --> AI
-      Worker --> Crawl
-      Worker --> Dataset
-      Dataset --> Outputs
-    end
+  subgraph Control[TypeScript Product Control Plane]
+    Gateway[Fastify /api/v2]
+    Kernel[Minimal Kernel]
+    Graph[Immutable Profile Graph]
+    Plugins[First-party Plugins]
+    Jobs[Platform Job/Event]
+    Gateway --> Kernel --> Graph --> Plugins
+    Plugins --> Jobs
+  end
 
-    subgraph Headless
-      PG[(PostgreSQL)]
-      Redis[Redis / BullMQ]
-    end
+  subgraph Data[Python Data Plane]
+    Supervisor[Worker Supervisor]
+    Worker[FastAPI /worker/v1]
+    Engine[Polars / DuckDB / PyArrow]
+    Science[NumPy / SciPy / pandas / statsmodels / scikit-learn]
+    Supervisor --> Worker --> Engine
+    Worker --> Science
+  end
 
-    subgraph DesktopHost[Electron Host]
-      Supervisor[utilityProcess Supervisor]
-      SQLite[(SQLite WAL)]
-      SafeStorage[safeStorage]
-      Native[Tray / Dialog / Notification]
-    end
+  subgraph Storage
+    SQL[(SQLite or PostgreSQL)]
+    Queue[Local Queue or Redis]
+    Artifacts[(Parquet / JSONL / Markdown / Manifest)]
+  end
 
-    Client -->|HTTP + SSE| API
-    Domain --> PG
-    Worker --> Redis
-    Supervisor --> API
-    Domain --> SQLite
-    API -->|private Host capability token| SafeStorage
-    API --> Native
+  SDK --> Gateway
+  Plugins --> SQL
+  Jobs --> Queue
+  Plugins --> Supervisor
+  Worker --> Artifacts
 ```
 
-`buildRuntime()` 只接收 `Repository`、`QueueAdapter`、`SchedulerAdapter`、`CrawlerService`、`AiProvider`、`CredentialStore`、`ArtifactStore` 和 `HostCapabilities`。它不创建全局 PostgreSQL、Redis、BullMQ、SQLite 或 Electron 对象。
+架构是 Local-first 模块化单体，不是微服务集合。Worker 与 Runtime 同机，由 Host/Bun Launcher 监督；Worker 失败不阻止 Collection、Dataset 和 Outputs。
 
-## Desktop 启动与恢复
+## 2. Kernel 与 Profile
 
-```mermaid
-sequenceDiagram
-    participant Main as Electron Main
-    participant Host as Host Capability API
-    participant U as utilityProcess Runtime
-    participant R as Renderer Client
+Kernel 只负责依赖图、Service Token、贡献 staging、Effect 生命周期和原子发布。固定启动顺序：
 
-    Main->>Host: listen 127.0.0.1:0 + private token
-    Main->>U: fork(dist/utility-entry.js)
-    Main->>U: private message(data dir, Host token, nonce, generation)
-    U->>U: migrate + checksum + integrity check
-    U->>U: running Run → failed/RUNTIME_INTERRUPTED
-    U->>U: queued job remains queued
-    U-->>Main: base URL + runtimeId + generation + apiVersion
-    Main-->>R: bootstrap through narrow Preload API
-    R->>U: POST /api/v1/session with one-time nonce
-    U-->>R: in-memory Runtime token
-    R->>U: authenticated HTTP + replayable SSE
+```text
+Resolve Graph → Validate DAG → Preflight/Apply Migrations
+→ Stage Services/Routes/Events/UI → Activate
+→ Validate OpenAPI/Catalog → Atomic Publish → Ready
 ```
 
-Runtime 异常退出时 Main 使用 1/2/4/8 秒退避重启；10 分钟最多五次。generation 改变时 Client 中止旧请求、清空 ETag cache、结束旧 SSE 并重新协商。正在执行的 Run 不自动重跑，恢复为 `failed` 和 `RUNTIME_INTERRUPTED`；排队任务继续执行。
+Graph 发布后不可修改。Profile 变化要求重启 Runtime。正式 Profile 是：
 
-## 数据一致性
+- `desktop-studio`
+- `headless-server`
+- `safe`
+- `test`
+- `e2e`
 
-- PostgreSQL 和 SQLite 实现同一个 Repository contract。
-- SQLite 启用 WAL、foreign keys、5 秒 busy timeout 和单 authoritative writer。
-- `runs(task_id)` 对 queued/running 建立部分唯一索引，阻止同任务重叠。
-- Task/Run 状态与 Domain Event 在同一个数据库事务提交。
-- Run Records 保持不可变；Dataset 使用 Snapshot、Upsert 或 Append 投影，只为 Added/Updated/Removed 建立变更记录。
-- Dataset 使用 `(last_seen_at,id)` keyset cursor，避免大数据翻页的 offset 退化。
-- SQLite migration 为 forward-only，保存 SHA-256 checksum；升级前备份，启动后执行 integrity check。
-- Redis/BullMQ 只承载 Headless 队列、Cron 和锁，最终状态始终在 Repository。
+Legacy Plugin 和 `level2-preview` 已从 1.0 活动 Catalog 删除。所有 timer、SSE、scheduler、queue consumer、inspection browser 与 Supervisor 都必须作为 Effect 逆序关闭。
 
-## HTTP 协议
+## 3. Plugin 所有权
 
-- 唯一业务前缀为 `/api/v1`，旧 `/api` 路由返回 RFC 7807 404。
-- `POST task/rule/run/export` 要求 `Idempotency-Key`。
-- Task 更新要求 `If-Match`，响应返回 revision ETag。
-- 列表使用 cursor；Run 状态通过持久 Domain Event SSE 重放，实时进度使用独立 SSE。
-- Desktop session nonce 只能使用一次；Runtime token 只保存在 Renderer 内存。
-- Host Capability API 使用独立随机端口和 token，Host token 从不进入 Renderer。
+```text
+platform
+└── datasets
+    └── collection
+        ├── outputs
+        ├── preferences
+        └── ai-assistance
+    ├── analytics
+    └── corpus
+```
 
-## 安全边界
+每个 Route、operationId、表、Migration、Event、Job Handler 和 UI Contribution 只有一个 owner。Plugin 不导入其他 Plugin 的 persistence/HTTP 实现，也不跨域直接查询数据库；跨域协作通过 Contract port、持久事件或组合层编排。
 
-- Renderer：`nodeIntegration=false`、`contextIsolation=true`、`sandbox=true`、严格 CSP。
-- Preload 只暴露 bootstrap 获取与 generation 变更事件。
-- 生产资源由 `app://zhiyun` 提供；拒绝 `file://`、任意导航及非 HTTP(S) 外链。
-- Desktop 凭据使用 `safeStorage`；不可用时显式失败，不降级为明文。
-- Headless 凭据使用 AES-256-GCM；生产强制 `ZHIYUN_CREDENTIAL_KEY`。
-- Artifact 保存在 Runtime 控制目录；Desktop Renderer 不读取绝对路径或文件内容。
-- URL、重定向和 Browser 子请求经过 DNS/IPv4/IPv6/Metadata/私网策略检查；敏感凭据限定在任务初始 Origin。
-- Headless production 使用管理员 Token 换取 12 小时内存 Session；Data API Token 只保存 Hash，并限制任务 Scope。
+`buildLevel2Runtime()` 只完成 Repository/Capability 装配、Handler 注册和 Gateway 初始化。旧全局 Repository、LocalScheduler、SQLite global storage 与 Drizzle migration chain 已从工作区删除。
 
-## 发布
+## 4. Product API 与 Client
 
-Electron 44.0.0 与 Forge 7.11.2 生成 macOS arm64/x64 DMG + ZIP 和 Windows x64 Squirrel Setup。`better-sqlite3` 由 Forge 针对 Electron ABI rebuild，原生模块由 auto-unpack-natives 放到 ASAR 外；Playwright Chromium 作为 `extraResource` 分发。当前没有 publish 或 autoUpdater。
+- Product API：`/api/v2`
+- Worker Protocol：`/worker/v1`
+- `/api/v1`：RFC 7807 404
+- Mutation：`Idempotency-Key`
+- 可更新资源：`ETag` / `If-Match`
+- 列表：cursor
+- 持久 Domain Event 与 realtime progress 使用独立 SSE/cursor
 
-`bun run desktop:make` 是统一发布入口。安装器构建机需要平台原生编译环境；macOS 的 Forge DMG maker host addon 在制作阶段由 Node/Python toolchain 编译，但这些工具和模块不会成为已安装应用的运行依赖。
+Runtime 发布的 OpenAPI 由活动 Profile 的 Route Contribution 过滤；Gateway 启动时进行双向校验，禁止未登记路由或无实现贡献。`@zhiyun/client` 与 Worker Client 均由 OpenAPI 生成并执行 drift check。
+
+Runtime generation 改变时 Client 中止旧请求、清空 ETag/Query cache、关闭 SSE，并重新协商 metadata、Graph 与 UI Contribution。
+
+## 5. 数据、Job 与 Event
+
+平台表与各领域表在 SQLite/PostgreSQL 保持相同语义。Platform Job 支持资源类、lease、heartbeat、取消、重试、恢复与确定性关闭：
+
+```text
+queued → claimed → running → persisting → succeeded
+queued/running → canceling → canceled
+claimed/running/persisting → interrupted → queued|failed
+```
+
+Desktop heavy 并发为 1；Headless 默认 Crawler 2、Analytics 1、Corpus 1。采集成功由 Dataset Plugin 幂等提交，再由组合层创建 Outputs delivery Job。Worker/Browser crash 可重试一次；验证、参数、资源限制和用户取消不重试。
+
+Domain Event 与领域状态同事务提交。Durable dispatcher 使用 checkpoint、退避与 dead letter；临时进度不进入 durable cursor。
+
+## 6. Dataset、Analytics 与 Corpus
+
+Analytics/Corpus 只消费不可变 Dataset Snapshot：
+
+```text
+consistent SQL read
+→ streaming NDJSON workspace
+→ Worker type inference/normalization
+→ Parquet + Schema Manifest + SHA-256 fingerprint
+→ immutable Artifact
+```
+
+TypeScript 不把百万行 Snapshot 一次性载入内存。相同 fingerprint 复用已有 Snapshot。Worker 请求只包含 Job ID 和相对 Artifact Ref，所有路径必须 realpath 到对应 Job Workspace 内。
+
+分析结果是结构化 summary/metrics/table/series/artifact；Worker 不返回 ECharts option 或可执行脚本。UI 最多直接渲染 1 万点，超限由 Worker 聚合或下采样。抽样、随机种子、方法/Worker 版本和 Snapshot provenance 都进入 Result。
+
+Corpus Version 由 Snapshot fingerprint + Recipe revision 确定，输出 `manifest.json`、`documents.parquet`、`chunks.parquet`、`corpus.jsonl` 与可选 Markdown。1.0 不包含 Embedding 或 Vector Index。
+
+## 7. 安全边界
+
+- Renderer：sandbox、context isolation、无 Node/数据库/Python/凭据访问。
+- Worker：默认无外网、不访问业务数据库、不持有产品凭据。
+- Worker bootstrap：token、generation、workspace root 经私有 stdin；端口 ready 信息经单行 stdout JSON。
+- Artifact/Workspace：只接受相对引用并进行 realpath containment 校验。
+- Crawl：初始 URL、重定向、Browser 子请求均执行 SSRF/Metadata/私网策略。
+- Desktop secret：Host `safeStorage`；Headless：AES-256-GCM。
+- 日志与 RFC 7807 instance 对 token、Authorization、Cookie、连接串凭据脱敏。
+- 1.0 不暴露任意 SQL、Python、Patsy formula、表达式或任意前端配置执行接口。
+
+## 8. 启动、关闭与发布
+
+Desktop 启动：
+
+```text
+Host Capability Server → Analytics Worker Supervisor
+→ Core Runtime Supervisor → Renderer
+```
+
+关闭：
+
+```text
+拒绝新 mutation → 停止 claim → 取消/等待 Worker Job
+→ Core Runtime → Worker → Host Capability Server
+```
+
+Desktop 发布 macOS arm64/x64 与 Windows x64，Worker 和 Chromium 位于 ASAR 外并纳入签名/公证。Linux x64 Headless tar/image内置编译后的 Bun API Launcher 与 Linux Worker；PostgreSQL和Redis仍由部署环境提供。
+
+## 9. 可观测性与供应链
+
+Gateway 为请求创建 OpenTelemetry Server Span，接受 W3C `traceparent` 并在 Product API、RFC 7807 和日志中关联 `traceId`。Runtime diagnostics 暴露 Graph、Job、Event、Browser 与 Worker 状态；Worker Supervisor 保留 generation、PID、版本、重启次数和最近 degraded 原因，但不暴露私有 token。
+
+PR 检查依赖边界、Catalog、Product/Worker OpenAPI、生成 Client 和测试漂移。Release workflow 生成 SBOM、Node/Python license inventory、checksum 与目标平台产物；构建期安全例外必须在 `docs/security` 中记录影响范围、原因和移除条件。打包烟测直接启动发布目录中的 Electron、Chromium 和 PyInstaller Worker，执行 Crawl → Snapshot → Analysis，而不是只检查资源是否存在。

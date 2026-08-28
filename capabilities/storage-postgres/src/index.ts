@@ -504,6 +504,19 @@ export class PostgresPlatformRepository implements PlatformRepository {
     }
   }
 
+  async getRuntimeSetting<T = unknown>(key: string): Promise<T | null> {
+    const rows = await this.sql`SELECT value FROM runtime_settings WHERE key=${key}`;
+    return rows[0] ? (rows[0].value as T) : null;
+  }
+
+  async setRuntimeSetting(key: string, value: unknown): Promise<void> {
+    await this.sql`
+      INSERT INTO runtime_settings(key,value,updated_at)
+      VALUES (${key},${this.sql.json(jsonValue(value))},${new Date()})
+      ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=EXCLUDED.updated_at
+    `;
+  }
+
   async listMigrations(): Promise<MigrationRecord[]> {
     const rows = await this.sql`
       SELECT * FROM plugin_migrations ORDER BY plugin_id,migration_id

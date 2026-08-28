@@ -14,9 +14,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@zhiyun/contracts": "workspace:*",
     "@zhiyun/kernel": "workspace:*",
+    "@zhiyun/platform-core": "workspace:*",
     "@zhiyun/shared": "workspace:*",
+    "croner": "^9.1.0",
     "better-sqlite3": "13.0.3",
+    "fastify": "^5.12.1",
     "postgres": "^3.4.7"
   },
   "devDependencies": {

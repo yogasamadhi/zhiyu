@@ -1,23 +1,34 @@
 {
   "name": "@zhiyun/api",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts",
     "build": "tsc --noEmit",
+    "package:linux": "bun scripts/package-linux.ts",
+    "test:packaged": "bun scripts/test-packaged.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@zhiyun/analytics-worker-client": "workspace:*",
     "@zhiyun/ai-runtime": "workspace:*",
+    "@zhiyun/artifact-store": "workspace:*",
     "@zhiyun/config": "workspace:*",
     "@zhiyun/crawler-runtime": "workspace:*",
     "@zhiyun/platform": "workspace:*",
+    "@zhiyun/platform-core": "workspace:*",
+    "@zhiyun/plugin-analytics": "workspace:*",
+    "@zhiyun/plugin-collection": "workspace:*",
+    "@zhiyun/plugin-corpus": "workspace:*",
+    "@zhiyun/plugin-datasets": "workspace:*",
+    "@zhiyun/plugin-outputs": "workspace:*",
+    "@zhiyun/plugin-preferences": "workspace:*",
+    "@zhiyun/product-profiles": "workspace:*",
+    "@zhiyun/queue-redis-v1": "workspace:*",
     "@zhiyun/runtime": "workspace:*",
-    "@zhiyun/scheduler": "workspace:*",
-    "@zhiyun/storage": "workspace:*",
+    "@zhiyun/storage-postgres-v1": "workspace:*",
     "fastify": "^5.12.1"
   }
 }

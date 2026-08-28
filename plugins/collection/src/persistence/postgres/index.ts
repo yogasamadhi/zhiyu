@@ -310,9 +310,9 @@ export class PostgresCollectionRepository implements CollectionRepository {
       const timestamp = new Date();
       const rows = await transaction`
         UPDATE runs SET
-          status='running',started_at=${timestamp},phase='starting',progress=0.02,error=NULL,
-          error_code=NULL
-        WHERE id=${runId} AND task_id=${taskId} AND status='queued' RETURNING id
+          status='running',started_at=${timestamp},finished_at=NULL,phase='starting',progress=0.02,
+          error=NULL,error_code=NULL
+        WHERE id=${runId} AND task_id=${taskId} AND status IN ('queued','failed') RETURNING id
       `;
       if (rows.length === 0) return false;
       await transaction`

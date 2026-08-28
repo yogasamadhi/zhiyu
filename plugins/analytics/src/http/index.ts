@@ -173,7 +173,14 @@ async function send(reply: FastifyReply, operation: () => Promise<unknown>): Pro
     return await operation();
   } catch (error) {
     const problem = toProblem(error);
-    return reply.code(problem.status).type('application/problem+json').send(problem);
+    return reply
+      .code(problem.status)
+      .type('application/problem+json')
+      .send({
+        ...problem,
+        instance: reply.request.routeOptions.url || reply.request.url.split('?')[0],
+        traceId: reply.request.id,
+      });
   }
 }
 

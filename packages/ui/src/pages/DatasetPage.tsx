@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import type {
   CrawlRun,
   DatasetDiffEntry,
@@ -8,7 +8,7 @@ import type {
   DatasetStats,
   RecordChange,
 } from '@zhiyun/contracts';
-import { runtimeClient } from '@zhiyun/client';
+import { runtimeClient, type DatasetResource } from '@zhiyun/client';
 import { Badge, Button, Card, ErrorNotice, Input } from '../components/ui.js';
 import type { Task } from '../types.js';
 
@@ -19,8 +19,10 @@ interface DatasetPageResult {
 }
 
 export function DatasetPage() {
-  const { id } = useParams();
+  const { datasetId, taskId } = useParams();
+  const navigate = useNavigate();
   const [task, setTask] = useState<Task | null>(null);
+  const [dataset, setDataset] = useState<DatasetResource | null>(null);
   const [page, setPage] = useState<DatasetPageResult | null>(null);
   const [changes, setChanges] = useState<RecordChange[]>([]);
   const [runs, setRuns] = useState<CrawlRun[]>([]);
@@ -37,10 +39,35 @@ export function DatasetPage() {
   const [exportFields, setExportFields] = useState('');
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [preparingTarget, setPreparingTarget] = useState<
+    'analytics' | 'recipes' | 'corpora' | null
+  >(null);
   const exportController = useRef<AbortController | null>(null);
 
+  const openWorkspace = async (target: 'analytics' | 'recipes' | 'corpora') => {
+    if (!dataset?.id || preparingTarget) return;
+    setPreparingTarget(target);
+    setError('');
+    try {
+      const snapshot = await runtimeClient.createDatasetSnapshot(dataset.id);
+      if (snapshot.status !== 'ready') {
+        throw new Error(
+          snapshot.status === 'failed'
+            ? 'Dataset Snapshot 创建失败'
+            : 'Dataset Snapshot 正在由其他 Job 准备，请稍后重试',
+        );
+      }
+      const query = new URLSearchParams({ datasetId: dataset.id, snapshotId: snapshot.id });
+      await navigate(`/${target === 'corpora' ? 'corpora' : 'analytics'}?${query.toString()}`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setPreparingTarget(null);
+    }
+  };
+
   const exportDataset = async (format: 'csv' | 'json' | 'xlsx') => {
-    if (!id || exporting) return;
+    if (!dataset?.id || exporting) return;
     setExporting(true);
     setError('');
     const controller = new AbortController();
@@ -49,7 +76,7 @@ export function DatasetPage() {
       const parsedFilter = fieldFilter
         ? (JSON.parse(fieldFilter) as Record<string, string | number | boolean | null>)
         : undefined;
-      await runtimeClient.exportDataset(id, format, {
+      await runtimeClient.exportDataset(dataset.id, format, {
         signal: controller.signal,
         includeRemoved,
         ...(query ? { query } : {}),
@@ -78,19 +105,42 @@ export function DatasetPage() {
   };
 
   const load = async (cursor?: string, append = false) => {
-    if (!id) return;
+    if (!datasetId && !taskId) return;
     try {
+      const resolvedDataset =
+        dataset ??
+        (datasetId
+          ? await runtimeClient.getDatasetResource(datasetId)
+          : await runtimeClient.findDatasetForTask(taskId!));
+      const sourceTaskId = resolvedDataset?.sourceTaskId ?? taskId;
+      const resolvedTask = sourceTaskId
+        ? task?.id === sourceTaskId
+          ? task
+          : await runtimeClient.getTask(sourceTaskId)
+        : null;
+      setTask(resolvedTask);
+      setDataset(resolvedDataset);
+      if (!resolvedDataset) {
+        setPage({
+          items: [],
+          nextCursor: null,
+          stats: { current: 0, added: 0, updated: 0, removed: 0, unchanged: 0 },
+        });
+        setChanges([]);
+        setRuns([]);
+        return;
+      }
       const [loadedTask, loadedPage, loadedChanges, loadedRuns] = await Promise.all([
-        task ? Promise.resolve(task) : runtimeClient.getTask(id),
-        runtimeClient.getDataset(id, {
+        Promise.resolve(resolvedTask),
+        runtimeClient.getDataset(resolvedDataset.id, {
           limit: 100,
           includeRemoved,
           ...(query ? { query } : {}),
           ...(fieldFilter ? { filter: fieldFilter } : {}),
           ...(cursor ? { cursor } : {}),
         }),
-        runtimeClient.getDatasetChanges(id, 20),
-        runtimeClient.listTaskRuns(id, 100),
+        runtimeClient.getDatasetChanges(resolvedDataset.id, 20),
+        runtimeClient.listTaskRuns(resolvedDataset.sourceTaskId, 100),
       ]);
       setTask(loadedTask);
       setPage((current) =>
@@ -109,9 +159,15 @@ export function DatasetPage() {
   };
 
   const compareRuns = async (cursor?: string, append = false) => {
-    if (!id || !fromRunId || !toRunId) return;
+    if (!dataset?.id || !fromRunId || !toRunId) return;
     try {
-      const loaded = await runtimeClient.diffDatasetRuns(id, fromRunId, toRunId, 100, cursor);
+      const loaded = await runtimeClient.diffDatasetRuns(
+        dataset.id,
+        fromRunId,
+        toRunId,
+        100,
+        cursor,
+      );
       setDiff((current) =>
         append && current ? { ...loaded, items: [...current.items, ...loaded.items] } : loaded,
       );
@@ -122,7 +178,7 @@ export function DatasetPage() {
 
   useEffect(() => {
     void load();
-  }, [id, includeRemoved]);
+  }, [datasetId, taskId, includeRemoved]);
 
   const columns = useMemo(
     () => [...new Set((page?.items ?? []).flatMap((record) => Object.keys(record.data)))],
@@ -133,28 +189,33 @@ export function DatasetPage() {
     <>
       <div className="page-heading">
         <div>
-          <Link className="back-link" to={`/tasks/${id}`}>
+          <Link className="back-link" to={`/tasks/${task?.id ?? taskId ?? ''}`}>
             ← 返回任务
           </Link>
           <h1>{task?.name ?? 'Dataset'}</h1>
           <p>当前数据、删除标记与最近变更历史</p>
         </div>
         <div className="heading-actions">
-          <Link
-            className="button button-secondary"
-            to={`/analytics?datasetId=${encodeURIComponent(id ?? '')}`}
+          <Button
+            className="button-secondary"
+            disabled={!dataset || Boolean(preparingTarget)}
+            onClick={() => void openWorkspace('analytics')}
           >
-            开始分析
-          </Link>
-          <Link
-            className="button button-secondary"
-            to={`/analytics?datasetId=${encodeURIComponent(id ?? '')}`}
+            {preparingTarget === 'analytics' ? '正在准备 Snapshot…' : '开始分析'}
+          </Button>
+          <Button
+            className="button-secondary"
+            disabled={!dataset || Boolean(preparingTarget)}
+            onClick={() => void openWorkspace('recipes')}
           >
-            使用 Recipe
-          </Link>
-          <Link className="button" to={`/corpora?datasetId=${encodeURIComponent(id ?? '')}`}>
-            构建语料库
-          </Link>
+            {preparingTarget === 'recipes' ? '正在准备 Snapshot…' : '使用 Recipe'}
+          </Button>
+          <Button
+            disabled={!dataset || Boolean(preparingTarget)}
+            onClick={() => void openWorkspace('corpora')}
+          >
+            {preparingTarget === 'corpora' ? '正在准备 Snapshot…' : '构建语料库'}
+          </Button>
         </div>
       </div>
       <ErrorNotice message={error} />
@@ -170,7 +231,7 @@ export function DatasetPage() {
         <div className="section-heading">
           <div>
             <h2>Dataset</h2>
-            <p>{task?.datasetSettings.mode ?? 'snapshot'} 模式</p>
+            <p>{dataset?.settings.mode ?? task?.datasetSettings.mode ?? 'snapshot'} 模式</p>
           </div>
           <div className="row-actions dataset-filters">
             <Input

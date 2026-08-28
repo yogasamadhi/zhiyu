@@ -9,13 +9,11 @@ import { analyticsPlugin } from '@zhiyun/plugin-analytics';
 import { collectionPlugin } from '@zhiyun/plugin-collection';
 import { corpusPlugin } from '@zhiyun/plugin-corpus';
 import { datasetsPlugin } from '@zhiyun/plugin-datasets';
-import { legacyRuntimePlugin } from '@zhiyun/plugin-legacy-runtime';
 import { outputsPlugin } from '@zhiyun/plugin-outputs';
 import { platformPlugin } from '@zhiyun/plugin-platform';
 import { preferencesPlugin } from '@zhiyun/plugin-preferences';
 
 export const productPlugins: readonly PluginDescriptor[] = [
-  legacyRuntimePlugin,
   platformPlugin,
   datasetsPlugin,
   collectionPlugin,
@@ -27,7 +25,6 @@ export const productPlugins: readonly PluginDescriptor[] = [
 ];
 
 export const productBundles: readonly BundleDescriptor[] = [
-  { id: 'legacy', version: '0.2.0', pluginIds: ['legacy.runtime'] },
   {
     id: 'core-data',
     version: '1.0.0',
@@ -46,8 +43,6 @@ export const productBundles: readonly BundleDescriptor[] = [
 ];
 
 export const productProfiles: readonly ProductProfile[] = [
-  { id: 'legacy', version: '0.2.0', bundleIds: ['legacy'] },
-  { id: 'level2-preview', version: '1.0.0', bundleIds: ['core-data', 'intelligence'] },
   { id: 'desktop-studio', version: '1.0.0', bundleIds: ['core-data', 'intelligence'] },
   { id: 'headless-server', version: '1.0.0', bundleIds: ['core-data', 'intelligence'] },
   { id: 'safe', version: '1.0.0', bundleIds: ['safe-core'] },

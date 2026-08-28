@@ -30,6 +30,7 @@ const config: ForgeConfig = {
     extraResource: [
       resolve(desktopRoot, 'resources/playwright'),
       resolve(desktopRoot, '.forge-app/analytics-worker'),
+      resolve(desktopRoot, '.forge-app/compliance'),
     ],
     ...(macSigning ? { osxSign: macSigning } : {}),
     ...(macNotarize ? { osxNotarize: macNotarize } : {}),
@@ -37,6 +38,8 @@ const config: ForgeConfig = {
       /^\/src($|\/)/,
       /^\/scripts($|\/)/,
       /^\/e2e($|\/)/,
+      /^\/analytics-worker($|\/)/,
+      /^\/compliance($|\/)/,
       /playwright\.config\.ts$/,
       /^\/node_modules\/(?:@electron-forge|@electron\/|@playwright\/test|@types\/|@vitejs\/|electron$|png2icons$|react$|react-dom$|react-router-dom$|sharp$|vite$)/,
     ],
