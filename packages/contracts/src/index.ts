@@ -385,8 +385,16 @@ export interface HostCapabilities {
   notify?(title: string, body: string): Promise<void>;
   promptCredential?(
     kind:
-      'task-secret-headers' | 'task-cookies' | 'task-proxy' | 'output-webhook' | 'output-postgres',
+      | 'task-secret-headers'
+      | 'task-cookies'
+      | 'task-proxy'
+      | 'output-webhook'
+      | 'output-postgres'
+      | 'output-google-sheets'
+      | 'output-s3'
+      | 'ai-api-key',
   ): Promise<{ reference: string } | { canceled: true }>;
+  selectOutputDirectory?(): Promise<{ reference: string } | { canceled: true }>;
   createLoginSession?(url: string): Promise<{ reference: string } | { canceled: true }>;
   saveBackup?(filename: string, data: Buffer): Promise<{ saved: boolean }>;
   selectRestoreBackup?(): Promise<{ canceled: true } | { data: Buffer }>;
@@ -430,6 +438,13 @@ export interface CrawlerService {
 export interface AiProvider {
   readonly name?: string;
 
+  /**
+   * Provider-neutral streaming chat primitive used by bounded agent runtimes.
+   * The iterator is the only place where token deltas are exposed; callers must
+   * persist the final assistant message instead of the transient deltas.
+   */
+  streamChat(input: AiChatRequest): AsyncIterable<AiChatEvent>;
+
   generateSchema(input: {
     instruction: string;
     sample?: string;
@@ -459,6 +474,57 @@ export interface AiProvider {
     failureContext?: Record<string, unknown>;
     context?: AiRequestContext;
   }): Promise<string>;
+}
+
+export type AiChatRole = 'system' | 'user' | 'assistant' | 'tool';
+
+export interface AiChatToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface AiChatMessage {
+  role: AiChatRole;
+  content: string;
+  name?: string;
+  toolCallId?: string;
+  toolCalls?: AiChatToolCall[];
+}
+
+export interface AiChatTool {
+  name: string;
+  description: string;
+  /** JSON Schema for the tool arguments. */
+  parameters: Record<string, unknown>;
+}
+
+export interface AiChatUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+export type AiChatFinishReason = 'stop' | 'length' | 'tool_calls' | 'aborted' | 'error';
+
+export type AiChatEvent =
+  | { type: 'text-delta'; delta: string }
+  | { type: 'tool-call'; call: AiChatToolCall }
+  | { type: 'usage'; usage: AiChatUsage }
+  | {
+      type: 'done';
+      message: AiChatMessage;
+      finishReason: AiChatFinishReason;
+      usage: AiChatUsage;
+    };
+
+export interface AiChatRequest {
+  messages: AiChatMessage[];
+  tools?: AiChatTool[];
+  toolChoice?: 'auto' | 'none';
+  temperature?: number;
+  signal?: AbortSignal;
+  context?: AiRequestContext;
 }
 
 export interface AiRequestContext {

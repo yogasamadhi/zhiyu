@@ -12,7 +12,10 @@ export default defineConfig({
   },
   build: {
     outDir: resolve(import.meta.dirname, 'dist/renderer'),
-    emptyOutDir: false,
+    // The Renderer has its own dedicated subdirectory under dist. Clear it on
+    // every production build so fixture scans inspect only the current bundle,
+    // while the Electron main/preload artifacts in the parent remain intact.
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         index: resolve(import.meta.dirname, 'src/renderer/index.html'),

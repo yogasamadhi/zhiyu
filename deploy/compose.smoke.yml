@@ -1,0 +1,24 @@
+services:
+  zhiyun:
+    restart: 'no'
+    ports:
+      - '127.0.0.1:${ZHIYUN_SMOKE_PORT:?set ZHIYUN_SMOKE_PORT}:3001'
+    volumes:
+      - zhiyun-smoke-data:/var/lib/zhiyun
+    healthcheck:
+      interval: 2s
+      timeout: 3s
+      retries: 45
+      start_period: 10s
+
+  postgres:
+    restart: 'no'
+
+  redis:
+    restart: 'no'
+
+  caddy:
+    profiles: ['production-proxy']
+
+volumes:
+  zhiyun-smoke-data:

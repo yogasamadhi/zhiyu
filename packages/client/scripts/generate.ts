@@ -5,7 +5,7 @@ import { format } from 'prettier';
 import { openApiDocument } from '../../runtime/src/index.js';
 
 const target = resolve(import.meta.dirname, '../src/openapi.generated.d.ts');
-const ast = await openapiTS(openApiDocument() as never, {
+const ast = await openapiTS(openApiDocument('headless-server') as never, {
   alphabetize: true,
   exportType: true,
 });

@@ -194,6 +194,7 @@ export interface PlatformRepository {
     responseStatus: number;
     responseBody: unknown;
   }): Promise<void>;
+  releaseIdempotency(input: { scope: string; key: string; requestHash: string }): Promise<boolean>;
 
   getRuntimeSetting<T = unknown>(key: string): Promise<T | null>;
   setRuntimeSetting(key: string, value: unknown): Promise<void>;
@@ -263,6 +264,7 @@ export interface DurableJobDispatcherOptions {
   workerId?: string;
   pollIntervalMs?: number;
   leaseMs?: number;
+  recoveryIntervalMs?: number;
   capacities?: Partial<Record<JobResourceClass, number>>;
 }
 
@@ -277,6 +279,7 @@ export class DurableJobDispatcher {
   private readonly workerId: string;
   private readonly pollIntervalMs: number;
   private readonly leaseMs: number;
+  private readonly recoveryIntervalMs: number;
   private readonly capacities: Record<JobResourceClass, number>;
   private readonly running = new Map<
     string,
@@ -285,6 +288,7 @@ export class DurableJobDispatcher {
   private stopping = false;
   private loopPromise: Promise<void> | undefined;
   private loopController: AbortController | undefined;
+  private lastRecoveryAt = 0;
 
   constructor(
     private readonly repository: PlatformRepository,
@@ -294,6 +298,7 @@ export class DurableJobDispatcher {
     this.workerId = options.workerId ?? crypto.randomUUID();
     this.pollIntervalMs = options.pollIntervalMs ?? 200;
     this.leaseMs = options.leaseMs ?? 30_000;
+    this.recoveryIntervalMs = Math.max(10, options.recoveryIntervalMs ?? 5_000);
     this.capacities = {
       'browser-heavy': options.capacities?.['browser-heavy'] ?? 1,
       'python-heavy': options.capacities?.['python-heavy'] ?? 1,
@@ -317,6 +322,7 @@ export class DurableJobDispatcher {
   }
 
   async tick(jobId?: string): Promise<void> {
+    await this.recoverExpiredJobsIfDue();
     const available = this.handlers.resourceClasses().filter((resourceClass) => {
       const count = [...this.running.values()].filter(
         (entry) => entry.resourceClass === resourceClass,
@@ -345,6 +351,13 @@ export class DurableJobDispatcher {
       this.running.delete(job.id);
     });
     this.running.set(job.id, { resourceClass: job.resourceClass, controller, promise });
+  }
+
+  private async recoverExpiredJobsIfDue(): Promise<void> {
+    const current = Date.now();
+    if (current - this.lastRecoveryAt < this.recoveryIntervalMs) return;
+    this.lastRecoveryAt = current;
+    await this.repository.recoverExpiredJobs(new Date(current).toISOString());
   }
 
   diagnostics(): JobDispatcherDiagnostics {

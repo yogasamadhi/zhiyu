@@ -1,4 +1,5 @@
 interface ImportMetaEnv {
+  readonly DEV: boolean;
   readonly VITE_FIXTURE_URL?: string;
 }
 

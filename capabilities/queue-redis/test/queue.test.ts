@@ -50,17 +50,69 @@ describe('Redis platform JobQueue', () => {
       await rm(dataDirectory, { recursive: true, force: true });
     });
     queue.start();
+    await expect(queue.readiness()).resolves.toMatchObject({
+      redis: { status: 'ok' },
+      queue: { status: 'ok', started: true },
+    });
     const job = await queue.enqueue({
       ownerPluginId: 'fixture',
       type: 'fixture.redis',
       payload: {},
       resourceClass: 'io',
+      maxAttempts: 2,
     });
     await expect
       .poll(() => queue.get(job.id), { timeout: 5_000 })
       .toMatchObject({
         state: 'succeeded',
       });
+  });
+
+  it('recovers a lease that expires after restart and re-signals the durable job', async () => {
+    const dataDirectory = await mkdtemp(join(tmpdir(), 'zhiyun-redis-recovery-'));
+    const repository = await openSqlitePlatformRepository({
+      dataDirectory,
+      filePath: join(dataDirectory, 'zhiyun.sqlite3'),
+      graphRevision: 'redis-recovery-test',
+    });
+    const handlers = new JobHandlerRegistry();
+    handlers.register({
+      type: 'fixture.recovered',
+      ownerPluginId: 'fixture',
+      resourceClass: 'io',
+      async handler() {},
+    });
+    const crashed = await repository.enqueueJob({
+      ownerPluginId: 'fixture',
+      type: 'fixture.recovered',
+      payload: {},
+      resourceClass: 'io',
+      maxAttempts: 2,
+    });
+    const claimed = await repository.claimJob({
+      workerId: 'crashed-worker',
+      resourceClasses: ['io'],
+      leaseMs: 150,
+      jobId: crashed.id,
+    });
+    expect(claimed).not.toBeNull();
+    expect(await repository.startJob(crashed.id, 'crashed-worker', 150)).not.toBeNull();
+
+    const queue = new RedisPlatformJobQueue(repository, redisUrl, handlers, {
+      workerId: 'recovery-worker',
+      capacities: { io: 1 },
+      recoveryIntervalMs: 20,
+    });
+    cleanups.push(async () => {
+      await queue.close();
+      await repository.close();
+      await rm(dataDirectory, { recursive: true, force: true });
+    });
+    queue.start();
+    expect(await queue.get(crashed.id)).toMatchObject({ state: 'running', attempt: 1 });
+    await expect
+      .poll(() => queue.get(crashed.id), { timeout: 5_000 })
+      .toMatchObject({ state: 'succeeded', attempt: 2 });
   });
 
   it('removes only known legacy queues and the ZhiYun prefix', async () => {

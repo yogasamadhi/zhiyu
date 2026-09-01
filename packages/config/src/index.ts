@@ -1,11 +1,18 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+const optionalSecret = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.string().min(1).optional(),
+);
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     DATABASE_URL: z.string().default('postgresql://zhiyun:zhiyun@localhost:45432/zhiyun'),
     REDIS_URL: z.string().default('redis://localhost:46379'),
+    ZHIYUN_DATA_DIR: z.string().min(1).default('.data/headless'),
+    ZHIYUN_OUTPUT_ROOT: z.string().min(1).optional(),
     WEB_PORT: z.coerce.number().int().positive().default(45173),
     API_PORT: z.coerce.number().int().positive().default(45300),
     FIXTURE_PORT: z.coerce.number().int().positive().default(45100),
@@ -13,7 +20,8 @@ const envSchema = z
     AI_API_KEY: z.string().optional(),
     AI_MODEL: z.string().optional(),
     ZHIYUN_CREDENTIAL_KEY: z.string().optional(),
-    ZHIYUN_ADMIN_TOKEN: z.string().min(1).optional(),
+    ZHIYUN_BOOTSTRAP_TOKEN: optionalSecret,
+    ZHIYUN_ADMIN_TOKEN: optionalSecret,
     ZHIYUN_SESSION_NONCE: z.string().min(16).default('headless-development-session'),
     API_HOST: z.string().default('127.0.0.1'),
     ZHIYUN_PUBLIC_URL: z.string().url().optional(),
@@ -27,18 +35,21 @@ const envSchema = z
     BROWSERBASE_PROJECT_ID: z.string().optional(),
   })
   .superRefine((value, context) => {
+    if (
+      value.ZHIYUN_BOOTSTRAP_TOKEN &&
+      Buffer.byteLength(value.ZHIYUN_BOOTSTRAP_TOKEN, 'utf8') < 32
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['ZHIYUN_BOOTSTRAP_TOKEN'],
+        message: 'Bootstrap token must contain at least 32 bytes',
+      });
+    }
     if (value.ZHIYUN_ADMIN_TOKEN && Buffer.byteLength(value.ZHIYUN_ADMIN_TOKEN, 'utf8') < 32) {
       context.addIssue({
         code: 'custom',
         path: ['ZHIYUN_ADMIN_TOKEN'],
         message: 'Administrator token must contain at least 32 bytes',
-      });
-    }
-    if (value.NODE_ENV === 'production' && !value.ZHIYUN_ADMIN_TOKEN) {
-      context.addIssue({
-        code: 'custom',
-        path: ['ZHIYUN_ADMIN_TOKEN'],
-        message: 'Production requires a 32-byte administrator token',
       });
     }
     if (value.NODE_ENV === 'production' && !value.ZHIYUN_CREDENTIAL_KEY) {

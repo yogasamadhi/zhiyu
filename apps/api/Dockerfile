@@ -9,7 +9,8 @@ ENV NODE_ENV=production \
     ZHIYUN_ANALYTICS_WORKER_PATH=/opt/zhiyun/analytics-worker/linux-x64/analytics-worker/analytics-worker
 
 RUN chmod 0755 /opt/zhiyun/zhiyun-api \
-    /opt/zhiyun/analytics-worker/linux-x64/analytics-worker/analytics-worker
+    /opt/zhiyun/analytics-worker/linux-x64/analytics-worker/analytics-worker \
+    && test -f /opt/zhiyun/web/index.html
 
 EXPOSE 3001
 ENTRYPOINT ["/opt/zhiyun/zhiyun-api"]

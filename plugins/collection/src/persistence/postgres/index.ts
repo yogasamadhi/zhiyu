@@ -18,12 +18,18 @@ import type {
   RuleVersionRecord,
   RunCompletionInput,
 } from '../../contracts/index.js';
-import { collectionPostgresMigration001 } from '../../migrations/postgres/index.js';
+import {
+  collectionPostgresMigration001,
+  collectionPostgresMigration002,
+} from '../../migrations/postgres/index.js';
 
 type PgRow = Record<string, unknown>;
 type PostgresClient = ReturnType<typeof postgres>;
 type PgTransaction = postgres.TransactionSql;
-const MIGRATION_ID = '001-initial';
+const MIGRATIONS = [
+  { id: '001-initial', sql: collectionPostgresMigration001, version: '1.0.0' },
+  { id: '002-task-origin', sql: collectionPostgresMigration002, version: '1.1.0' },
+] as const;
 
 export class PostgresCollectionRepository implements CollectionRepository {
   private readonly sql: PostgresClient;
@@ -33,29 +39,31 @@ export class PostgresCollectionRepository implements CollectionRepository {
   }
 
   async migrate(): Promise<void> {
-    const checksum = sha256(collectionPostgresMigration001);
-    const rows = await this.sql`
-      SELECT checksum FROM plugin_migrations
-      WHERE plugin_id='collection' AND migration_id=${MIGRATION_ID}
-    `;
-    if (rows[0]) {
-      if (rows[0].checksum !== checksum) {
-        throw new Error('Migration checksum mismatch for collection:001-initial');
-      }
-      return;
-    }
-    const started = performance.now();
-    await this.sql.begin(async (transaction) => {
-      await transaction.unsafe(collectionPostgresMigration001);
-      await transaction`
-        INSERT INTO plugin_migrations(
-          plugin_id,migration_id,plugin_version,checksum,executed_at,duration_ms,result
-        ) VALUES (
-          'collection',${MIGRATION_ID},'1.0.0',${checksum},${new Date()},
-          ${Math.max(0, Math.round(performance.now() - started))},'succeeded'
-        )
+    for (const migration of MIGRATIONS) {
+      const checksum = sha256(migration.sql);
+      const rows = await this.sql`
+        SELECT checksum FROM plugin_migrations
+        WHERE plugin_id='collection' AND migration_id=${migration.id}
       `;
-    });
+      if (rows[0]) {
+        if (rows[0].checksum !== checksum) {
+          throw new Error(`Migration checksum mismatch for collection:${migration.id}`);
+        }
+        continue;
+      }
+      const started = performance.now();
+      await this.sql.begin(async (transaction) => {
+        await transaction.unsafe(migration.sql);
+        await transaction`
+          INSERT INTO plugin_migrations(
+            plugin_id,migration_id,plugin_version,checksum,executed_at,duration_ms,result
+          ) VALUES (
+            'collection',${migration.id},${migration.version},${checksum},${new Date()},
+            ${Math.max(0, Math.round(performance.now() - started))},'succeeded'
+          )
+        `;
+      });
+    }
   }
 
   async close(): Promise<void> {
@@ -70,7 +78,7 @@ export class PostgresCollectionRepository implements CollectionRepository {
         INSERT INTO tasks(
           id,name,start_url,instruction,status,schedule,request_settings,browser_settings,
           pagination,output_settings,credential_bindings,dataset_settings,retention_policy,
-          network_policy,revision,created_at,updated_at
+          network_policy,origin,revision,created_at,updated_at
         ) VALUES (
           ${id},${input.name},${input.startUrl},${input.instruction},'draft',
           ${transaction.json(jsonValue(input.schedule))},
@@ -81,12 +89,80 @@ export class PostgresCollectionRepository implements CollectionRepository {
           ${transaction.json(jsonValue(input.credentialBindings))},
           ${transaction.json(jsonValue(input.datasetSettings))},
           ${transaction.json(jsonValue(input.retentionPolicy))},
-          ${transaction.json(jsonValue(input.networkPolicy))},1,${timestamp},${timestamp}
+          ${transaction.json(jsonValue(input.networkPolicy))},
+          ${transaction.json(jsonValue({ kind: 'manual' }))},1,${timestamp},${timestamp}
         ) RETURNING *
       `;
       await syncSchedule(transaction, id, input.schedule, timestamp);
       await appendEvent(transaction, 'collection.task.created', 'task', id, { revision: 1 });
       return taskRow(rows[0] as PgRow);
+    });
+  }
+
+  async createTaskWithInitialRule(
+    input: Parameters<CollectionRepository['createTaskWithInitialRule']>[0],
+  ): Promise<{ taskId: string; ruleId: string; versionId: string }> {
+    return this.sql.begin(async (transaction) => {
+      const existing = await transaction`SELECT id FROM tasks WHERE id=${input.taskId} FOR UPDATE`;
+      if (existing[0]) {
+        const rules = await transaction`
+          SELECT id,active_version_id FROM rules
+          WHERE id=${input.ruleId} AND task_id=${input.taskId}
+        `;
+        const versions = await transaction`
+          SELECT id FROM rule_versions WHERE id=${input.versionId} AND rule_id=${input.ruleId}
+        `;
+        if (!rules[0] || rules[0].active_version_id !== input.versionId || !versions[0]) {
+          throw new Error('Deterministic AI Task identifiers conflict with existing data');
+        }
+        return { taskId: input.taskId, ruleId: input.ruleId, versionId: input.versionId };
+      }
+      const task = input.task;
+      const timestamp = new Date();
+      await transaction`
+        INSERT INTO tasks(
+          id,name,start_url,instruction,status,schedule,request_settings,browser_settings,
+          pagination,output_settings,credential_bindings,dataset_settings,retention_policy,
+          network_policy,origin,revision,created_at,updated_at
+        ) VALUES (
+          ${input.taskId},${task.name},${task.startUrl},${task.instruction},${input.status ?? 'ready'},
+          ${transaction.json(jsonValue(task.schedule))},
+          ${transaction.json(jsonValue(task.requestSettings))},
+          ${transaction.json(jsonValue(task.browserSettings))},
+          ${transaction.json(jsonValue(task.pagination))},
+          ${transaction.json(jsonValue(task.outputSettings))},
+          ${transaction.json(jsonValue(task.credentialBindings))},
+          ${transaction.json(jsonValue(task.datasetSettings))},
+          ${transaction.json(jsonValue(task.retentionPolicy))},
+          ${transaction.json(jsonValue(task.networkPolicy))},
+          ${transaction.json(jsonValue(input.origin ?? { kind: 'ai' }))},1,${timestamp},${timestamp}
+        )
+      `;
+      await syncSchedule(transaction, input.taskId, task.schedule, timestamp);
+      await transaction`
+        INSERT INTO rules(id,task_id,name,active_version_id,created_at,updated_at)
+        VALUES (
+          ${input.ruleId},${input.taskId},${input.ruleName},${input.versionId},${timestamp},${timestamp}
+        )
+      `;
+      await transaction`
+        INSERT INTO rule_versions(id,rule_id,version,definition,generated_by,created_at)
+        VALUES (
+          ${input.versionId},${input.ruleId},1,
+          ${transaction.json(jsonValue(normalizeCrawlPlan(input.definition)))},
+          ${input.generatedBy ?? 'ai'},${timestamp}
+        )
+      `;
+      await appendEvent(transaction, 'collection.task.created', 'task', input.taskId, {
+        revision: 1,
+        generatedBy: input.generatedBy ?? 'ai',
+      });
+      await appendEvent(transaction, 'collection.rule.created', 'rule', input.ruleId, {
+        taskId: input.taskId,
+        version: 1,
+        generatedBy: input.generatedBy ?? 'ai',
+      });
+      return { taskId: input.taskId, ruleId: input.ruleId, versionId: input.versionId };
     });
   }
 
@@ -305,14 +381,16 @@ export class PostgresCollectionRepository implements CollectionRepository {
     return rows[0] ? runRow(rows[0] as PgRow) : null;
   }
 
-  async startRun(runId: string, taskId: string): Promise<boolean> {
+  async startRun(runId: string, taskId: string, allowRecovery = false): Promise<boolean> {
     return this.sql.begin(async (transaction) => {
       const timestamp = new Date();
       const rows = await transaction`
         UPDATE runs SET
           status='running',started_at=${timestamp},finished_at=NULL,phase='starting',progress=0.02,
           error=NULL,error_code=NULL
-        WHERE id=${runId} AND task_id=${taskId} AND status IN ('queued','failed') RETURNING id
+        WHERE id=${runId} AND task_id=${taskId}
+          AND (status IN ('queued','failed') OR (${allowRecovery} AND status='running'))
+        RETURNING id
       `;
       if (rows.length === 0) return false;
       await transaction`
@@ -377,6 +455,7 @@ export class PostgresCollectionRepository implements CollectionRepository {
     taskId: string,
     error: string,
     code: string,
+    finalFailure = false,
   ): Promise<CrawlRun | null> {
     return this.sql.begin(async (transaction) => {
       const timestamp = new Date();
@@ -390,7 +469,11 @@ export class PostgresCollectionRepository implements CollectionRepository {
       await transaction`
         UPDATE tasks SET status='failed',updated_at=${timestamp} WHERE id=${taskId}
       `;
-      await appendEvent(transaction, 'collection.run.failed', 'run', runId, { taskId, code });
+      await appendEvent(transaction, 'collection.run.failed', 'run', runId, {
+        taskId,
+        code,
+        finalFailure,
+      });
       return runRow(rows[0] as PgRow);
     });
   }
@@ -585,6 +668,7 @@ function taskRow(row: PgRow): CollectionTask {
     datasetSettings: objectValue(row.dataset_settings) as CollectionTask['datasetSettings'],
     retentionPolicy: objectValue(row.retention_policy) as CollectionTask['retentionPolicy'],
     networkPolicy: objectValue(row.network_policy) as CollectionTask['networkPolicy'],
+    origin: (objectValue(row.origin) as CollectionTask['origin']) ?? { kind: 'manual' },
     revision: Number(row.revision),
     createdAt: iso(row.created_at)!,
     updatedAt: iso(row.updated_at)!,

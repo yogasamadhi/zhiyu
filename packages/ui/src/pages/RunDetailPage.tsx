@@ -82,6 +82,13 @@ export function RunDetailPage() {
         )
       : '—';
   const columns = [...new Set(records.items.flatMap((record) => Object.keys(record.data)))];
+  const datasetId = typeof run.metadata.datasetId === 'string' ? run.metadata.datasetId : '';
+  const snapshotId =
+    typeof run.metadata.datasetSnapshotId === 'string' ? run.metadata.datasetSnapshotId : '';
+  const workspaceQuery = new URLSearchParams({
+    ...(datasetId ? { datasetId } : {}),
+    ...(snapshotId ? { snapshotId } : {}),
+  }).toString();
   const exportRecords = async (format: 'csv' | 'json' | 'xlsx') => {
     const controller = new AbortController();
     exportController.current = controller;
@@ -214,6 +221,23 @@ export function RunDetailPage() {
           </div>
           {run.status === 'succeeded' && (
             <div className="row-actions">
+              <Link className="button button-secondary" to={`/tasks/${run.taskId}/dataset`}>
+                查看数据与差异
+              </Link>
+              <Link
+                className="button button-secondary"
+                to={
+                  workspaceQuery ? `/analytics?${workspaceQuery}` : `/tasks/${run.taskId}/dataset`
+                }
+              >
+                创建分析
+              </Link>
+              <Link
+                className="button button-secondary"
+                to={workspaceQuery ? `/corpora?${workspaceQuery}` : `/tasks/${run.taskId}/dataset`}
+              >
+                创建语料
+              </Link>
               <Button
                 className="button-secondary"
                 disabled={exporting}

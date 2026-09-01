@@ -504,6 +504,20 @@ export class PostgresPlatformRepository implements PlatformRepository {
     }
   }
 
+  async releaseIdempotency(input: {
+    scope: string;
+    key: string;
+    requestHash: string;
+  }): Promise<boolean> {
+    const rows = await this.sql`
+      DELETE FROM idempotency_keys
+      WHERE scope=${input.scope} AND key=${input.key} AND request_hash=${input.requestHash}
+        AND response_status IS NULL
+      RETURNING key
+    `;
+    return rows.length > 0;
+  }
+
   async getRuntimeSetting<T = unknown>(key: string): Promise<T | null> {
     const rows = await this.sql`SELECT value FROM runtime_settings WHERE key=${key}`;
     return rows[0] ? (rows[0].value as T) : null;

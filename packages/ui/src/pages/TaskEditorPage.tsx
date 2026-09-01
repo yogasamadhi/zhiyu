@@ -3,8 +3,10 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next';
 import {
   taskCreateSchema,
+  type BrowserElementMetadata,
   type CrawlPlanDefinition,
   type ExtractionRuleDefinition,
+  type TaskTemplate,
 } from '@zhiyun/shared';
 import type {
   OutputDestination,
@@ -14,7 +16,33 @@ import type {
 } from '@zhiyun/contracts';
 import { runtimeClient } from '@zhiyun/client';
 import { Badge, Button, Card, ErrorNotice, Input } from '../components/ui.js';
+import {
+  BrowserActionEditor,
+  parseBrowserActions,
+  type BrowserAction,
+  updateActionSelector,
+} from '../components/BrowserActionEditor.js';
+import { ScheduleBuilder } from '../components/ScheduleBuilder.js';
+import { validateFiveFieldCron, validateTimezone } from '../schedule-builder.js';
 import type { Analysis, Task } from '../types.js';
+import { CrawlerAssistantPage } from './CrawlerAssistantPage.js';
+import { resolveDevelopmentFixture } from '../development-demo.js';
+import {
+  applyTemplateParameters,
+  missingTemplateParameters,
+  templateParameterDefaults,
+} from '../task-template.js';
+
+const officialTemplateFallbacks = [
+  { id: 'list-page', name: '普通列表页', description: '从重复列表卡片提取字段' },
+  { id: 'list-detail', name: '列表加详情页', description: '发现详情链接并补充正文' },
+  { id: 'next-pagination', name: '下一页分页', description: '重复翻页采集列表' },
+  { id: 'infinite-scroll', name: '无限滚动', description: '滚动加载动态列表' },
+  { id: 'json-api', name: 'JSON API', description: '提取公开结构化接口' },
+  { id: 'sitemap-details', name: 'Sitemap 批量详情', description: '批量发现并采集详情页' },
+  { id: 'authenticated-browser', name: '已登录浏览器采集', description: '复用安全登录会话' },
+  { id: 'change-monitor', name: '变化监控', description: '监控价格、库存或内容变化' },
+] as const;
 
 const defaultRequest = {
   headers: {},
@@ -32,16 +60,39 @@ const defaultRequest = {
   redirectLimit: 10,
 };
 
+const manualDraftDefinition: CrawlPlanDefinition = {
+  version: 1,
+  list: {
+    rule: {
+      type: 'css',
+      container: 'body',
+      fields: {
+        pageText: { selector: 'body', value: 'text', dataType: 'string' },
+      },
+    },
+    mode: 'auto',
+    actions: [],
+  },
+  pagination: { type: 'none' },
+  dedupe: { strategy: 'hash', fields: [] },
+  limits: { maxRecords: 1_000_000 },
+};
+
 export function TaskEditorPage() {
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  if (!id && searchParams.get('mode') === 'ai') return <CrawlerAssistantPage />;
+  return <TaskEditorForm />;
+}
+
+function TaskEditorForm() {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [task, setTask] = useState<Task | null>(null);
   const [name, setName] = useState('');
-  const [url, setUrl] = useState(
-    `${import.meta.env.VITE_FIXTURE_URL ?? 'http://127.0.0.1:45100'}/products`,
-  );
+  const [url, setUrl] = useState('');
   const [instruction, setInstruction] = useState('获取商品名称、价格、销量和链接');
   const [headers, setHeaders] = useState('{}');
   const [cookies, setCookies] = useState('[]');
@@ -60,7 +111,7 @@ export function TaskEditorPage() {
   const [actionsJson, setActionsJson] = useState('[]');
   const [datasetMode, setDatasetMode] = useState<'snapshot' | 'upsert' | 'append'>('snapshot');
   const [keyFields, setKeyFields] = useState('');
-  const [allowPrivateNetworks, setAllowPrivateNetworks] = useState(true);
+  const [allowPrivateNetworks, setAllowPrivateNetworks] = useState(false);
   const [retentionRunDays, setRetentionRunDays] = useState('');
   const [retentionMaxRuns, setRetentionMaxRuns] = useState('');
   const [retentionArtifactDays, setRetentionArtifactDays] = useState('');
@@ -86,6 +137,10 @@ export function TaskEditorPage() {
   const [inspectionId, setInspectionId] = useState<string | null>(null);
   const [inspectionImage, setInspectionImage] = useState('');
   const [inspectionField, setInspectionField] = useState('');
+  const [inspectionActionIndex, setInspectionActionIndex] = useState<number | null>(null);
+  const [inspectionTargets, setInspectionTargets] = useState<
+    Record<string, BrowserElementMetadata>
+  >({});
   const desktop = typeof window !== 'undefined' && Boolean(window.zhiyunRuntime);
   const [detailRuleDraft, setDetailRuleDraft] = useState('');
   const [detailActionsDraft, setDetailActionsDraft] = useState('[]');
@@ -99,6 +154,10 @@ export function TaskEditorPage() {
   const [repairDiff, setRepairDiff] = useState<
     Array<{ path: string; before: unknown; after: unknown }>
   >([]);
+  const [templates, setTemplates] = useState<TaskTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
+  const [templateParameters, setTemplateParameters] = useState<Record<string, string>>({});
+  const [templateLoading, setTemplateLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -153,6 +212,14 @@ export function TaskEditorPage() {
   }, []);
 
   useEffect(() => {
+    if (id) return;
+    void runtimeClient
+      .listTaskTemplates()
+      .then(setTemplates)
+      .catch(() => undefined);
+  }, [id]);
+
+  useEffect(() => {
     if (candidate?.detail) {
       setDetailRuleDraft(JSON.stringify(candidate.detail.rule, null, 2));
       setDetailActionsDraft(JSON.stringify(candidate.detail.actions, null, 2));
@@ -175,9 +242,15 @@ export function TaskEditorPage() {
   }, [candidate?.list.source, candidate?.detail?.source, candidate?.discovery]);
 
   const taskPayload = () => {
+    const timezoneError = validateTimezone(timezone);
+    if (timezoneError) throw new Error(timezoneError);
+    if (scheduleMode === 'cron') {
+      const cronError = validateFiveFieldCron(cron);
+      if (cronError) throw new Error(cronError);
+    }
     const parsedHeaders = JSON.parse(headers) as Record<string, string>;
     const parsedCookies = JSON.parse(cookies) as unknown[];
-    const parsedActions = JSON.parse(actionsJson) as [];
+    const parsedActions = parseBrowserActions(actionsJson, inspectionTargets);
     const pagination =
       paginationType === 'next'
         ? { type: 'next' as const, selector: paginationSelector, maxPages: 10 }
@@ -242,10 +315,7 @@ export function TaskEditorPage() {
       setCookies('[]');
       return id;
     }
-    const created = await runtimeClient.createTask(payload);
-    setHeaders(JSON.stringify(created.requestSettings.headers, null, 2));
-    setCookies('[]');
-    return created.id;
+    throw new Error('新任务必须通过原子初始化保存任务与首个规则版本');
   };
 
   const analyze = async (taskId?: string) => {
@@ -253,16 +323,16 @@ export function TaskEditorPage() {
     setError('');
     setMessage('');
     try {
-      const currentId = taskId ?? (await persistTask());
-      const result = await runtimeClient.analyzeTask(currentId, {
-        useAi,
-        forceBrowser: browser,
-      });
+      const result = taskId
+        ? await runtimeClient.analyzeTask(taskId, { useAi, forceBrowser: browser })
+        : await runtimeClient.analyzeDraftTask(taskPayload(), {
+            useAi,
+            forceBrowser: browser,
+          });
       setAnalysis(result);
       setCandidate(result.candidate);
       setPreview(result.preview);
       setRuleDirty(false);
-      if (!id) void navigate(`/tasks/${currentId}/edit`, { replace: true });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -275,11 +345,11 @@ export function TaskEditorPage() {
     setWorking(true);
     setError('');
     try {
-      const currentId = id ?? (await persistTask());
-      const result = await runtimeClient.runAiExtractDemo(currentId, candidate);
+      const result = id
+        ? await runtimeClient.runAiExtractDemo(id, candidate)
+        : await runtimeClient.runDraftAiExtractDemo(taskPayload(), candidate);
       setPreview(result.records);
       setMessage('AI Extract Demo 已完成；预览不会保存或修改正式规则。');
-      if (!id) void navigate(`/tasks/${currentId}/edit`, { replace: true });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -293,13 +363,47 @@ export function TaskEditorPage() {
 
   const saveTask = async (event: FormEvent) => {
     event.preventDefault();
+    setWorking(true);
     setError('');
     try {
+      if (!id) {
+        if (candidate) validateTemplateReady();
+        const payload = taskPayload();
+        const definition = candidate ?? manualDraftDefinition;
+        const created =
+          selectedTemplate && candidate
+            ? await runtimeClient.instantiateTaskTemplate(selectedTemplate.id, {
+                startUrl: payload.startUrl,
+                parameters: templateParameters,
+                task: payload,
+                definition,
+                limit: 10,
+                saveAsDraft: true,
+              })
+            : (
+                await runtimeClient.createTaskWithInitialRule({
+                  task: payload,
+                  definition,
+                  ruleName: initialRuleName(),
+                  limit: 10,
+                  saveAsDraft: true,
+                })
+              ).task;
+        setTask(created);
+        setMessage(`${t('taskSaved')}（草稿，首个规则版本已保存）`);
+        void navigate(`/tasks/${created.id}/edit`, { replace: true });
+        return;
+      }
       const currentId = await persistTask();
-      setMessage(t('taskSaved'));
+      if (id && candidate && (ruleDirty || !task?.activeRule)) {
+        await persistCandidateRule(currentId);
+      }
+      setMessage(`${t('taskSaved')}（草稿）`);
       if (!id) void navigate(`/tasks/${currentId}/edit`, { replace: true });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setWorking(false);
     }
   };
 
@@ -422,13 +526,28 @@ export function TaskEditorPage() {
   };
 
   const testRule = async () => {
-    if (!candidate || !id) return;
+    if (!candidate) return;
     setWorking(true);
     setError('');
     try {
-      await persistTask();
-      const result = await runtimeClient.testRule(id, candidate, 10);
+      validateTemplateReady();
+      const result = id
+        ? await (async () => {
+            await persistTask();
+            return runtimeClient.testRule(id, candidate, 10);
+          })()
+        : await runtimeClient.previewInitialRule({
+            task: taskPayload(),
+            definition: candidate,
+            ruleName: initialRuleName(),
+            limit: 10,
+          });
       setPreview(result.records.map((record) => record.data));
+      setMessage(
+        result.records.length
+          ? `预览测试成功，获得 ${result.records.length} 条记录。`
+          : '预览请求已完成，但未提取到记录；请调整规则后再运行。',
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -437,28 +556,133 @@ export function TaskEditorPage() {
   };
 
   const saveRule = async () => {
-    if (!candidate || !id) return;
+    if (!candidate) return;
     setWorking(true);
     setError('');
     try {
-      const generatedBy = ruleDirty ? 'human' : analysis?.aiUsed ? 'ai' : 'system';
-      if (task?.activeRule) {
-        await runtimeClient.createRuleVersion(id, task.activeRule.rule.id, {
-          definition: candidate,
-          generatedBy,
-        });
+      if (!id) {
+        validateTemplateReady();
+        const payload = taskPayload();
+        const created = selectedTemplate
+          ? await runtimeClient.instantiateTaskTemplate(selectedTemplate.id, {
+              startUrl: payload.startUrl,
+              parameters: templateParameters,
+              task: payload,
+              definition: candidate,
+              limit: 10,
+              saveAsDraft: true,
+            })
+          : (
+              await runtimeClient.createTaskWithInitialRule({
+                task: payload,
+                definition: candidate,
+                ruleName: initialRuleName(),
+                limit: 10,
+                saveAsDraft: true,
+              })
+            ).task;
+        setTask(created);
+        void navigate(`/tasks/${created.id}/edit`, { replace: true });
       } else {
-        await runtimeClient.createRule(id, {
-          name: 'Default rule',
-          definition: candidate,
-          generatedBy,
-        });
+        await persistCandidateRule(id);
       }
       setMessage(t('ruleSaved'));
-      setRuleDirty(false);
-      const loaded = await runtimeClient.getTask(id);
-      setTask(loaded);
-      setRules(await runtimeClient.listRules(id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const initialRuleName = () =>
+    selectedTemplate ? `${selectedTemplate.name}规则` : 'Default rule';
+
+  const validateTemplateReady = () => {
+    if (!selectedTemplate) return;
+    const missing = missingTemplateParameters(selectedTemplate, templateParameters);
+    if (missing.length) throw new Error(`请先填写模板参数：${missing.join('、')}`);
+  };
+
+  const persistCandidateRule = async (currentId: string) => {
+    if (!candidate) throw new Error('请先生成或选择规则');
+    const generatedBy = ruleDirty ? 'human' : analysis?.aiUsed ? 'ai' : 'system';
+    if (task?.activeRule) {
+      await runtimeClient.createRuleVersion(currentId, task.activeRule.rule.id, {
+        definition: candidate,
+        generatedBy,
+      });
+    } else {
+      await runtimeClient.createRule(currentId, {
+        name: initialRuleName(),
+        definition: candidate,
+        generatedBy,
+      });
+    }
+    setRuleDirty(false);
+    const loaded = await runtimeClient.getTask(currentId);
+    setTask(loaded);
+    setRules(await runtimeClient.listRules(currentId));
+  };
+
+  const saveAndRun = async () => {
+    if (!candidate) {
+      setError('保存并运行前，请先选择模板或分析网页生成规则。');
+      return;
+    }
+    setWorking(true);
+    setError('');
+    setMessage('');
+    try {
+      validateTemplateReady();
+      if (!id) {
+        const payload = taskPayload();
+        const tested = await runtimeClient.previewInitialRule({
+          task: payload,
+          definition: candidate,
+          ruleName: initialRuleName(),
+          limit: 10,
+        });
+        setPreview(tested.records.map((record) => record.data));
+        if (!tested.records.length) {
+          throw new Error('预览未提取到数据，已取消创建和运行。请调整字段或页面动作后重试。');
+        }
+        if (selectedTemplate) {
+          const created = await runtimeClient.instantiateTaskTemplate(selectedTemplate.id, {
+            startUrl: payload.startUrl,
+            parameters: templateParameters,
+            task: payload,
+            definition: candidate,
+            previewKey: tested.previewKey,
+            limit: 10,
+          });
+          setTask(created);
+          const run = await runtimeClient.runTask(created.id);
+          void navigate(`/runs/${run.runId}`);
+          return;
+        }
+        const created = await runtimeClient.createTaskWithInitialRule({
+          task: payload,
+          definition: candidate,
+          previewKey: tested.previewKey,
+          ruleName: initialRuleName(),
+          limit: 10,
+          runAfterCreate: true,
+        });
+        setTask(created.task);
+        if (!created.run) throw new Error('任务已创建，但 Runtime 未返回首次运行记录。');
+        void navigate(`/runs/${created.run.id}`);
+        return;
+      }
+
+      await persistTask();
+      const tested = await runtimeClient.testRule(id, candidate, 10);
+      setPreview(tested.records.map((record) => record.data));
+      if (!tested.records.length) {
+        throw new Error('预览未提取到数据，已取消运行。请调整规则后重试。');
+      }
+      if (ruleDirty || !task?.activeRule) await persistCandidateRule(id);
+      const run = await runtimeClient.runTask(id);
+      void navigate(`/runs/${run.runId}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -515,14 +739,38 @@ export function TaskEditorPage() {
     setInspectionImage(`data:image/png;base64,${screenshot.image}`);
   };
 
-  const openInspection = async () => {
-    if (!id || !candidate || candidate.list.rule.type === 'json') return;
+  const executeInspectionStep = async (stepIndex: number, action: BrowserAction) => {
+    if (!id) throw new Error('请先保存任务，再逐步执行浏览器动作');
+    setError('');
+    let sessionId = inspectionId;
+    if (!sessionId) {
+      const session = await runtimeClient.createInspectionSession(id);
+      sessionId = session.id;
+      setInspectionId(session.id);
+    }
+    const result = await runtimeClient.executeInspectionStep(sessionId, stepIndex, action);
+    const observedTarget = result.target;
+    if (observedTarget && 'selector' in action) {
+      setInspectionTargets((current) => ({ ...current, [action.selector]: observedTarget }));
+    }
+    if (result.screenshot.image) {
+      setInspectionImage(`data:image/png;base64,${result.screenshot.image}`);
+    }
+    return result;
+  };
+
+  const openInspection = async (actionIndex?: number) => {
+    if (!id) return;
+    if (actionIndex === undefined && (!candidate || candidate.list.rule.type === 'json')) return;
     setWorking(true);
     setError('');
     try {
       const session = await runtimeClient.createInspectionSession(id);
       setInspectionId(session.id);
-      setInspectionField(inspectionField || Object.keys(candidate.list.rule.fields)[0] || '');
+      setInspectionActionIndex(actionIndex ?? null);
+      if (actionIndex === undefined && candidate) {
+        setInspectionField(inspectionField || Object.keys(candidate.list.rule.fields)[0] || '');
+      }
       await refreshInspection(session.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -532,7 +780,7 @@ export function TaskEditorPage() {
   };
 
   const selectInspectionElement = async (event: MouseEvent<HTMLImageElement>) => {
-    if (!inspectionId || !inspectionField) return;
+    if (!inspectionId || (inspectionActionIndex === null && !inspectionField)) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     const point = {
       x: ((event.clientX - bounds.left) / bounds.width) * 1280,
@@ -540,8 +788,17 @@ export function TaskEditorPage() {
     };
     try {
       const selected = await runtimeClient.selectInspectionElement(inspectionId, point);
-      updateField(inspectionField, 'selector', selected.selector);
-      setMessage(`已将 ${inspectionField} 更新为 ${selected.selector}`);
+      if (inspectionActionIndex !== null) {
+        setInspectionTargets((current) => ({
+          ...current,
+          [selected.selector]: selected.metadata,
+        }));
+        setActionsJson(updateActionSelector(actionsJson, inspectionActionIndex, selected));
+        setMessage(`已将第 ${inspectionActionIndex + 1} 个动作更新为 ${selected.selector}`);
+      } else {
+        updateField(inspectionField, 'selector', selected.selector);
+        setMessage(`已将 ${inspectionField} 更新为 ${selected.selector}`);
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     }
@@ -553,6 +810,76 @@ export function TaskEditorPage() {
     }
     setInspectionId(null);
     setInspectionImage('');
+    setInspectionActionIndex(null);
+  };
+
+  const developmentFixtureUrl = resolveDevelopmentFixture(
+    import.meta.env.DEV,
+    import.meta.env.VITE_FIXTURE_URL,
+  );
+
+  const loadDevelopmentDemo = () => {
+    if (!developmentFixtureUrl) return;
+    const demoUrl = `${developmentFixtureUrl}/products`;
+    setUrl(demoUrl);
+    setPageTemplate(`${demoUrl}?page={page}`);
+    if (!name) setName('开发环境商品采集');
+    setInstruction('获取商品名称、价格、销量和链接');
+    setMessage('已加载开发环境演示地址；该入口不会出现在生产构建中。');
+  };
+
+  const applyOfficialTemplate = async (templateId: string) => {
+    setTemplateLoading(true);
+    setError('');
+    try {
+      const template = await runtimeClient.getTaskTemplate(templateId);
+      const parameters = templateParameterDefaults(template);
+      const definition = applyTemplateParameters(template, parameters);
+      setSelectedTemplate(template);
+      setTemplateParameters(parameters);
+      setCandidate(definition);
+      setName(template.taskDefaults.name ?? template.name);
+      setInstruction(template.taskDefaults.instruction ?? template.description);
+      setBrowser(
+        template.taskDefaults.browserSettings?.enabled ?? template.compatibility.browserRequired,
+      );
+      setActionsJson(
+        JSON.stringify(
+          template.taskDefaults.browserSettings?.actions ?? definition.list.actions,
+          null,
+          2,
+        ),
+      );
+      setPaginationType(definition.pagination.type);
+      if ('selector' in definition.pagination)
+        setPaginationSelector(definition.pagination.selector);
+      if (definition.pagination.type === 'page') setPageTemplate(definition.pagination.urlTemplate);
+      if (template.taskDefaults.schedule) {
+        setScheduleMode(template.taskDefaults.schedule.mode);
+        setCron(template.taskDefaults.schedule.cron ?? '0 8 * * *');
+        setTimezone(template.taskDefaults.schedule.timezone);
+        setMisfirePolicy(template.taskDefaults.schedule.misfirePolicy);
+      }
+      if (template.taskDefaults.datasetSettings) {
+        setDatasetMode(template.taskDefaults.datasetSettings.mode);
+        setKeyFields(template.taskDefaults.datasetSettings.keyFields.join(', '));
+      }
+      setRuleDirty(false);
+      setPreview([]);
+      setMessage(`已加载官方模板“${template.name}”；填写 URL 与模板参数后先测试再保存。`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
+  const updateTemplateParameter = (key: string, value: string) => {
+    if (!selectedTemplate) return;
+    const next = { ...templateParameters, [key]: value };
+    setTemplateParameters(next);
+    setCandidate(applyTemplateParameters(selectedTemplate, next));
+    setRuleDirty(true);
   };
 
   const compareVersions = async (ruleId: string, from: number, to: number) => {
@@ -642,7 +969,7 @@ export function TaskEditorPage() {
     <>
       <div className="page-heading">
         <div>
-          <Link className="back-link" to={id ? `/tasks/${id}` : '/'}>
+          <Link className="back-link" to={id ? `/tasks/${id}` : '/tasks'}>
             ← {t('back')}
           </Link>
           <h1>{id ? t('edit') : t('newTask')}</h1>
@@ -651,6 +978,56 @@ export function TaskEditorPage() {
       </div>
       <ErrorNotice message={error} />
       {message && <div className="notice notice-success">{message}</div>}
+      {!id && (
+        <Card className="task-start-card">
+          <div className="section-heading compact">
+            <div>
+              <h2>选择创建方式</h2>
+              <p>手动配置当前表单，或交给 AI 助手对话生成并测试同一种任务草稿。</p>
+            </div>
+            <Link className="button" to="/tasks/new?mode=ai">
+              ✦ AI 对话创建
+            </Link>
+          </div>
+          <div className="scenario-grid official-template-grid" aria-label="官方模板">
+            {(templates.length ? templates : officialTemplateFallbacks).map((template) => (
+              <button
+                type="button"
+                className={selectedTemplate?.id === template.id ? 'active' : ''}
+                disabled={templateLoading}
+                key={template.id}
+                onClick={() => void applyOfficialTemplate(template.id)}
+              >
+                <strong>{template.name}</strong>
+                <small>{template.description}</small>
+              </button>
+            ))}
+          </div>
+          {selectedTemplate && selectedTemplate.parameters.length > 0 && (
+            <div className="template-parameters">
+              <div>
+                <strong>{selectedTemplate.name} 参数</strong>
+                <small>可稍后在规则编辑器继续微调 Selector。</small>
+              </div>
+              <div className="form-grid">
+                {selectedTemplate.parameters.map((parameter) => (
+                  <label key={parameter.key}>
+                    <span>{parameter.label}</span>
+                    <Input
+                      required={parameter.required}
+                      type={parameter.type === 'number' ? 'number' : 'text'}
+                      value={templateParameters[parameter.key] ?? ''}
+                      onChange={(event) =>
+                        updateTemplateParameter(parameter.key, event.target.value)
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
       <form onSubmit={(event) => void saveTask(event)}>
         <Card className="editor-card">
           <div className="form-grid">
@@ -671,6 +1048,11 @@ export function TaskEditorPage() {
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
               />
+              {developmentFixtureUrl && (
+                <button className="inline-demo-link" type="button" onClick={loadDevelopmentDemo}>
+                  加载开发演示
+                </button>
+              )}
             </label>
             <label className="full">
               <span>{t('instruction')}</span>
@@ -683,11 +1065,18 @@ export function TaskEditorPage() {
             </label>
           </div>
           <div className="primary-actions">
-            <Button type="button" disabled={working} onClick={() => void analyze()}>
+            <Button type="button" disabled={working} onClick={() => void analyze(id)}>
               {working ? t('analyzing') : `✦ ${t('analyze')}`}
             </Button>
             <Button className="button-secondary" type="submit">
-              {t('save')}
+              保存草稿
+            </Button>
+            <Button
+              type="button"
+              disabled={working || !candidate}
+              onClick={() => void saveAndRun()}
+            >
+              预览通过后保存并运行
             </Button>
             {candidate && (
               <Button
@@ -816,40 +1205,16 @@ export function TaskEditorPage() {
                   onChange={(event) => setMaxRequests(Number(event.target.value))}
                 />
               </label>
-              <label>
-                <span>{t('schedule')}</span>
-                <select
-                  value={scheduleMode}
-                  onChange={(event) => setScheduleMode(event.target.value as 'manual' | 'cron')}
-                >
-                  <option value="manual">Manual</option>
-                  <option value="cron">Cron</option>
-                </select>
-              </label>
-              {scheduleMode === 'cron' && (
-                <>
-                  <label>
-                    <span>{t('cron')}</span>
-                    <Input value={cron} onChange={(event) => setCron(event.target.value)} />
-                  </label>
-                  <label>
-                    <span>{t('timezone')}</span>
-                    <Input value={timezone} onChange={(event) => setTimezone(event.target.value)} />
-                  </label>
-                  <label>
-                    <span>错过执行</span>
-                    <select
-                      value={misfirePolicy}
-                      onChange={(event) =>
-                        setMisfirePolicy(event.target.value as 'skip' | 'run-once')
-                      }
-                    >
-                      <option value="skip">跳过（默认）</option>
-                      <option value="run-once">恢复后补跑一次</option>
-                    </select>
-                  </label>
-                </>
-              )}
+              <ScheduleBuilder
+                mode={scheduleMode}
+                cron={cron}
+                timezone={timezone}
+                misfirePolicy={misfirePolicy}
+                onModeChange={setScheduleMode}
+                onCronChange={setCron}
+                onTimezoneChange={setTimezone}
+                onMisfirePolicyChange={setMisfirePolicy}
+              />
               {desktop ? (
                 <div className="full credential-bindings">
                   <span className="field-label">敏感请求凭据（由 Desktop Host 安全输入）</span>
@@ -904,14 +1269,13 @@ export function TaskEditorPage() {
                   </label>
                 </>
               )}
-              <label className="full">
-                <span>Browser Actions (JSON)</span>
-                <textarea
-                  rows={5}
-                  value={actionsJson}
-                  onChange={(event) => setActionsJson(event.target.value)}
-                />
-              </label>
+              <BrowserActionEditor
+                value={actionsJson}
+                onChange={setActionsJson}
+                knownTargets={inspectionTargets}
+                onPickSelector={id && candidate ? (index) => void openInspection(index) : undefined}
+                onExecuteStep={id ? executeInspectionStep : undefined}
+              />
               <label>
                 <span>Dataset mode</span>
                 <select
@@ -1020,12 +1384,12 @@ export function TaskEditorPage() {
             <div className="row-actions">
               <Button
                 className="button-secondary"
-                disabled={working || !id}
+                disabled={working}
                 onClick={() => void testRule()}
               >
                 {t('testRule')}
               </Button>
-              <Button disabled={working || !id} onClick={() => void saveRule()}>
+              <Button disabled={working} onClick={() => void saveRule()}>
                 {t('saveRule')}
               </Button>
               {candidate.list.rule.type !== 'json' && (
@@ -1044,19 +1408,25 @@ export function TaskEditorPage() {
               <div className="section-heading">
                 <div>
                   <h3>页面检查器</h3>
-                  <p>选择字段后点击截图中的元素</p>
+                  <p>
+                    {inspectionActionIndex === null
+                      ? '选择字段后点击截图中的元素'
+                      : `点击截图，为第 ${inspectionActionIndex + 1} 个动作选择元素`}
+                  </p>
                 </div>
                 <div className="row-actions">
-                  <select
-                    value={inspectionField}
-                    onChange={(event) => setInspectionField(event.target.value)}
-                  >
-                    {fields.map(([name]) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
+                  {inspectionActionIndex === null && (
+                    <select
+                      value={inspectionField}
+                      onChange={(event) => setInspectionField(event.target.value)}
+                    >
+                      {fields.map(([name]) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <Button
                     className="button-secondary"
                     onClick={() => void refreshInspection(inspectionId)}

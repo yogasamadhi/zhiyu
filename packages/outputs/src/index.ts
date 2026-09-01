@@ -1,39 +1,36 @@
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import postgres from 'postgres';
-import { ExportError, type DatasetSettings, type OutputDestination } from '@zhiyun/contracts';
+import { ExportError, type DatasetSettings } from '@zhiyun/contracts';
+import { GoogleSheetsOutputAdapter } from './google-sheets.js';
+import { LocalDirectoryOutputAdapter } from './local-directory.js';
+import { S3OutputAdapter } from './s3.js';
+import type {
+  OutputAdapter,
+  OutputDeliveryInput,
+  OutputDeliveryResult,
+  OutputDestinationLike,
+  OutputRecord,
+} from './types.js';
 
-export interface OutputRecord {
-  sourceUrl: string;
-  data: Record<string, unknown>;
-}
-
-export interface OutputDeliveryInput {
-  destination: OutputDestination;
-  taskId: string;
-  runId: string;
-  datasetSettings: DatasetSettings;
-  datasetStats?: {
-    added: number;
-    updated: number;
-    removed: number;
-    unchanged: number;
-    current: number;
-  };
-  records: AsyncIterable<OutputRecord> | Iterable<OutputRecord>;
-  credential: unknown;
-  signal?: AbortSignal;
-}
-
-export interface OutputDeliveryResult {
-  responseStatus: number | null;
-  delivered: number;
-}
-
-export interface OutputAdapter {
-  readonly type: OutputDestination['type'];
-  test(input: Pick<OutputDeliveryInput, 'destination' | 'credential' | 'signal'>): Promise<void>;
-  deliver(input: OutputDeliveryInput): Promise<OutputDeliveryResult>;
-}
+export * from './types.js';
+export {
+  FileOutputArtifactStore,
+  outputArtifactId,
+  outputArtifactSpec,
+  type OutputArtifactMaterializationInput,
+  type OutputArtifactStore,
+} from './artifacts.js';
+export { GoogleSheetsOutputAdapter, googleServiceAccountClientEmail } from './google-sheets.js';
+export { LocalDirectoryOutputAdapter, safeRelativePath } from './local-directory.js';
+export { AwsSigV4S3Transport, S3OutputAdapter } from './s3.js';
+export type { S3ObjectMetadata, S3PutInput, S3Transport } from './s3.js';
+export { parseFields } from './serialization.js';
+export { sendWebhookEventNotification, webhookSubscribes } from './webhook-events.js';
+export type {
+  OutputEventEnvelope,
+  OutputEventSeverity,
+  WebhookEventNotificationInput,
+} from './webhook-events.js';
 
 async function* batches<T>(
   values: AsyncIterable<T> | Iterable<T>,
@@ -71,6 +68,19 @@ function credentialObject(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function webhookDeliveryEvent(
+  config: Record<string, unknown>,
+): 'run.succeeded' | 'dataset.changed' {
+  if (config.event === 'dataset.changed') return 'dataset.changed';
+  if (config.event === 'run.succeeded') return 'run.succeeded';
+  if (Array.isArray(config.events)) {
+    if (config.events.includes('run.succeeded')) return 'run.succeeded';
+    if (config.events.includes('dataset.changed')) return 'dataset.changed';
+    throw new ExportError('Webhook does not subscribe to successful run deliveries');
+  }
+  return 'run.succeeded';
+}
+
 export class WebhookOutputAdapter implements OutputAdapter {
   readonly type = 'webhook' as const;
 
@@ -103,8 +113,7 @@ export class WebhookOutputAdapter implements OutputAdapter {
     const url = String(input.destination.config.url ?? '');
     if (!/^https?:\/\//.test(url)) throw new ExportError('Webhook URL must use HTTP or HTTPS');
     const secret = String(credentialObject(input.credential).secret ?? '');
-    const event =
-      input.destination.config.event === 'dataset.changed' ? 'dataset.changed' : 'run.succeeded';
+    const event = webhookDeliveryEvent(input.destination.config);
     let delivered = 0;
     let status: number | null = null;
     let batch = 1;
@@ -256,6 +265,19 @@ export class PostgresOutputAdapter implements OutputAdapter {
   }
 }
 
-export function outputAdapter(destination: OutputDestination): OutputAdapter {
-  return destination.type === 'webhook' ? new WebhookOutputAdapter() : new PostgresOutputAdapter();
+export function outputAdapter(destination: OutputDestinationLike): OutputAdapter {
+  switch (destination.type) {
+    case 'webhook':
+      return new WebhookOutputAdapter();
+    case 'postgres':
+      return new PostgresOutputAdapter();
+    case 'local-directory':
+      return new LocalDirectoryOutputAdapter();
+    case 'google-sheets':
+      return new GoogleSheetsOutputAdapter();
+    case 's3':
+      return new S3OutputAdapter();
+    default:
+      throw new ExportError(`Unsupported output destination type: ${String(destination.type)}`);
+  }
 }

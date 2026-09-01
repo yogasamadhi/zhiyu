@@ -1,6 +1,10 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
+import { taskDetailSectionRoutePaths } from '../task-detail.js';
 
 const TaskListPage = lazy(() => import('../pages/TaskListPage.js').then(moduleOf('TaskListPage')));
+const HomeDashboardPage = lazy(() =>
+  import('../pages/HomeDashboardPage.js').then(moduleOf('HomeDashboardPage')),
+);
 const TaskEditorPage = lazy(() =>
   import('../pages/TaskEditorPage.js').then(moduleOf('TaskEditorPage')),
 );
@@ -32,6 +36,15 @@ const CorpusDetailPage = lazy(() =>
 const CorpusVersionPage = lazy(() =>
   import('../pages/CorpusVersionPage.js').then(moduleOf('CorpusVersionPage')),
 );
+const LegacyCrawlerAssistantRedirect = lazy(() =>
+  import('../pages/LegacyCrawlerAssistantRedirect.js').then(
+    moduleOf('LegacyCrawlerAssistantRedirect'),
+  ),
+);
+const MembersPage = lazy(() => import('../pages/MembersPage.js').then(moduleOf('MembersPage')));
+const AuditPage = lazy(() => import('../pages/AuditPage.js').then(moduleOf('AuditPage')));
+
+export type ShellNavigationGroup = 'collection' | 'data' | 'automation' | 'system';
 
 export interface ShellRouteContribution {
   id: string;
@@ -42,16 +55,20 @@ export interface ShellNavigationContribution {
   id: string;
   to: string;
   labelKey: string;
+  group: ShellNavigationGroup;
+  icon: string;
 }
 
 export const routeContributionRegistry: readonly ShellRouteContribution[] = [
   {
     id: 'collection.route',
     routes: [
-      { path: '/', component: TaskListPage },
+      { path: '/', component: HomeDashboardPage },
+      { path: '/tasks', component: TaskListPage },
       { path: '/tasks/new', component: TaskEditorPage },
       { path: '/tasks/:id/edit', component: TaskEditorPage },
       { path: '/tasks/:id', component: TaskDetailPage },
+      ...taskDetailSectionRoutePaths.map((path) => ({ path, component: TaskDetailPage })),
       { path: '/runs/:id', component: RunDetailPage },
     ],
   },
@@ -90,19 +107,71 @@ export const routeContributionRegistry: readonly ShellRouteContribution[] = [
       { path: '/corpora/:corpusId/versions/:versionId', component: CorpusVersionPage },
     ],
   },
+  {
+    id: 'ai-assistance.crawler-assistant-route',
+    routes: [{ path: '/crawler-assistant', component: LegacyCrawlerAssistantRedirect }],
+  },
+  {
+    id: 'identity.members-route',
+    routes: [{ path: '/members', component: MembersPage }],
+  },
+  {
+    id: 'identity.audit-route',
+    routes: [{ path: '/audit', component: AuditPage }],
+  },
 ];
 
 export const navigationContributionRegistry: readonly ShellNavigationContribution[] = [
-  { id: 'collection.navigation', to: '/', labelKey: 'tasks' },
+  { id: 'collection.navigation', to: '/tasks', labelKey: 'tasks', group: 'collection', icon: '⌁' },
   {
     id: 'preferences.navigation',
     to: '/preferences',
     labelKey: 'preferencesAndTrends',
+    group: 'collection',
+    icon: '◇',
   },
-  { id: 'outputs.navigation', to: '/outputs', labelKey: 'outputs' },
-  { id: 'analytics.navigation', to: '/analytics', labelKey: 'analytics.title' },
-  { id: 'corpus.navigation', to: '/corpora', labelKey: 'corpus.title' },
-  { id: 'platform.settings-navigation', to: '/settings', labelKey: 'settings' },
+  {
+    id: 'outputs.navigation',
+    to: '/outputs',
+    labelKey: 'outputs',
+    group: 'automation',
+    icon: '⇢',
+  },
+  {
+    id: 'analytics.navigation',
+    to: '/analytics',
+    labelKey: 'analytics.title',
+    group: 'data',
+    icon: '▥',
+  },
+  {
+    id: 'corpus.navigation',
+    to: '/corpora',
+    labelKey: 'corpus.title',
+    group: 'data',
+    icon: '▤',
+  },
+  {
+    id: 'platform.settings-navigation',
+    to: '/settings',
+    labelKey: 'settings',
+    group: 'system',
+    icon: '⚙',
+  },
+  {
+    id: 'identity.members-navigation',
+    to: '/members',
+    labelKey: 'members',
+    group: 'system',
+    icon: '⊙',
+  },
+  {
+    id: 'identity.audit-navigation',
+    to: '/audit',
+    labelKey: 'audit',
+    group: 'system',
+    icon: '◷',
+  },
 ];
 
 export function resolveUiContributions(enabledIds: readonly string[]) {

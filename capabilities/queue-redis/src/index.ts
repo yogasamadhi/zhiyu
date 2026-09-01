@@ -27,6 +27,18 @@ interface PlatformQueueData {
   jobId: string;
 }
 
+export interface RedisQueueReadiness {
+  readonly redis: {
+    status: 'ok' | 'error';
+    connectionStatus: string;
+  };
+  readonly queue: {
+    status: 'ok' | 'error';
+    started: boolean;
+    counts: Readonly<Record<JobResourceClass, number>>;
+  };
+}
+
 export class RedisPlatformJobQueue implements PlatformJobQueue {
   private readonly dispatcher: DurableJobDispatcher;
   private readonly redis: IORedis;
@@ -35,6 +47,9 @@ export class RedisPlatformJobQueue implements PlatformJobQueue {
   private started = false;
   private lastError: string | null = null;
   private readonly capacities: Record<JobResourceClass, number>;
+  private readonly recoveryIntervalMs: number;
+  private recoveryTimer: ReturnType<typeof setInterval> | undefined;
+  private recovering = false;
 
   constructor(
     private readonly repository: PlatformRepository,
@@ -48,6 +63,7 @@ export class RedisPlatformJobQueue implements PlatformJobQueue {
       io: options.capacities?.io ?? 2,
       delivery: options.capacities?.delivery ?? 2,
     };
+    this.recoveryIntervalMs = Math.max(10, options.recoveryIntervalMs ?? 5_000);
     this.dispatcher = new DurableJobDispatcher(repository, handlers, {
       ...options,
       capacities: this.capacities,
@@ -107,9 +123,15 @@ export class RedisPlatformJobQueue implements PlatformJobQueue {
       });
       this.workers.push(worker);
     }
-    void this.reconcileQueuedJobs().catch((error: unknown) => {
+    void this.recoverAndReconcile().catch((error: unknown) => {
       this.lastError = safeError(error);
     });
+    this.recoveryTimer = setInterval(() => {
+      void this.recoverAndReconcile().catch((error: unknown) => {
+        this.lastError = safeError(error);
+      });
+    }, this.recoveryIntervalMs);
+    this.recoveryTimer.unref?.();
   }
 
   diagnostics(): JobDispatcherDiagnostics & {
@@ -125,8 +147,52 @@ export class RedisPlatformJobQueue implements PlatformJobQueue {
     };
   }
 
+  async readiness(timeoutMs = 2_000): Promise<RedisQueueReadiness> {
+    const redisProbe = withTimeout(this.redis.ping(), timeoutMs)
+      .then((response) => response === 'PONG')
+      .catch(() => false);
+    const emptyCounts = Object.fromEntries(
+      RESOURCE_CLASSES.map((resourceClass) => [resourceClass, 0]),
+    ) as Record<JobResourceClass, number>;
+    const queueProbe = this.started
+      ? withTimeout(
+          Promise.all(
+            RESOURCE_CLASSES.map(async (resourceClass) => {
+              const counts = await this.queues
+                .get(resourceClass)!
+                .getJobCounts('wait', 'active', 'delayed', 'failed');
+              return [
+                resourceClass,
+                Object.values(counts).reduce((total, count) => total + count, 0),
+              ] as const;
+            }),
+          ),
+          timeoutMs,
+        )
+          .then((entries) => ({
+            ok: true as const,
+            counts: Object.fromEntries(entries) as Record<JobResourceClass, number>,
+          }))
+          .catch(() => ({ ok: false as const, counts: emptyCounts }))
+      : Promise.resolve({ ok: false as const, counts: emptyCounts });
+    const [redisOk, queue] = await Promise.all([redisProbe, queueProbe]);
+    return {
+      redis: {
+        status: redisOk ? 'ok' : 'error',
+        connectionStatus: this.redis.status,
+      },
+      queue: {
+        status: queue.ok ? 'ok' : 'error',
+        started: this.started,
+        counts: queue.counts,
+      },
+    };
+  }
+
   async close(): Promise<void> {
     this.started = false;
+    if (this.recoveryTimer) clearInterval(this.recoveryTimer);
+    this.recoveryTimer = undefined;
     await Promise.allSettled(this.workers.splice(0).map((worker) => worker.close()));
     await this.dispatcher.close();
     await Promise.allSettled([...this.queues.values()].map((queue) => queue.close()));
@@ -152,7 +218,26 @@ export class RedisPlatformJobQueue implements PlatformJobQueue {
     const jobs = await this.repository.listJobs({ states: ['queued'], limit: 1_000 });
     for (const job of jobs) {
       const existing = await this.queues.get(job.resourceClass)!.getJob(job.id);
-      if (!existing) await this.signal(job);
+      if (existing) {
+        const state = await existing.getState();
+        if (state === 'completed' || state === 'failed' || state === 'unknown') {
+          await existing.remove().catch(() => undefined);
+        } else {
+          continue;
+        }
+      }
+      await this.signal(job);
+    }
+  }
+
+  private async recoverAndReconcile(): Promise<void> {
+    if (this.recovering || !this.started) return;
+    this.recovering = true;
+    try {
+      await this.repository.recoverExpiredJobs();
+      await this.reconcileQueuedJobs();
+    } finally {
+      this.recovering = false;
     }
   }
 }
@@ -202,4 +287,15 @@ function redisConnection(redisUrl: string): IORedis {
 
 function safeError(error: unknown): string {
   return error instanceof Error ? error.message.slice(0, 2_000) : String(error).slice(0, 2_000);
+}
+
+function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error('Readiness probe timed out')), timeoutMs);
+    timer.unref?.();
+  });
+  return Promise.race([operation, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }

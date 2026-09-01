@@ -42,15 +42,19 @@ test('runs a dynamic crawl and analysis from the self-contained packaged applica
     })),
   ).toEqual({ packaged: true, executable: executablePath });
   await page.goto('app://zhiyun/tasks/new');
+  await expect(page.getByLabel('URL')).toHaveValue('');
   await page.getByLabel('任务名称').fill(`Packaged smoke ${Date.now()}`);
   await page.getByLabel('URL').fill('http://127.0.0.1:45100/dynamic-products');
   await page.getByText('高级设置').click();
+  await page.getByLabel(/允许 localhost/).check();
   await page.getByLabel('使用浏览器').check();
   await page.getByLabel('分页方式').selectOption('loadMore');
   await page.getByLabel('分页按钮 Selector').fill('#load-more');
   await page.getByRole('button', { name: /分析网页/ }).click();
   await expect(page.getByRole('cell', { name: '织云商品 01', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '确认并保存规则' }).click();
+  await expect(page.getByText('规则版本已保存')).toBeVisible();
+  await expect(page).toHaveURL(/tasks\/[^/]+\/edit/);
   const taskId = page.url().match(/tasks\/([^/]+)\/edit/)?.[1];
   expect(taskId).toBeTruthy();
   await page.goto(`app://zhiyun/tasks/${taskId}`);
@@ -60,7 +64,7 @@ test('runs a dynamic crawl and analysis from the self-contained packaged applica
   await expect(page.getByText('Browser', { exact: true })).toBeVisible();
 
   await page.goto(`app://zhiyun/tasks/${taskId}`);
-  await page.getByRole('link', { name: 'Dataset', exact: true }).click();
+  await page.getByRole('link', { name: '数据', exact: true }).click();
   await expect(page.getByRole('heading', { name: /Packaged smoke/ })).toBeVisible();
   await page.getByRole('button', { name: '开始分析', exact: true }).click();
   await expect(page).toHaveURL(/\/analytics\?datasetId=.*snapshotId=/, { timeout: 60_000 });

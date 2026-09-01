@@ -16,8 +16,28 @@ export const aiAssistancePlugin: PluginDescriptor = {
   optionalCapabilities: ['ai.provider'],
   providedServices: [aiAssistanceService],
   routes: aiAssistanceRoutes,
-  events: [{ type: 'ai.request.completed', durable: true }],
+  events: [
+    { type: 'ai.request.completed', durable: true },
+    { type: 'ai.turn.delta', durable: false },
+    { type: 'ai.turn.status', durable: false },
+    { type: 'ai.tool.status', durable: false },
+    { type: 'ai.draft.updated', durable: false },
+  ],
+  migrations: [
+    {
+      id: '001-conversations',
+      tables: [
+        'ai_provider_settings',
+        'ai_conversations',
+        'ai_messages',
+        'ai_turns',
+        'ai_draft_versions',
+        'ai_tool_invocations',
+      ],
+    },
+  ],
   uiContributions: aiAssistanceUiContributions,
+  backgroundHandlers: [{ type: 'ai.conversation.turn', resourceClass: 'browser-heavy' }],
   activate() {},
 };
 
@@ -25,4 +45,6 @@ export * from './application/index.js';
 export * from './contracts/index.js';
 export * from './domain/index.js';
 export * from './http/index.js';
+export * from './persistence/postgres/index.js';
+export * from './persistence/sqlite/index.js';
 export * from './ui/index.js';

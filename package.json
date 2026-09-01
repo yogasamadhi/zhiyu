@@ -43,6 +43,7 @@
     "test:e2e": "docker compose up -d && playwright test -c apps/web/playwright.config.ts",
     "test:e2e:web": "bun run test:e2e",
     "test:e2e:desktop": "bun run desktop:test",
+    "test:e2e:headless-compose": "bash scripts/test-headless-compose.sh",
     "test:smoke:desktop-package": "bun run desktop:package && bun run --filter @zhiyun/desktop test:packaged",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && bun run --workspaces --if-present typecheck",

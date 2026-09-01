@@ -29,6 +29,8 @@ export interface RouteContribution {
   readonly operationId: string;
   readonly method: string;
   readonly path: string;
+  /** Permission required by the workspace gateway; null marks an intentionally public route. */
+  readonly requiredPermission: string | null;
 }
 
 export interface EventContribution {
@@ -127,7 +129,11 @@ export interface ArchitectureCatalog {
     dependencies: readonly string[];
   }[];
   readonly services: readonly ArchitectureOwner[];
-  readonly routes: readonly (ArchitectureOwner & { method: string; path: string })[];
+  readonly routes: readonly (ArchitectureOwner & {
+    method: string;
+    path: string;
+    requiredPermission: string | null;
+  })[];
   readonly events: readonly ArchitectureOwner[];
   readonly tables: readonly ArchitectureOwner[];
   readonly migrations: readonly ArchitectureOwner[];
@@ -376,7 +382,9 @@ export async function resolveAndActivateGraph(
 
 export function createArchitectureCatalog(graph: ResolvedGraph): ArchitectureCatalog {
   const services: ArchitectureOwner[] = [];
-  const routes: Array<ArchitectureOwner & { method: string; path: string }> = [];
+  const routes: Array<
+    ArchitectureOwner & { method: string; path: string; requiredPermission: string | null }
+  > = [];
   const events: ArchitectureOwner[] = [];
   const tables: ArchitectureOwner[] = [];
   const migrations: ArchitectureOwner[] = [];
@@ -391,6 +399,7 @@ export function createArchitectureCatalog(graph: ResolvedGraph): ArchitectureCat
         owner: descriptor.id,
         method: route.method.toUpperCase(),
         path: route.path,
+        requiredPermission: route.requiredPermission,
       });
     for (const event of descriptor.events ?? [])
       events.push({ id: event.type, owner: descriptor.id });
@@ -435,7 +444,22 @@ function validateContributions(plugins: readonly PluginDescriptor[]): void {
     if (!plugin.id.trim()) throw new Error('Plugin id is required');
     if (!plugin.version.trim()) throw new Error(`Plugin ${plugin.id} requires a version`);
     for (const service of plugin.providedServices ?? []) claim('service', service.id, plugin.id);
-    for (const route of plugin.routes ?? []) claim('operation', route.operationId, plugin.id);
+    for (const route of plugin.routes ?? []) {
+      if (!Object.hasOwn(route, 'requiredPermission')) {
+        throw new Error(
+          `Plugin ${plugin.id} route ${route.operationId} must declare requiredPermission`,
+        );
+      }
+      if (
+        route.requiredPermission !== null &&
+        (typeof route.requiredPermission !== 'string' || !route.requiredPermission.trim())
+      ) {
+        throw new Error(
+          `Plugin ${plugin.id} route ${route.operationId} has a blank requiredPermission`,
+        );
+      }
+      claim('operation', route.operationId, plugin.id);
+    }
     for (const event of plugin.events ?? []) claim('event', event.type, plugin.id);
     for (const migration of plugin.migrations ?? []) {
       claim('migration', `${plugin.id}:${migration.id}`, plugin.id);

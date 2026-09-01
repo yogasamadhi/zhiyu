@@ -10,6 +10,8 @@ process.env.PLAYWRIGHT_BROWSERS_PATH ??= new URL(
 const fixturePort = Number(process.env.E2E_FIXTURE_PORT ?? 45100);
 const apiPort = Number(process.env.E2E_API_PORT ?? 45300);
 const webPort = Number(process.env.E2E_WEB_PORT ?? 45173);
+const bootstrapToken =
+  process.env.E2E_BOOTSTRAP_TOKEN ?? 'zhiyun-e2e-bootstrap-token-with-at-least-32-bytes';
 
 export default defineConfig({
   testDir: './e2e',
@@ -40,6 +42,7 @@ export default defineConfig({
         ...process.env,
         API_PORT: String(apiPort),
         WEB_PORT: String(webPort),
+        ZHIYUN_BOOTSTRAP_TOKEN: bootstrapToken,
       },
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,

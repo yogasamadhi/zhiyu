@@ -116,3 +116,7 @@ CREATE TABLE rule_repair_proposals (
   created_at TIMESTAMPTZ NOT NULL
 );
 `;
+
+export const collectionPostgresMigration002 = `
+ALTER TABLE tasks ADD COLUMN origin JSONB NOT NULL DEFAULT '{"kind":"manual"}'::jsonb;
+`;

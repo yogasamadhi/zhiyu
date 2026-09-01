@@ -22,10 +22,74 @@ import type { RuntimeCapabilities, RuntimeMetadata } from '@zhiyun/shared';
 
 const requestTraceIds = new WeakMap<FastifyRequest, string>();
 
+export interface RuntimeRealtimeEvent {
+  id: number;
+  type: string;
+  payload: Record<string, unknown>;
+  occurredAt: string;
+}
+
+export class RealtimeEventHub {
+  private sequence = 0;
+  private readonly listeners = new Set<(event: RuntimeRealtimeEvent) => void>();
+
+  publish(type: string, payload: Record<string, unknown>): void {
+    const event = { id: ++this.sequence, type, payload, occurredAt: new Date().toISOString() };
+    for (const listener of this.listeners) listener(event);
+  }
+
+  subscribe(listener: (event: RuntimeRealtimeEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+}
+
 export interface RuntimeMigration {
   pluginId: string;
   migrate(): Promise<void>;
   close(): Promise<void>;
+}
+
+export interface WorkspaceAuthorization {
+  readonly sessionCookieName?: string;
+  authenticate(input: {
+    sessionToken: string | undefined;
+    csrfToken: string | undefined;
+    mutation: boolean;
+  }): Promise<
+    | { ok: true; principal: Record<string, unknown>; permissions: readonly string[] }
+    | {
+        ok: false;
+        status: 401 | 403;
+        code: string;
+        detail: string;
+        principal?: Record<string, unknown>;
+      }
+  >;
+  audit?(input: {
+    principal: Record<string, unknown>;
+    operationId: string;
+    resourceType: string;
+    resourceId: string | null;
+    result: 'succeeded' | 'failed' | 'denied';
+    statusCode: number;
+    traceId: string;
+    network: string;
+  }): Promise<void>;
+}
+
+export interface RuntimeReadinessProbe {
+  readonly redis: Readonly<Record<string, unknown>> & { status: 'ok' | 'error' };
+  readonly queue: Readonly<Record<string, unknown>> & { status: 'ok' | 'error' };
+}
+
+interface WorkspaceAuditState {
+  readonly principal: Record<string, unknown>;
+  readonly operationId: string;
+  readonly resourceType: string;
+  readonly resourceId: string | null;
+  readonly traceId: string;
+  readonly network: string;
 }
 
 export interface RuntimeGatewayDependencies {
@@ -40,6 +104,8 @@ export interface RuntimeGatewayDependencies {
   >;
   capabilities: RuntimeCapabilities;
   openApiDocument: unknown;
+  realtime?: RealtimeEventHub;
+  beforeJobsStart?(): Promise<void>;
   saveArtifact?(artifact: {
     id: string;
     filename: string;
@@ -55,6 +121,8 @@ export interface RuntimeGatewayDependencies {
     | { ok: true; principal: Record<string, unknown> }
     | { ok: false; status: 401 | 429; code: string; detail: string }
   >;
+  workspaceAuthorization?: WorkspaceAuthorization;
+  readiness?(): Promise<RuntimeReadinessProbe>;
   effects?: readonly { start(): void | Promise<void>; close(): Promise<void> }[];
 }
 
@@ -82,9 +150,24 @@ export async function buildRuntimeGateway(
   options: RuntimeGatewayOptions,
 ): Promise<RuntimeGateway> {
   const graph = resolveProductGraph(options.profileId);
-  const app = Fastify({ logger: options.logger ?? false, trustProxy: options.trustProxy ?? false });
+  const realtime = dependencies.realtime ?? new RealtimeEventHub();
+  const app = Fastify({
+    logger: secureRuntimeLogger(options.logger ?? false),
+    trustProxy: options.trustProxy ?? false,
+  });
+  const stagedApiRoutes = new Set<string>();
+  app.addHook('onRoute', (route) => {
+    const methods = Array.isArray(route.method) ? route.method : [route.method];
+    for (const method of methods) {
+      const normalized = String(method).toUpperCase();
+      if (route.url.startsWith('/api/') && normalized !== 'HEAD' && normalized !== 'OPTIONS') {
+        stagedApiRoutes.add(`${normalized} ${route.url}`);
+      }
+    }
+  });
   const tracer = trace.getTracer('zhiyun.runtime-gateway', dependencies.metadata.productVersion);
   const requestSpans = new WeakMap<FastifyRequest, Span>();
+  const workspaceAuditStates = new WeakMap<FastifyRequest, WorkspaceAuditState>();
   const validSessionNonces = new Set([options.sessionNonce]);
   const sessionToken = randomBytes(48).toString('base64url');
   let issuedToken = false;
@@ -106,12 +189,13 @@ export async function buildRuntimeGateway(
       callback(null, !origin || options.allowedOrigins.includes(origin));
     },
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    credentials: false,
+    credentials: Boolean(dependencies.workspaceAuthorization),
     allowedHeaders: [
       'authorization',
       'content-type',
       'idempotency-key',
       'if-match',
+      'x-csrf-token',
       'traceparent',
       'tracestate',
     ],
@@ -147,6 +231,18 @@ export async function buildRuntimeGateway(
     span?.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
   });
   app.addHook('onResponse', async (request, reply) => {
+    const auditState = workspaceAuditStates.get(request);
+    if (auditState && dependencies.workspaceAuthorization?.audit) {
+      try {
+        await dependencies.workspaceAuthorization.audit({
+          ...auditState,
+          result: auditResult(reply.statusCode),
+          statusCode: reply.statusCode,
+        });
+      } catch {
+        app.log.error('Identity audit persistence failed');
+      }
+    }
     const span = requestSpans.get(request);
     if (!span) return;
     span.setAttribute('http.response.status_code', reply.statusCode);
@@ -157,7 +253,24 @@ export async function buildRuntimeGateway(
   });
 
   app.addHook('onRequest', async (request, reply) => {
-    if (isPublicRoute(request)) return;
+    const route = routeMetadata(request, graph);
+    // Fastify also executes onRequest hooks for its not-found handler and the
+    // optional same-origin SPA fallback. Authentication is scoped to routes
+    // owned by the resolved product graph; unknown API paths must retain their
+    // 404 contract instead of leaking the active authentication mode as 401.
+    if (!route) {
+      const pathname = request.url.split('?')[0] ?? request.url;
+      if (
+        pathname.startsWith('/api/') &&
+        request.routeOptions.url &&
+        request.routeOptions.url !== '/*'
+      ) {
+        return sendProblem(request, reply, 404, 'NOT_FOUND', 'Route not found');
+      }
+      return;
+    }
+    const operationId = route.operationId;
+    if (route.requiredPermission === null) return;
     const token = bearerToken(request.headers.authorization);
     if (request.url.startsWith('/api/v2/data/')) {
       const result =
@@ -176,11 +289,83 @@ export async function buildRuntimeGateway(
         result.principal;
       return;
     }
+    const mutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
+    if (dependencies.workspaceAuthorization) {
+      const csrf = request.headers['x-csrf-token'];
+      const result = await dependencies.workspaceAuthorization.authenticate({
+        sessionToken: requestCookie(
+          request,
+          dependencies.workspaceAuthorization.sessionCookieName ?? 'zhiyun_session',
+        ),
+        csrfToken: Array.isArray(csrf) ? csrf[0] : csrf,
+        mutation,
+      });
+      if (!result.ok) {
+        if (mutation && result.principal && dependencies.workspaceAuthorization.audit) {
+          await dependencies.workspaceAuthorization
+            .audit({
+              principal: result.principal,
+              operationId,
+              resourceType: route?.ownerPluginId ?? 'runtime',
+              resourceId: routeResourceId(request),
+              result: 'denied',
+              statusCode: result.status,
+              traceId: requestTraceIds.get(request) ?? request.id,
+              network: request.ip,
+            })
+            .catch(() => app.log.error('Identity audit persistence failed'));
+        }
+        return sendProblem(request, reply, result.status, result.code, result.detail);
+      }
+      const requiredPermission = route?.requiredPermission;
+      if (requiredPermission && !result.permissions.includes(requiredPermission)) {
+        if (mutation && dependencies.workspaceAuthorization.audit) {
+          await dependencies.workspaceAuthorization
+            .audit({
+              principal: result.principal,
+              operationId,
+              resourceType: route?.ownerPluginId ?? 'runtime',
+              resourceId: routeResourceId(request),
+              result: 'denied',
+              statusCode: 403,
+              traceId: requestTraceIds.get(request) ?? request.id,
+              network: request.ip,
+            })
+            .catch(() => app.log.error('Identity audit persistence failed'));
+        }
+        return sendProblem(
+          request,
+          reply,
+          403,
+          'FORBIDDEN',
+          'You do not have permission to perform this action',
+        );
+      }
+      if (mutation) {
+        workspaceAuditStates.set(request, {
+          principal: result.principal,
+          operationId,
+          resourceType: route?.ownerPluginId ?? 'runtime',
+          resourceId: routeResourceId(request),
+          traceId: requestTraceIds.get(request) ?? request.id,
+          network: request.ip,
+        });
+      }
+      if (!acceptingMutations && mutation) {
+        return sendProblem(request, reply, 503, 'RUNTIME_UNAVAILABLE', 'Runtime is shutting down');
+      }
+      (
+        request as FastifyRequest & {
+          workspacePrincipal: Record<string, unknown>;
+        }
+      ).workspacePrincipal = result.principal;
+      return;
+    }
+    if (!acceptingMutations && mutation) {
+      return sendProblem(request, reply, 503, 'RUNTIME_UNAVAILABLE', 'Runtime is shutting down');
+    }
     if (!issuedToken || Date.now() >= tokenExpiresAt || !secureEqual(token, sessionToken)) {
       return sendProblem(request, reply, 401, 'UNAUTHORIZED', 'A Runtime session is required');
-    }
-    if (!acceptingMutations && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
-      return sendProblem(request, reply, 503, 'RUNTIME_UNAVAILABLE', 'Runtime is shutting down');
     }
   });
 
@@ -198,7 +383,7 @@ export async function buildRuntimeGateway(
     sendProblem(request, reply, 404, 'NOT_FOUND', 'Route not found'),
   );
 
-  registerPlatformHttp(app, graph, runtimeMetadata, dependencies, options, {
+  registerPlatformHttp(app, graph, runtimeMetadata, { ...dependencies, realtime }, options, {
     sessionToken,
     validSessionNonces,
     issue() {
@@ -225,11 +410,12 @@ export async function buildRuntimeGateway(
       await dependencies.registerPluginHttp(app);
     },
     async validateStaged(resolved) {
-      validateRoutes(app, resolved);
+      validateRoutes(app, resolved, stagedApiRoutes);
       validateOpenApi(dependencies.openApiDocument, resolved);
     },
   });
   await dependencies.platform.recoverExpiredJobs();
+  await dependencies.beforeJobsStart?.();
   dependencies.jobs.start();
   for (const effect of dependencies.effects ?? []) await effect.start();
 
@@ -286,15 +472,50 @@ function registerPlatformHttp(
   options: RuntimeGatewayOptions,
   session: SessionState,
 ): void {
-  app.get('/health', async () => ({
-    status: 'ok',
-    services: {
-      database: 'ok',
-      jobs: 'ok',
-      analyticsWorker: metadata.analyticsWorkerStatus,
-    },
-  }));
+  app.get('/health', async () => ({ status: 'ok' }));
+  app.get('/ready', async (_request, reply) => {
+    const database = await databaseReadiness(dependencies.platform, graph);
+    let infrastructure: RuntimeReadinessProbe;
+    try {
+      infrastructure = dependencies.readiness
+        ? await dependencies.readiness()
+        : {
+            redis: { status: 'ok', applicability: 'not-applicable' },
+            queue: { status: 'ok', implementation: 'local' },
+          };
+    } catch {
+      infrastructure = {
+        redis: { status: 'error' },
+        queue: { status: 'error' },
+      };
+    }
+    const checks = {
+      database,
+      redis: infrastructure.redis,
+      queue: infrastructure.queue,
+      browser: { status: dependencies.capabilities.browser ? 'ok' : 'unavailable' },
+      analyticsWorker: {
+        status: metadata.analyticsWorkerStatus === 'ready' ? 'ok' : 'degraded',
+        workerStatus: metadata.analyticsWorkerStatus,
+      },
+    };
+    const ready =
+      database.status === 'ok' &&
+      infrastructure.redis.status === 'ok' &&
+      infrastructure.queue.status === 'ok';
+    reply.code(ready ? 200 : 503);
+    return { status: ready ? 'ready' : 'not-ready', checks };
+  });
   app.post('/api/v2/session', async (request, reply) => {
+    if (dependencies.workspaceAuthorization) {
+      return sendProblem(
+        request,
+        reply,
+        410,
+        'IDENTITY_AUTH_REQUIRED',
+        'Legacy Runtime sessions are disabled; use workspace authentication',
+      );
+    }
     const body = isObject(request.body) ? request.body : {};
     const nonce = typeof body.nonce === 'string' ? body.nonce : undefined;
     const adminToken = typeof body.adminToken === 'string' ? body.adminToken : undefined;
@@ -347,12 +568,34 @@ function registerPlatformHttp(
     ),
   }));
   app.get('/api/v2/capabilities', async () => dependencies.capabilities);
-  app.get('/api/v2/runtime/summary', async () => ({
-    schedulingPaused:
-      (await dependencies.platform.getRuntimeSetting<boolean>('scheduling.paused')) ?? false,
-    jobs: await dependencies.jobs.list({ limit: 20 }),
-    analyticsWorkerStatus: metadata.analyticsWorkerStatus,
-  }));
+  app.get('/api/v2/runtime/summary', async () => {
+    const jobs = await dependencies.jobs.list({ limit: 1_000 });
+    const jobsByState = Object.fromEntries(
+      [
+        'queued',
+        'claimed',
+        'running',
+        'persisting',
+        'canceling',
+        'canceled',
+        'interrupted',
+        'succeeded',
+        'failed',
+      ].map((state) => [state, jobs.filter((job) => job.state === state).length]),
+    );
+    return {
+      schedulingPaused:
+        (await dependencies.platform.getRuntimeSetting<boolean>('scheduling.paused')) ?? false,
+      startedAt: metadata.startedAt,
+      uptimeSeconds: Math.max(0, Math.floor((Date.now() - Date.parse(metadata.startedAt)) / 1_000)),
+      queueBacklog: jobs.filter((job) =>
+        ['queued', 'claimed', 'running', 'persisting', 'canceling'].includes(job.state),
+      ).length,
+      jobsByState,
+      jobs: jobs.slice(0, 20),
+      analyticsWorkerStatus: metadata.analyticsWorkerStatus,
+    };
+  });
   app.get('/api/v2/desktop/diagnostics', async () => {
     const [jobs, migrations] = await Promise.all([
       dependencies.jobs.list({ limit: 100 }),
@@ -423,11 +666,18 @@ function registerPlatformHttp(
       'content-type': 'text/event-stream',
       'cache-control': 'no-cache, no-transform',
       connection: 'keep-alive',
+      'x-accel-buffering': 'no',
       ...sseCorsHeaders(request, options.allowedOrigins),
+    });
+    const unsubscribe = dependencies.realtime?.subscribe((event) => {
+      reply.raw.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
     });
     const heartbeat = setInterval(() => reply.raw.write(': heartbeat\n\n'), 15_000);
     heartbeat.unref?.();
-    request.raw.once('close', () => clearInterval(heartbeat));
+    request.raw.once('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe?.();
+    });
   });
   app.get('/api/v2/artifacts/:artifactId/content', async (request, reply) => {
     const artifactId = (request.params as { artifactId?: string }).artifactId;
@@ -464,7 +714,38 @@ function validateMigrations(graph: ResolvedGraph, migrations: readonly RuntimeMi
   }
 }
 
-function validateRoutes(app: FastifyInstance, graph: ResolvedGraph): void {
+async function databaseReadiness(
+  platform: PlatformRepository,
+  graph: ResolvedGraph,
+): Promise<
+  | { status: 'ok'; migrationCount: number }
+  | { status: 'error'; migrationCount: number; missingMigrations: string[] }
+> {
+  try {
+    const migrations = await platform.listMigrations();
+    const succeeded = new Set(
+      migrations
+        .filter(({ result }) => result === 'succeeded')
+        .map(({ pluginId, migrationId }) => `${pluginId}:${migrationId}`),
+    );
+    const expected = graph.plugins.flatMap(({ descriptor }) =>
+      (descriptor.migrations ?? []).map(({ id }) => `${descriptor.id}:${id}`),
+    );
+    const missingMigrations = expected.filter((id) => !succeeded.has(id));
+    return missingMigrations.length === 0
+      ? { status: 'ok', migrationCount: migrations.length }
+      : { status: 'error', migrationCount: migrations.length, missingMigrations };
+  } catch {
+    return { status: 'error', migrationCount: 0, missingMigrations: ['database-unreachable'] };
+  }
+}
+
+function validateRoutes(
+  app: FastifyInstance,
+  graph: ResolvedGraph,
+  stagedApiRoutes: ReadonlySet<string>,
+): void {
+  const expectedApiRoutes = new Set<string>();
   for (const { descriptor } of graph.plugins) {
     for (const route of descriptor.routes ?? []) {
       if (!app.hasRoute({ method: route.method, url: fastifyPath(route) })) {
@@ -472,6 +753,14 @@ function validateRoutes(app: FastifyInstance, graph: ResolvedGraph): void {
           `Plugin ${descriptor.id} did not stage ${route.method.toUpperCase()} ${route.path}`,
         );
       }
+      if (route.path.startsWith('/api/')) {
+        expectedApiRoutes.add(`${route.method.toUpperCase()} ${fastifyPath(route)}`);
+      }
+    }
+  }
+  for (const route of stagedApiRoutes) {
+    if (!expectedApiRoutes.has(route)) {
+      throw new Error(`Runtime staged an unowned API route without requiredPermission: ${route}`);
     }
   }
 }
@@ -510,19 +799,64 @@ function fastifyPath(route: RouteContribution): string {
   return route.path.replaceAll(/\{([^}]+)\}/g, ':$1');
 }
 
-function isPublicRoute(request: FastifyRequest): boolean {
-  return (
-    request.method === 'OPTIONS' ||
-    request.url === '/health' ||
-    request.url.startsWith('/api/v2/session') ||
-    request.url.startsWith('/api/v2/openapi.json') ||
-    request.url === '/api/v2/version' ||
-    request.url === '/api/v2/runtime' ||
-    request.url === '/api/v2/runtime/graph' ||
-    request.url === '/api/v2/capabilities' ||
-    request.url === '/api/tasks' ||
-    request.url.startsWith('/api/v1/')
-  );
+interface RouteMetadata {
+  readonly operationId: string;
+  readonly ownerPluginId: string;
+  readonly requiredPermission: string | null;
+}
+
+function routeMetadata(request: FastifyRequest, graph: ResolvedGraph): RouteMetadata | undefined {
+  const method = request.method.toUpperCase();
+  const path = request.routeOptions.url || request.url.split('?')[0];
+  for (const { descriptor } of graph.plugins) {
+    const route = descriptor.routes?.find(
+      (candidate) =>
+        (candidate.method.toUpperCase() === method ||
+          (method === 'HEAD' && candidate.method.toUpperCase() === 'GET')) &&
+        fastifyPath(candidate) === path,
+    );
+    if (route) {
+      return {
+        operationId: route.operationId,
+        ownerPluginId: descriptor.id,
+        requiredPermission: route.requiredPermission,
+      };
+    }
+  }
+  return undefined;
+}
+
+function routeResourceId(request: FastifyRequest): string | null {
+  if (!isObject(request.params)) return null;
+  const clues = Object.entries(request.params)
+    .filter(
+      ([key, value]) =>
+        // Route parameters ending in Id/Key identify the audited resource; they are opaque
+        // identifiers, not the corresponding credential value (for example tokenId).
+        typeof value === 'string' && /(?:Id|Key)$/u.test(key),
+    )
+    .map(([key, value]) => `${key}=${String(value).slice(0, 200)}`);
+  return clues.length > 0 ? clues.join(',').slice(0, 1_000) : null;
+}
+
+function auditResult(statusCode: number): 'succeeded' | 'failed' | 'denied' {
+  if (statusCode === 401 || statusCode === 403) return 'denied';
+  return statusCode < 400 ? 'succeeded' : 'failed';
+}
+
+function requestCookie(request: FastifyRequest, name: string): string | undefined {
+  const header = request.headers.cookie;
+  if (!header) return undefined;
+  for (const part of header.split(';')) {
+    const separator = part.indexOf('=');
+    if (separator < 0 || part.slice(0, separator).trim() !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(separator + 1).trim());
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 function incomingTraceId(request: FastifyRequest): string {
@@ -580,15 +914,22 @@ function sendProblem(
     });
 }
 
-const sensitiveName = /token|key|secret|password|passwd|auth|cookie|signature|session/i;
+const sensitiveName = /token|key|secret|password|passwd|auth|cookie|signature|session|invitation/i;
 
-function redactSensitiveUrl(value: string): string {
+export function redactSensitiveUrl(value: string): string {
   try {
     const parsed = new URL(value, 'http://zhiyun.invalid');
     parsed.username = '';
     parsed.password = '';
     for (const key of [...parsed.searchParams.keys()]) {
       if (sensitiveName.test(key)) parsed.searchParams.set(key, '[REDACTED]');
+    }
+    if (parsed.hash) {
+      const fragment = new URLSearchParams(parsed.hash.slice(1));
+      for (const key of [...fragment.keys()]) {
+        if (sensitiveName.test(key)) fragment.set(key, '[REDACTED]');
+      }
+      parsed.hash = fragment.toString();
     }
     return parsed.origin === 'http://zhiyun.invalid'
       ? `${parsed.pathname}${parsed.search}${parsed.hash}`
@@ -598,15 +939,106 @@ function redactSensitiveUrl(value: string): string {
   }
 }
 
+const requiredLogRedactions = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'req.headers["x-csrf-token"]',
+  'res.headers["set-cookie"]',
+] as const;
+
+/** Applies mandatory request sanitization to every enabled Fastify/Pino logger. */
+export function secureRuntimeLogger(
+  logger: boolean | Record<string, unknown>,
+): boolean | Record<string, unknown> {
+  if (logger === false) return false;
+  const configured = logger === true ? {} : logger;
+  const serializers = isObject(configured.serializers) ? configured.serializers : {};
+  const hooks = isObject(configured.hooks) ? configured.hooks : {};
+  return {
+    ...configured,
+    redact: mergeLogRedactions(configured.redact),
+    serializers: {
+      ...serializers,
+      req: serializeRuntimeRequest,
+    },
+    hooks: {
+      ...hooks,
+      logMethod(
+        this: unknown,
+        inputArguments: unknown[],
+        method: (...arguments_: unknown[]) => void,
+      ) {
+        method.apply(this, inputArguments.map(sanitizeLogArgument));
+      },
+    },
+  };
+}
+
+export function serializeRuntimeRequest(request: Record<string, unknown>): Record<string, unknown> {
+  const socket = isObject(request.socket) ? request.socket : {};
+  const url = typeof request.url === 'string' ? redactSensitiveUrl(request.url) : undefined;
+  return {
+    ...(typeof request.id === 'string' ? { id: request.id } : {}),
+    ...(typeof request.method === 'string' ? { method: request.method } : {}),
+    ...(url ? { url } : {}),
+    ...(typeof request.hostname === 'string' ? { hostname: request.hostname } : {}),
+    ...(typeof request.remoteAddress === 'string'
+      ? { remoteAddress: request.remoteAddress }
+      : typeof socket.remoteAddress === 'string'
+        ? { remoteAddress: socket.remoteAddress }
+        : {}),
+    ...(typeof request.remotePort === 'number'
+      ? { remotePort: request.remotePort }
+      : typeof socket.remotePort === 'number'
+        ? { remotePort: socket.remotePort }
+        : {}),
+  };
+}
+
+function mergeLogRedactions(configured: unknown): unknown {
+  if (Array.isArray(configured)) {
+    return [
+      ...new Set([
+        ...configured.filter((path): path is string => typeof path === 'string'),
+        ...requiredLogRedactions,
+      ]),
+    ];
+  }
+  if (isObject(configured)) {
+    const paths = Array.isArray(configured.paths)
+      ? configured.paths.filter((path): path is string => typeof path === 'string')
+      : [];
+    return { ...configured, paths: [...new Set([...paths, ...requiredLogRedactions])] };
+  }
+  return [...requiredLogRedactions];
+}
+
 function redactSensitiveText(value: string): string {
   return value
     .replaceAll(/https?:\/\/[^\s"'<>]+/gi, (url) => redactSensitiveUrl(url))
+    .replaceAll(
+      /([?&#](?:token|key|secret|password|passwd|auth|cookie|signature|session|invitation)[^=&#\s]*=)[^&#\s]*/gi,
+      '$1[REDACTED]',
+    )
     .replaceAll(/(Bearer\s+)[A-Za-z0-9._~+/-]+=*/gi, '$1[REDACTED]')
     .replaceAll(
       /((?:authorization|cookie|proxy-authorization|api[-_ ]?key)\s*[:=]\s*)[^\s,;]+/gi,
       '$1[REDACTED]',
     )
     .replaceAll(/(postgres(?:ql)?:\/\/)[^\s@]+@/gi, '$1[REDACTED]@');
+}
+
+function sanitizeLogArgument(value: unknown): unknown {
+  if (typeof value === 'string') return redactSensitiveText(value);
+  if (value instanceof Error) {
+    const error = new Error(redactSensitiveText(value.message), {
+      ...(value.cause === undefined ? {} : { cause: sanitizeLogArgument(value.cause) }),
+    });
+    error.name = value.name;
+    if (value.stack) error.stack = redactSensitiveText(value.stack);
+    return error;
+  }
+  return value;
 }
 
 function attachment(filename: string): string {

@@ -2,14 +2,20 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { runtimeClient } from '@zhiyun/client';
-import type { TaskListItem } from '@zhiyun/contracts';
+import type { TaskHealth, TaskListItem } from '@zhiyun/contracts';
+import { useWorkspaceAuth } from '../auth.js';
 import { Badge, Button, Card, ErrorNotice } from '../components/ui.js';
 import { installBuiltInExampleTask, isBuiltInExampleTask } from '../example-task.js';
+import { describeSchedule } from '../schedule-builder.js';
 
 export function TaskListPage() {
+  const auth = useWorkspaceAuth();
   const { t, i18n } = useTranslation();
+  const canWrite = !auth.identityEnabled || auth.permissions.includes('task.write');
+  const canRun = !auth.identityEnabled || auth.permissions.includes('run.execute');
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<TaskListItem[]>([]);
+  const [taskHealth, setTaskHealth] = useState<TaskHealth[]>([]);
   const [error, setError] = useState('');
   const [addingExample, setAddingExample] = useState(false);
   const load = () =>
@@ -18,7 +24,16 @@ export function TaskListPage() {
         const managed = new Set(
           sources.flatMap((source) => (source.taskId ? [source.taskId] : [])),
         );
-        setTasks(page.items.filter((task) => !managed.has(task.id)));
+        const visible = page.items.filter((task) => !managed.has(task.id));
+        setTasks(visible);
+        if (!visible.length) {
+          setTaskHealth([]);
+          return undefined;
+        }
+        return runtimeClient
+          .listTaskHealth(visible.map(({ id }) => id))
+          .then(setTaskHealth)
+          .catch(() => setTaskHealth([]));
       })
       .catch((reason: Error) => setError(reason.message));
   useEffect(() => {
@@ -54,6 +69,7 @@ export function TaskListPage() {
       setAddingExample(false);
     }
   };
+  const healthByTask = new Map(taskHealth.map((health) => [health.taskId, health]));
   return (
     <>
       <div className="page-heading">
@@ -65,16 +81,20 @@ export function TaskListPage() {
           <Link className="button button-secondary" to="/preferences">
             {t('preferencesAndTrends')}
           </Link>
-          <Button
-            className="button-secondary"
-            disabled={addingExample}
-            onClick={() => void openExample()}
-          >
-            {addingExample ? t('addingExampleTask') : t('exampleTask')}
-          </Button>
-          <Link className="button" to="/tasks/new">
-            ＋ {t('newTask')}
-          </Link>
+          {canWrite && (
+            <>
+              <Button
+                className="button-secondary"
+                disabled={addingExample}
+                onClick={() => void openExample()}
+              >
+                {addingExample ? t('addingExampleTask') : t('exampleTask')}
+              </Button>
+              <Link className="button" to="/tasks/new">
+                ＋ {t('newTask')}
+              </Link>
+            </>
+          )}
         </div>
       </div>
       <ErrorNotice message={error} />
@@ -87,16 +107,20 @@ export function TaskListPage() {
             <Link className="button" to="/preferences">
               {t('preferencesAndTrends')}
             </Link>
-            <Button
-              className="button-secondary"
-              disabled={addingExample}
-              onClick={() => void openExample()}
-            >
-              {addingExample ? t('addingExampleTask') : t('exampleTask')}
-            </Button>
-            <Link className="button button-secondary" to="/tasks/new">
-              {t('newTask')}
-            </Link>
+            {canWrite && (
+              <>
+                <Button
+                  className="button-secondary"
+                  disabled={addingExample}
+                  onClick={() => void openExample()}
+                >
+                  {addingExample ? t('addingExampleTask') : t('exampleTask')}
+                </Button>
+                <Link className="button button-secondary" to="/tasks/new">
+                  {t('newTask')}
+                </Link>
+              </>
+            )}
           </div>
         </Card>
       ) : (
@@ -125,15 +149,21 @@ export function TaskListPage() {
                     <td>
                       <Badge
                         tone={
+                          healthByTask.get(task.id)?.status === 'failing' ||
                           task.status === 'failed'
                             ? 'danger'
-                            : task.status === 'succeeded'
+                            : healthByTask.get(task.id)?.status === 'healthy'
                               ? 'success'
                               : 'neutral'
                         }
                       >
-                        {task.status}
+                        {healthByTask.get(task.id)?.status ?? task.status}
                       </Badge>
+                      {healthByTask.get(task.id)?.issues[0] && (
+                        <small className="status-detail">
+                          {healthByTask.get(task.id)!.issues[0]!.message}
+                        </small>
+                      )}
                     </td>
                     <td>
                       {task.latestRun
@@ -144,16 +174,20 @@ export function TaskListPage() {
                         : '—'}
                     </td>
                     <td>{task.latestRun?.recordCount ?? 0}</td>
-                    <td>{task.schedule.mode === 'cron' ? task.schedule.cron : 'Manual'}</td>
+                    <td>{describeSchedule(task.schedule)}</td>
                     <td>
                       <div className="row-actions">
-                        <Button onClick={() => void run(task.id)}>{t('run')}</Button>
-                        <Link className="button button-secondary" to={`/tasks/${task.id}/edit`}>
-                          {t('edit')}
-                        </Link>
-                        <Button className="button-danger" onClick={() => void remove(task.id)}>
-                          {t('delete')}
-                        </Button>
+                        {canRun && <Button onClick={() => void run(task.id)}>{t('run')}</Button>}
+                        {canWrite && (
+                          <>
+                            <Link className="button button-secondary" to={`/tasks/${task.id}/edit`}>
+                              {t('edit')}
+                            </Link>
+                            <Button className="button-danger" onClick={() => void remove(task.id)}>
+                              {t('delete')}
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

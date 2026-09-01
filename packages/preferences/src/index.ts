@@ -19,6 +19,7 @@ import {
 
 export const HONGGUO_SOURCE_KEY = 'hongguo.latest';
 export const FANQIE_SOURCE_KEY = 'fanqie.read-ranking';
+export const QIDIAN_SOURCE_KEY = 'qidian.monthly-ticket-ranking';
 export const BILIBILI_SOURCE_KEY = 'bilibili.popular';
 export const DOUYIN_SOURCE_KEY = 'douyin.official';
 
@@ -153,6 +154,111 @@ export const FANQIE_TREND_PLAN: CrawlPlanDefinition = normalizeCrawlPlan({
   limits: { maxRequests: 24, maxRuntimeMs: 600_000, maxRecords: 20 },
 });
 
+export const QIDIAN_TREND_PLAN: CrawlPlanDefinition = normalizeCrawlPlan({
+  version: 1,
+  list: {
+    mode: 'http',
+    actions: [],
+    rule: {
+      type: 'css',
+      container: 'a[href*="m.qidian.com/book/"]',
+      fields: {
+        rank: { selector: ':scope', value: 'index', dataType: 'number' },
+        detailUrl: {
+          selector: ':scope',
+          value: 'attribute',
+          attribute: 'href',
+          dataType: 'url',
+        },
+        title: { selector: 'h2', value: 'text', dataType: 'string' },
+        rankCountText: { selector: 'h2 + div', value: 'text', dataType: 'string' },
+        summary: { selector: 'p:first-of-type', value: 'text', dataType: 'string' },
+        metadataText: { selector: 'p:last-of-type', value: 'text', dataType: 'string' },
+        coverUrl: {
+          selector: 'img',
+          value: 'attribute',
+          attribute: 'data-src',
+          dataType: 'url',
+        },
+      },
+    },
+  },
+  pagination: { type: 'none' },
+  dedupe: { strategy: 'fields', fields: ['detailUrl'] },
+  limits: { maxRequests: 2, maxRuntimeMs: 120_000, maxRecords: 20 },
+});
+
+export const QIDIAN_BOOK_PLAN: CrawlPlanDefinition = normalizeCrawlPlan({
+  version: 1,
+  list: {
+    mode: 'http',
+    actions: [],
+    rule: {
+      type: 'css',
+      container: 'html',
+      fields: {
+        detailUrl: {
+          selector: 'meta[property="og:url"]',
+          value: 'attribute',
+          attribute: 'content',
+          dataType: 'url',
+        },
+        title: {
+          selector: 'meta[property="og:title"]',
+          value: 'attribute',
+          attribute: 'content',
+          dataType: 'string',
+        },
+        author: {
+          selector: 'meta[property="og:novel:author"]',
+          value: 'attribute',
+          attribute: 'content',
+          dataType: 'string',
+        },
+        summary: {
+          selector: 'meta[property="og:description"]',
+          value: 'attribute',
+          attribute: 'content',
+          dataType: 'string',
+        },
+        coverUrl: {
+          selector: 'meta[property="og:image"]',
+          value: 'attribute',
+          attribute: 'content',
+          dataType: 'url',
+        },
+        category: {
+          selector: 'meta[property="og:novel:category"]',
+          value: 'attribute',
+          attribute: 'content',
+          dataType: 'string',
+        },
+        creationStatus: {
+          selector: 'meta[property="og:novel:status"]',
+          value: 'attribute',
+          attribute: 'content',
+          dataType: 'string',
+        },
+        updatedAtText: {
+          selector: 'meta[property="og:novel:update_time"]',
+          value: 'attribute',
+          attribute: 'content',
+          dataType: 'string',
+        },
+        lastChapterTitle: {
+          selector: 'meta[property="og:novel:latest_chapter_name"]',
+          value: 'attribute',
+          attribute: 'content',
+          dataType: 'string',
+        },
+      },
+    },
+  },
+  pagination: { type: 'none' },
+  dedupe: { strategy: 'fields', fields: ['detailUrl'] },
+  limits: { maxRequests: 1, maxRuntimeMs: 30_000, maxRecords: 1 },
+});
+
 export const BILIBILI_TREND_PLAN: CrawlPlanDefinition = normalizeCrawlPlan({
   version: 1,
   list: {
@@ -282,6 +388,25 @@ export const TREND_SOURCE_CATALOG: TrendSourceCatalogEntry[] = [
     plan: FANQIE_TREND_PLAN,
   },
   {
+    key: QIDIAN_SOURCE_KEY,
+    platform: 'qidian',
+    name: '起点男生月票榜',
+    description: '从官方移动端公开月票榜获取前 20 本小说，不需要登录或 Cookie。',
+    scheduleLabel: '每天 16:45',
+    cron: '45 16 * * *',
+    supported: true,
+    task: sourceTask({
+      name: '趋势源：起点男生月票榜',
+      startUrl: 'https://m.qidian.com/rank/yuepiao/',
+      instruction: '采集起点男生月票榜前 20 本小说的公开排名、书名、作者、分类和简介。',
+      cron: '45 16 * * *',
+      browser: false,
+      maxRequests: 2,
+      keyFields: ['detailUrl'],
+    }),
+    plan: QIDIAN_TREND_PLAN,
+  },
+  {
     key: BILIBILI_SOURCE_KEY,
     platform: 'bilibili',
     name: 'B站综合热门',
@@ -369,6 +494,42 @@ function isoFromSeconds(value: unknown): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function chineseCount(value: unknown): number {
+  const raw = text(value);
+  if (!raw) return 0;
+  const match = raw.replace(/,/g, '').match(/([\d.]+)\s*(万|亿)?/);
+  if (!match) return 0;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return 0;
+  return Math.round(amount * (match[2] === '亿' ? 100_000_000 : match[2] === '万' ? 10_000 : 1));
+}
+
+function qidianListMetadata(value: unknown): {
+  author: string | null;
+  category: string | null;
+  wordCountText: string | null;
+} {
+  const parts = (text(value) ?? '')
+    .split(/\s*[·•]\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return {
+    author: parts[0] ?? null,
+    category: parts[1] ?? null,
+    wordCountText: parts[2] ?? null,
+  };
+}
+
+function qidianUpdatedAt(value: unknown): string | null {
+  const raw = text(value);
+  if (!raw) return null;
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
+    ? `${raw.replace(' ', 'T')}+08:00`
+    : raw;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 type TrendRecord = Pick<DatasetRecord, 'data' | 'sourceUrl' | 'lastSeenAt'>;
 
 function baseTrendItem(sourceKey: string, record: TrendRecord): TrendItem | null {
@@ -431,6 +592,40 @@ function baseTrendItem(sourceKey: string, record: TrendRecord): TrendItem | null
       matchingTags: [],
     });
   }
+  if (sourceKey === QIDIAN_SOURCE_KEY) {
+    const detailUrl = text(data.detailUrl);
+    const externalId = text(data.bookId) ?? detailUrl?.match(/\/book\/(\d+)\/?/)?.[1] ?? null;
+    const title = text(data.title);
+    if (!externalId || !title) return null;
+    const listMetadata = qidianListMetadata(data.metadataText);
+    const rank = number(data.rank);
+    return trendItemSchema.parse({
+      id: `${sourceKey}:${externalId}`,
+      sourceKey,
+      platform: 'qidian',
+      contentType: 'novel',
+      externalId,
+      title,
+      url: detailUrl ?? `https://m.qidian.com/book/${externalId}/`,
+      coverUrl: text(data.coverUrl),
+      author: text(data.author) ?? listMetadata.author,
+      summary: text(data.summary),
+      tags: uniqueTags(['男生月票榜', text(data.category) ?? listMetadata.category]),
+      metadata: {
+        board: '男生月票榜',
+        creationStatus: text(data.creationStatus),
+        lastChapterTitle: text(data.lastChapterTitle),
+      },
+      rank: rank > 0 ? rank : null,
+      score: 0,
+      metrics: {
+        monthlyTickets: chineseCount(data.rankCountText),
+        wordCount: chineseCount(data.wordCountText ?? listMetadata.wordCountText),
+      },
+      updatedAt: qidianUpdatedAt(data.updatedAtText) ?? record.lastSeenAt,
+      matchingTags: [],
+    });
+  }
   if (sourceKey === BILIBILI_SOURCE_KEY) {
     const externalId =
       text(data.bvid) ?? text(data.detailUrl)?.match(/\/video\/(BV[\w]+)/)?.[1] ?? null;
@@ -477,6 +672,7 @@ export function normalizeTrendRecords(sourceKey: string, records: TrendRecord[])
   });
   const maxRank = Math.max(1, ...items.map((item) => item.rank ?? items.length));
   const maxRead = Math.max(0, ...items.map((item) => item.metrics.readCount ?? 0));
+  const maxMonthlyTickets = Math.max(0, ...items.map((item) => item.metrics.monthlyTickets ?? 0));
   const maxView = Math.max(0, ...items.map((item) => item.metrics.view ?? 0));
   const maxEngagement = Math.max(
     0,
@@ -490,6 +686,10 @@ export function normalizeTrendRecords(sourceKey: string, records: TrendRecord[])
     let score: number;
     if (sourceKey === FANQIE_SOURCE_KEY) {
       score = 100 * (rankScore * 0.75 + logRatio(item.metrics.readCount ?? 0, maxRead) * 0.25);
+    } else if (sourceKey === QIDIAN_SOURCE_KEY) {
+      score =
+        100 *
+        (rankScore * 0.7 + logRatio(item.metrics.monthlyTickets ?? 0, maxMonthlyTickets) * 0.3);
     } else if (sourceKey === BILIBILI_SOURCE_KEY) {
       const engagement =
         (item.metrics.like ?? 0) + (item.metrics.share ?? 0) + (item.metrics.favorite ?? 0);
@@ -522,6 +722,7 @@ const contentTypeLabels: Record<PreferenceContentType, string> = {
 const platformLabels: Record<PreferencePlatform, string> = {
   hongguo: '红果',
   fanqie: '番茄',
+  qidian: '起点',
   bilibili: 'B站',
   douyin: '抖音',
   manual: '手动',
@@ -689,6 +890,7 @@ export function matchPreferenceTags(items: TrendItem[], profile: PreferenceProfi
 export function contentResolver(url: string): {
   platform: Exclude<PreferencePlatform, 'manual' | 'douyin'>;
   plan: CrawlPlanDefinition;
+  crawlUrl?: string;
 } | null {
   const parsed = new URL(url);
   if (parsed.hostname === 'fanqienovel.com' || parsed.hostname === 'www.fanqienovel.com') {
@@ -721,6 +923,22 @@ export function contentResolver(url: string): {
         },
         limits: { maxRequests: 1, maxRuntimeMs: 30_000, maxRecords: 1 },
       }),
+    };
+  }
+  if (
+    parsed.hostname === 'm.qidian.com' ||
+    parsed.hostname === 'www.qidian.com' ||
+    parsed.hostname === 'qidian.com' ||
+    parsed.hostname === 'book.qidian.com'
+  ) {
+    const bookId =
+      parsed.pathname.match(/^\/book\/(\d+)\/?$/)?.[1] ??
+      parsed.pathname.match(/^\/info\/(\d+)\/?$/)?.[1];
+    if (!bookId) return null;
+    return {
+      platform: 'qidian',
+      crawlUrl: `https://m.qidian.com/book/${bookId}/`,
+      plan: QIDIAN_BOOK_PLAN,
     };
   }
   if (
@@ -759,7 +977,9 @@ export function preferenceContentFromResolved(
       ? HONGGUO_SOURCE_KEY
       : platform === 'fanqie'
         ? FANQIE_SOURCE_KEY
-        : BILIBILI_SOURCE_KEY;
+        : platform === 'qidian'
+          ? QIDIAN_SOURCE_KEY
+          : BILIBILI_SOURCE_KEY;
   const item = baseTrendItem(sourceKey, {
     data: { ...data, detailUrl: sourceUrl },
     sourceUrl,

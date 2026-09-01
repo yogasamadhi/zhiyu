@@ -10,6 +10,7 @@ import type {
 } from '@zhiyun/contracts';
 import { runtimeClient, type DatasetResource } from '@zhiyun/client';
 import { Badge, Button, Card, ErrorNotice, Input } from '../components/ui.js';
+import { TaskTabs } from '../components/TaskTabs.js';
 import type { Task } from '../types.js';
 
 interface DatasetPageResult {
@@ -219,6 +220,7 @@ export function DatasetPage() {
         </div>
       </div>
       <ErrorNotice message={error} />
+      {task?.id && <TaskTabs taskId={task.id} active="data" />}
       <div className="stats">
         {(['current', 'added', 'updated', 'removed'] as const).map((key) => (
           <Card key={key}>

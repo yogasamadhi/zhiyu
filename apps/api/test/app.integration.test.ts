@@ -4,9 +4,9 @@ import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 
-let fixture: Server;
+let fixture!: Server;
 let fixtureUrl: string;
-let app: FastifyInstance;
+let app!: FastifyInstance;
 let token = '';
 let taskId = '';
 let runId = '';
@@ -61,7 +61,7 @@ beforeAll(async () => {
 }, 20_000);
 
 afterAll(async () => {
-  if (taskId) {
+  if (taskId && app) {
     const task = await app.inject({
       method: 'GET',
       url: `/api/v2/tasks/${taskId}`,
@@ -76,13 +76,34 @@ afterAll(async () => {
       }),
     });
   }
-  await app.close();
-  await new Promise<void>((resolve, reject) =>
-    fixture.close((error) => (error ? reject(error) : resolve())),
-  );
+  if (app) await app.close();
+  if (fixture?.listening) {
+    await new Promise<void>((resolve, reject) =>
+      fixture.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
 });
 
 describe('ZhiYun Runtime API v2 lifecycle', () => {
+  it('separates process liveness from infrastructure readiness', async () => {
+    const health = await app.inject({ method: 'GET', url: '/health' });
+    expect(health.statusCode).toBe(200);
+    expect(health.json()).toEqual({ status: 'ok' });
+
+    const readiness = await app.inject({ method: 'GET', url: '/ready' });
+    expect(readiness.statusCode).toBe(200);
+    expect(readiness.json()).toMatchObject({
+      status: 'ready',
+      checks: {
+        database: { status: 'ok' },
+        redis: { status: 'ok' },
+        queue: { status: 'ok', started: true },
+        browser: { status: 'ok' },
+        analyticsWorker: { status: 'ok', workerStatus: 'ready' },
+      },
+    });
+  });
+
   it('rejects removed legacy API paths with Problem Details', async () => {
     for (const url of ['/api/tasks', '/api/v1/version', '/api/v1/tasks']) {
       const response = await app.inject({ method: 'GET', url });
@@ -417,7 +438,13 @@ describe('ZhiYun Runtime API v2 lifecycle', () => {
       url: '/api/v2/runtime/summary',
       headers: headers(),
     });
-    expect(pausedSummary.json().schedulingPaused).toBe(true);
+    expect(pausedSummary.json()).toMatchObject({
+      schedulingPaused: true,
+      analyticsWorkerStatus: 'ready',
+      queueBacklog: expect.any(Number),
+      uptimeSeconds: expect.any(Number),
+      jobsByState: expect.objectContaining({ queued: expect.any(Number) }),
+    });
     const resumed = await app.inject({
       method: 'POST',
       url: '/api/v2/scheduler/resume',

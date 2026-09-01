@@ -116,3 +116,7 @@ CREATE TABLE rule_repair_proposals (
   created_at TEXT NOT NULL
 );
 `;
+
+export const collectionSqliteMigration002 = `
+ALTER TABLE tasks ADD COLUMN origin TEXT NOT NULL DEFAULT '{"kind":"manual"}';
+`;

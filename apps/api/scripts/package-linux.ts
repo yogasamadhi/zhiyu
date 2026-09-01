@@ -15,6 +15,7 @@ const workerSource = resolve(
   workspaceRoot,
   'services/analytics-worker/dist/linux-x64/analytics-worker',
 );
+const webSource = resolve(workspaceRoot, 'apps/web/dist');
 if (!(await stat(workerSource).catch(() => undefined))?.isDirectory()) {
   throw new Error(`Linux Analytics Worker is missing: ${workerSource}`);
 }
@@ -23,6 +24,7 @@ await rm(releaseRoot, { recursive: true, force: true });
 await rm(archive, { force: true });
 await mkdir(releaseRoot, { recursive: true });
 await run(['bun', 'run', 'compliance:licenses']);
+await run(['bun', 'run', '--filter', '@zhiyun/web', 'build']);
 
 await run([
   'bun',
@@ -39,6 +41,7 @@ await run([
 const workerTarget = resolve(releaseRoot, 'analytics-worker/linux-x64/analytics-worker');
 await mkdir(resolve(releaseRoot, 'analytics-worker/linux-x64'), { recursive: true });
 await cp(workerSource, workerTarget, { recursive: true });
+await cp(webSource, resolve(releaseRoot, 'web'), { recursive: true });
 await cp(resolve(workspaceRoot, 'dist/compliance'), resolve(releaseRoot, 'compliance'), {
   recursive: true,
 });
@@ -62,14 +65,16 @@ await writeFile(
 await run(['bun', 'install', '--production', '--linker=hoisted'], releaseRoot);
 
 const checksums = await Promise.all(
-  ['zhiyun-api', 'analytics-worker/linux-x64/analytics-worker/analytics-worker'].map(
-    async (relativePath) => {
-      const digest = createHash('sha256')
-        .update(await readFile(resolve(releaseRoot, relativePath)))
-        .digest('hex');
-      return `${digest}  ${relativePath}`;
-    },
-  ),
+  [
+    'zhiyun-api',
+    'analytics-worker/linux-x64/analytics-worker/analytics-worker',
+    'web/index.html',
+  ].map(async (relativePath) => {
+    const digest = createHash('sha256')
+      .update(await readFile(resolve(releaseRoot, relativePath)))
+      .digest('hex');
+    return `${digest}  ${relativePath}`;
+  }),
 );
 await writeFile(resolve(releaseRoot, 'SHA256SUMS'), `${checksums.join('\n')}\n`);
 await writeFile(
@@ -78,6 +83,7 @@ await writeFile(
     'ZhiYun Headless 1.0.0 (Linux x64)',
     '',
     'Run ./zhiyun-api with PostgreSQL and Redis connection settings from .env.example.',
+    'The Web UI is bundled under web/ and served from the same Origin as the API.',
     'The supervised Python Analytics Worker is bundled under analytics-worker/.',
     'Chromium is supplied by the deployment image or PLAYWRIGHT_BROWSERS_PATH.',
     'Third-party license records are bundled under compliance/.',

@@ -9,10 +9,12 @@ import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
 import { HostCredentialStore } from '@zhiyun/platform';
 import { JobHandlerRegistry } from '@zhiyun/platform-core';
 import { SqliteAnalysisRepository } from '@zhiyun/plugin-analytics';
+import { SqliteAiConversationRepository } from '@zhiyun/plugin-ai-assistance';
 import { SqliteCollectionRepository } from '@zhiyun/plugin-collection';
 import { SqliteCorpusRepository } from '@zhiyun/plugin-corpus';
 import { SqliteDatasetRepository } from '@zhiyun/plugin-datasets';
 import { SqliteOutputRepository } from '@zhiyun/plugin-outputs';
+import { SqliteMonitoringRepository } from '@zhiyun/plugin-monitoring';
 import { SqlitePreferencesRepository } from '@zhiyun/plugin-preferences';
 import { resolveProductGraph } from '@zhiyun/product-profiles';
 import { LocalPlatformJobQueue } from '@zhiyun/queue-local-v1';
@@ -89,9 +91,11 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
     datasets: new SqliteDatasetRepository(databasePath),
     collection: new SqliteCollectionRepository(databasePath),
     outputs: new SqliteOutputRepository(databasePath),
+    monitoring: new SqliteMonitoringRepository(databasePath),
     preferences: new SqlitePreferencesRepository(databasePath),
     analytics: new SqliteAnalysisRepository(databasePath),
     corpus: new SqliteCorpusRepository(databasePath),
+    aiAssistance: new SqliteAiConversationRepository(databasePath),
   };
   const handlers = new JobHandlerRegistry();
   const jobs = new LocalPlatformJobQueue(platform, handlers, {
@@ -157,7 +161,7 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
       credentialStore,
       artifactStore: new LocalArtifactStore(message.dataDirectory),
       ...(analyticsWorkerClient ? { analyticsWorker: analyticsWorkerClient } : {}),
-      openApiDocument: openApiDocument(),
+      openApiDocument: openApiDocument('desktop-studio'),
       host: {
         metadata,
         capabilities,
@@ -187,6 +191,13 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
             message,
             '/credentials/prompt',
             { kind },
+          );
+        },
+        async selectOutputDirectory() {
+          return hostRequest<{ reference: string } | { canceled: true }>(
+            message,
+            '/outputs/select-directory',
+            {},
           );
         },
         async saveBackup(filename: string, data: Buffer) {

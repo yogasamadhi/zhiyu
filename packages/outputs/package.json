@@ -14,6 +14,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.900.0",
+    "@aws-sdk/lib-storage": "^3.900.0",
     "@zhiyun/contracts": "workspace:*",
     "postgres": "^3.4.7"
   }

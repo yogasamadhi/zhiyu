@@ -66,16 +66,58 @@ describe('Level 2 kernel', () => {
           {
             ...left,
             dependencies: [],
-            routes: [{ operationId: 'duplicate', method: 'GET', path: '/a' }],
+            routes: [
+              {
+                operationId: 'duplicate',
+                method: 'GET',
+                path: '/a',
+                requiredPermission: 'workspace.read',
+              },
+            ],
           },
           {
             ...right,
             dependencies: [],
-            routes: [{ operationId: 'duplicate', method: 'GET', path: '/b' }],
+            routes: [
+              {
+                operationId: 'duplicate',
+                method: 'GET',
+                path: '/b',
+                requiredPermission: 'workspace.read',
+              },
+            ],
           },
         ],
       }),
     ).toThrow(/Duplicate operation/);
+  });
+
+  it('requires every route to explicitly declare a non-blank permission or null', () => {
+    const invalid = (requiredPermission: unknown): PluginDescriptor =>
+      ({
+        id: 'consumer',
+        version: '1.0.0',
+        routes: [
+          {
+            operationId: 'readThing',
+            method: 'GET',
+            path: '/thing',
+            ...(requiredPermission === undefined ? {} : { requiredPermission }),
+          },
+        ],
+        activate() {},
+      }) as PluginDescriptor;
+
+    expect(() =>
+      resolveGraph({ profile, bundles: [bundle], plugins: [invalid(undefined)] }),
+    ).toThrow(/must declare requiredPermission/);
+    expect(() => resolveGraph({ profile, bundles: [bundle], plugins: [invalid('   ')] })).toThrow(
+      /blank requiredPermission/,
+    );
+
+    const publicPlugin = invalid(null);
+    const graph = resolveGraph({ profile, bundles: [bundle], plugins: [publicPlugin] });
+    expect(graph.plugins[0]?.descriptor.routes?.[0]?.requiredPermission).toBeNull();
   });
 
   it('provides typed services and disposes effects in reverse order', async () => {

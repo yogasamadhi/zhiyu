@@ -12,6 +12,7 @@ import type {
   RunRequestEntry,
   Schedule,
   TaskCreate,
+  TaskOrigin,
   TaskUpdate,
 } from '@zhiyun/shared';
 
@@ -61,6 +62,17 @@ export interface CollectionRepository {
   migrate(): Promise<void>;
   close(): Promise<void>;
   createTask(input: CollectionTaskCreate): Promise<CollectionTask>;
+  createTaskWithInitialRule(input: {
+    taskId: string;
+    ruleId: string;
+    versionId: string;
+    task: TaskCreate;
+    ruleName: string;
+    definition: CrawlPlanDefinition;
+    generatedBy?: GeneratedBy;
+    origin?: TaskOrigin;
+    status?: 'draft' | 'ready';
+  }): Promise<{ taskId: string; ruleId: string; versionId: string }>;
   listTasks(
     cursor?: string,
     limit?: number,
@@ -93,10 +105,16 @@ export interface CollectionRepository {
   createRun(taskId: string): Promise<CrawlRun>;
   listRuns(taskId: string): Promise<CrawlRun[]>;
   getRun(id: string): Promise<CrawlRun | null>;
-  startRun(runId: string, taskId: string): Promise<boolean>;
+  startRun(runId: string, taskId: string, allowRecovery?: boolean): Promise<boolean>;
   markRunPersisting(runId: string, taskId: string): Promise<boolean>;
   completeRun(runId: string, taskId: string, input: RunCompletionInput): Promise<CrawlRun | null>;
-  failRun(runId: string, taskId: string, error: string, code: string): Promise<CrawlRun | null>;
+  failRun(
+    runId: string,
+    taskId: string,
+    error: string,
+    code: string,
+    finalFailure?: boolean,
+  ): Promise<CrawlRun | null>;
   requestRunCancellation(runId: string): Promise<CrawlRun | null>;
   cancelRun(runId: string): Promise<CrawlRun | null>;
   appendRunLog(entry: Omit<RunLogEntry, 'id' | 'sequence' | 'createdAt'>): Promise<RunLogEntry>;

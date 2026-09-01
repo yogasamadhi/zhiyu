@@ -5,6 +5,10 @@ import {
   crawlPlanDefinitionSchema,
   extractionRuleDefinitionSchema,
   normalizeCrawlPlan,
+  type AiChatEvent,
+  type AiChatMessage,
+  type AiChatRequest,
+  type AiChatToolCall,
   type AiRequestContext,
   type AiProvider,
   type CrawlPlanDefinition,
@@ -17,7 +21,8 @@ const maxAiResponseBytes = 2 * 1024 * 1024;
 export interface AiUsage {
   provider: 'mock' | 'openai-compatible';
   model: string;
-  operation: 'generateSchema' | 'generateRule' | 'extract' | 'suggestRepair' | 'explainFailure';
+  operation:
+    'chat' | 'generateSchema' | 'generateRule' | 'extract' | 'suggestRepair' | 'explainFailure';
   durationMs: number;
   inputTokens: number;
   outputTokens: number;
@@ -90,9 +95,26 @@ export function createMockRule(html: string, instruction: string): ExtractionRul
 }
 
 export class MockAiProvider implements AiProvider {
-  readonly name = 'mock';
+  readonly name: string = 'mock';
 
   constructor(private readonly onUsage?: UsageCallback) {}
+
+  async *streamChat(input: AiChatRequest): AsyncIterable<AiChatEvent> {
+    const started = Date.now();
+    if (input.signal?.aborted) throw input.signal.reason;
+    const content =
+      '当前为演示模式。请先在设置中配置并测试 OpenAI-compatible Provider，再创建 AI 爬虫任务。';
+    yield { type: 'text-delta', delta: content };
+    const usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+    await this.record('chat', started, input.context);
+    yield { type: 'usage', usage };
+    yield {
+      type: 'done',
+      message: { role: 'assistant', content },
+      finishReason: 'stop',
+      usage,
+    };
+  }
 
   private async record(
     operation: AiUsage['operation'],
@@ -196,7 +218,7 @@ export class MockAiProvider implements AiProvider {
 }
 
 export class OpenAiCompatibleProvider implements AiProvider {
-  readonly name = 'openai-compatible';
+  readonly name: string = 'openai-compatible';
 
   constructor(
     private readonly options: {
@@ -208,7 +230,180 @@ export class OpenAiCompatibleProvider implements AiProvider {
       maxResponseBytes?: number;
       onUsage?: UsageCallback;
     },
-  ) {}
+  ) {
+    validateAiProviderBaseUrl(options.baseUrl);
+  }
+
+  async *streamChat(input: AiChatRequest): AsyncIterable<AiChatEvent> {
+    const started = Date.now();
+    const response = await this.openChatStream(input);
+    const maximum = this.options.maxResponseBytes ?? maxAiResponseBytes;
+    const reader = response.body?.getReader();
+    if (!reader) throw new AiError('OpenAI-compatible provider returned no response stream');
+    const decoder = new TextDecoder();
+    let buffered = '';
+    let received = 0;
+    let content = '';
+    let finishReason: 'stop' | 'length' | 'tool_calls' | 'aborted' | 'error' = 'stop';
+    let usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+    const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
+
+    const consume = (payload: string): AiChatEvent[] => {
+      if (!payload || payload === '[DONE]') return [];
+      let parsed: OpenAiStreamChunk;
+      try {
+        parsed = JSON.parse(payload) as OpenAiStreamChunk;
+      } catch (error) {
+        throw new AiError('OpenAI-compatible provider returned invalid SSE JSON', error);
+      }
+      if (parsed.error) {
+        throw new AiError(
+          typeof parsed.error.message === 'string'
+            ? parsed.error.message
+            : 'OpenAI-compatible provider stream failed',
+        );
+      }
+      if (parsed.usage) {
+        usage = {
+          inputTokens: parsed.usage.prompt_tokens ?? 0,
+          outputTokens: parsed.usage.completion_tokens ?? 0,
+          totalTokens: parsed.usage.total_tokens ?? 0,
+        };
+      }
+      const choice = parsed.choices?.[0];
+      if (!choice) return [];
+      if (choice.finish_reason) finishReason = mapFinishReason(choice.finish_reason);
+      const events: AiChatEvent[] = [];
+      if (typeof choice.delta?.content === 'string' && choice.delta.content) {
+        content += choice.delta.content;
+        events.push({ type: 'text-delta', delta: choice.delta.content });
+      }
+      for (const fragment of choice.delta?.tool_calls ?? []) {
+        const current = toolCalls.get(fragment.index) ?? { id: '', name: '', arguments: '' };
+        if (fragment.id) current.id += fragment.id;
+        if (fragment.function?.name) current.name += fragment.function.name;
+        if (fragment.function?.arguments) current.arguments += fragment.function.arguments;
+        toolCalls.set(fragment.index, current);
+      }
+      return events;
+    };
+
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      received += next.value.byteLength;
+      if (received > maximum) {
+        await reader.cancel();
+        throw new AiError('OpenAI-compatible provider response is too large');
+      }
+      buffered += decoder.decode(next.value, { stream: true });
+      const frames = buffered.split(/\r?\n\r?\n/);
+      buffered = frames.pop() ?? '';
+      for (const frame of frames) {
+        const payload = frame
+          .split(/\r?\n/)
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice(5).trimStart())
+          .join('\n');
+        for (const event of consume(payload)) yield event;
+      }
+    }
+    if (buffered.trim()) {
+      const payload = buffered
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trimStart())
+        .join('\n');
+      for (const event of consume(payload)) yield event;
+    }
+
+    const calls: AiChatToolCall[] = [...toolCalls.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([, call], index) => ({
+        id: call.id || `tool-call-${index + 1}`,
+        name: call.name,
+        arguments: parseToolArguments(call.arguments),
+      }));
+    for (const call of calls) yield { type: 'tool-call', call };
+    if (calls.length > 0 && finishReason === 'stop') finishReason = 'tool_calls';
+    await this.options.onUsage?.({
+      provider: 'openai-compatible',
+      model: this.options.model,
+      operation: 'chat',
+      durationMs: Date.now() - started,
+      ...usage,
+      ...(input.context?.taskId ? { taskId: input.context.taskId } : {}),
+      ...(input.context?.runId ? { runId: input.context.runId } : {}),
+    });
+    yield { type: 'usage', usage };
+    const message: AiChatMessage = {
+      role: 'assistant',
+      content,
+      ...(calls.length > 0 ? { toolCalls: calls } : {}),
+    };
+    yield { type: 'done', message, finishReason, usage };
+  }
+
+  private async openChatStream(input: AiChatRequest): Promise<Response> {
+    const retries = this.options.retries ?? 2;
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      const timeout = AbortSignal.timeout(this.options.timeoutMs ?? 30_000);
+      const signal = input.signal ? AbortSignal.any([input.signal, timeout]) : timeout;
+      try {
+        const response = await fetch(
+          `${this.options.baseUrl.replace(/\/$/, '')}/chat/completions`,
+          {
+            method: 'POST',
+            headers: {
+              authorization: `Bearer ${await this.options.apiKey()}`,
+              'content-type': 'application/json',
+              accept: 'text/event-stream',
+            },
+            body: JSON.stringify({
+              model: this.options.model,
+              stream: true,
+              stream_options: { include_usage: true },
+              temperature: input.temperature ?? 0,
+              messages: input.messages.map(openAiMessage),
+              ...(input.tools?.length
+                ? {
+                    tools: input.tools.map((tool) => ({
+                      type: 'function',
+                      function: {
+                        name: tool.name,
+                        description: tool.description,
+                        parameters: tool.parameters,
+                      },
+                    })),
+                    tool_choice: input.toolChoice ?? 'auto',
+                  }
+                : {}),
+            }),
+            signal,
+          },
+        );
+        if (response.ok) return response;
+        if (
+          attempt < retries &&
+          ([408, 425, 429].includes(response.status) || response.status >= 500)
+        ) {
+          const retryAfter = Number(response.headers.get('retry-after'));
+          await delay(
+            Number.isFinite(retryAfter) ? Math.min(30_000, retryAfter * 1_000) : 250 * 2 ** attempt,
+            input.signal,
+          );
+          continue;
+        }
+        throw new AiError(`OpenAI-compatible provider returned HTTP ${response.status}`);
+      } catch (error) {
+        lastError = error;
+        if (input.signal?.aborted || error instanceof AiError || attempt >= retries) throw error;
+        await delay(250 * 2 ** attempt, input.signal);
+      }
+    }
+    throw new AiError('OpenAI-compatible provider request failed', lastError);
+  }
 
   async generateSchema(input: {
     instruction: string;
@@ -434,6 +629,142 @@ export class OpenAiCompatibleProvider implements AiProvider {
       }
     }
     throw new AiError('OpenAI-compatible provider request failed', lastError);
+  }
+}
+
+interface OpenAiStreamChunk {
+  choices?: Array<{
+    delta?: {
+      content?: string | null;
+      tool_calls?: Array<{
+        index: number;
+        id?: string;
+        function?: { name?: string; arguments?: string };
+      }>;
+    };
+    finish_reason?: string | null;
+  }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+  error?: { message?: string };
+}
+
+function openAiMessage(message: AiChatMessage): Record<string, unknown> {
+  if (message.role === 'tool') {
+    return {
+      role: 'tool',
+      content: message.content,
+      tool_call_id: message.toolCallId,
+    };
+  }
+  return {
+    role: message.role,
+    content: message.content,
+    ...(message.name ? { name: message.name } : {}),
+    ...(message.toolCalls?.length
+      ? {
+          tool_calls: message.toolCalls.map((call) => ({
+            id: call.id,
+            type: 'function',
+            function: { name: call.name, arguments: JSON.stringify(call.arguments) },
+          })),
+        }
+      : {}),
+  };
+}
+
+function mapFinishReason(value: string): 'stop' | 'length' | 'tool_calls' | 'error' {
+  if (value === 'length') return 'length';
+  if (value === 'tool_calls' || value === 'function_call') return 'tool_calls';
+  if (value === 'stop') return 'stop';
+  return 'error';
+}
+
+function parseToolArguments(value: string): Record<string, unknown> {
+  if (!value.trim()) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new AiError('OpenAI-compatible provider returned invalid tool arguments', error);
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new AiError('OpenAI-compatible provider returned non-object tool arguments');
+  }
+  return parsed as Record<string, unknown>;
+}
+
+export function validateAiProviderBaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new AiError('Provider Base URL is invalid');
+  }
+  if (url.username || url.password) {
+    throw new AiError('Provider Base URL must not contain credentials');
+  }
+  const loopback = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !(loopback && url.protocol === 'http:')) {
+    throw new AiError('Provider Base URL must use HTTPS; HTTP is allowed only on loopback');
+  }
+  url.hash = '';
+  return url.toString().replace(/\/$/, '');
+}
+
+async function delay(milliseconds: number, signal?: AbortSignal): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const timer = setTimeout(resolve, milliseconds);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason);
+      },
+      { once: true },
+    );
+  });
+}
+
+/** Deterministic provider used by agent and HTTP tests without network access. */
+export class ScriptedChatProvider extends MockAiProvider {
+  readonly name = 'scripted';
+  private index = 0;
+
+  constructor(
+    private readonly script: Array<{
+      text?: string;
+      toolCalls?: AiChatToolCall[];
+      usage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+    }>,
+    onUsage?: UsageCallback,
+  ) {
+    super(onUsage);
+  }
+
+  override async *streamChat(input: AiChatRequest): AsyncIterable<AiChatEvent> {
+    if (input.signal?.aborted) throw input.signal.reason;
+    const entry = this.script[this.index++] ?? { text: '脚本响应已结束。' };
+    const content = entry.text ?? '';
+    for (const delta of content.match(/.{1,16}/gs) ?? []) {
+      yield { type: 'text-delta', delta };
+    }
+    for (const call of entry.toolCalls ?? []) yield { type: 'tool-call', call };
+    const usage = entry.usage ?? { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+    yield { type: 'usage', usage };
+    yield {
+      type: 'done',
+      message: {
+        role: 'assistant',
+        content,
+        ...(entry.toolCalls?.length ? { toolCalls: entry.toolCalls } : {}),
+      },
+      finishReason: entry.toolCalls?.length ? 'tool_calls' : 'stop',
+      usage,
+    };
   }
 }
 

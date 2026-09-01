@@ -33,6 +33,18 @@ describe('TypeScript AI providers', () => {
     );
   });
 
+  it('rejects insecure remote and credential-bearing Provider base URLs', () => {
+    const create = (baseUrl: string) =>
+      new OpenAiCompatibleProvider({
+        baseUrl,
+        model: 'fixture-model',
+        apiKey: async () => 'secret',
+      });
+    expect(() => create('http://ai.example/v1')).toThrow('HTTPS');
+    expect(() => create('https://user:password@ai.example/v1')).toThrow('credentials');
+    expect(() => create('http://127.0.0.1:11434/v1')).not.toThrow();
+  });
+
   it('reports auditable Mock usage without page content', async () => {
     const usage: unknown[] = [];
     const provider = createAiProvider({ onUsage: (event) => void usage.push(event) });
@@ -191,5 +203,181 @@ describe('TypeScript AI providers', () => {
     await expect(
       provider.generateRule({ html, instruction: 'name', schema: candidate }),
     ).rejects.toThrow('too large');
+  });
+
+  it('parses fragmented SSE text, multiple tool calls, finish reason and usage', async () => {
+    const frames = [
+      { choices: [{ delta: { content: '正在' } }] },
+      {
+        choices: [
+          {
+            delta: {
+              content: '处理',
+              tool_calls: [
+                { index: 0, id: 'call_', function: { name: 'search_', arguments: '{"q":' } },
+                { index: 1, id: 'call_b', function: { name: 'inspect_page', arguments: '{}' } },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: 'a', function: { name: 'sites', arguments: '"织云"}' } },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+        usage: { prompt_tokens: 9, completion_tokens: 4, total_tokens: 13 },
+      },
+    ].map((value) => `data: ${JSON.stringify(value)}\n\n`);
+    const encoded = new TextEncoder().encode(`${frames.join('')}data: [DONE]\n\n`);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoded.slice(0, 17));
+            controller.enqueue(encoded.slice(17, 53));
+            controller.enqueue(encoded.slice(53));
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'text/event-stream' } },
+      ),
+    );
+    const provider = new OpenAiCompatibleProvider({
+      baseUrl: 'https://ai.example/v1',
+      model: 'fixture-model',
+      apiKey: async () => 'secret',
+    });
+    const events = [];
+    for await (const event of provider.streamChat({
+      messages: [{ role: 'user', content: '创建爬虫' }],
+      tools: [
+        { name: 'search_sites', description: 'search', parameters: { type: 'object' } },
+        { name: 'inspect_page', description: 'inspect', parameters: { type: 'object' } },
+      ],
+    })) {
+      events.push(event);
+    }
+    expect(events).toEqual(
+      expect.arrayContaining([
+        { type: 'text-delta', delta: '正在' },
+        { type: 'text-delta', delta: '处理' },
+        {
+          type: 'tool-call',
+          call: { id: 'call_a', name: 'search_sites', arguments: { q: '织云' } },
+        },
+        {
+          type: 'tool-call',
+          call: { id: 'call_b', name: 'inspect_page', arguments: {} },
+        },
+        {
+          type: 'usage',
+          usage: { inputTokens: 9, outputTokens: 4, totalTokens: 13 },
+        },
+      ]),
+    );
+    expect(events.at(-1)).toMatchObject({
+      type: 'done',
+      finishReason: 'tool_calls',
+      message: { content: '正在处理' },
+    });
+    const request = JSON.parse(
+      String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body),
+    );
+    expect(request).toMatchObject({ stream: true, tool_choice: 'auto' });
+  });
+
+  it('retries a transient SSE request before consuming the stream', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('', { status: 429, headers: { 'retry-after': '0' } }))
+      .mockResolvedValueOnce(
+        new Response(
+          `data: ${JSON.stringify({ choices: [{ delta: { content: 'OK' }, finish_reason: 'stop' }] })}\n\ndata: [DONE]\n\n`,
+          { status: 200 },
+        ),
+      );
+    const provider = new OpenAiCompatibleProvider({
+      baseUrl: 'https://ai.example/v1',
+      model: 'fixture-model',
+      apiKey: async () => 'secret',
+      retries: 1,
+    });
+    const events = [];
+    for await (const event of provider.streamChat({
+      messages: [{ role: 'user', content: 'test' }],
+    })) {
+      events.push(event);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(events.at(-1)).toMatchObject({ type: 'done', message: { content: 'OK' } });
+  });
+
+  it('rejects malformed streamed tool arguments', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  { index: 0, id: 'bad', function: { name: 'search_sites', arguments: '{nope' } },
+                ],
+              },
+              finish_reason: 'tool_calls',
+            },
+          ],
+        })}\n\ndata: [DONE]\n\n`,
+        { status: 200 },
+      ),
+    );
+    const provider = new OpenAiCompatibleProvider({
+      baseUrl: 'https://ai.example/v1',
+      model: 'fixture-model',
+      apiKey: async () => 'secret',
+    });
+    await expect(async () => {
+      for await (const event of provider.streamChat({
+        messages: [{ role: 'user', content: 'test' }],
+      })) {
+        void event;
+      }
+    }).rejects.toThrow('invalid tool arguments');
+  });
+
+  it('propagates cancellation to the streaming HTTP request', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      await new Promise((_resolve, reject) => {
+        if (init?.signal?.aborted) {
+          reject(init.signal.reason);
+          return;
+        }
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });
+      });
+      throw new Error('unreachable');
+    });
+    const provider = new OpenAiCompatibleProvider({
+      baseUrl: 'https://ai.example/v1',
+      model: 'fixture-model',
+      apiKey: async () => 'secret',
+    });
+    const controller = new AbortController();
+    const consume = async () => {
+      for await (const event of provider.streamChat({
+        messages: [{ role: 'user', content: 'test' }],
+        signal: controller.signal,
+      })) {
+        void event;
+      }
+    };
+    const pending = consume();
+    controller.abort(new DOMException('Canceled', 'AbortError'));
+    await expect(pending).rejects.toThrow('Canceled');
   });
 });

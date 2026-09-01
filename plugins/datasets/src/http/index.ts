@@ -9,49 +9,77 @@ import type { DatasetSnapshotService } from '../application/index.js';
 import type { DatasetRepository } from '../contracts/index.js';
 
 export const datasetsRoutes = [
-  { operationId: 'listDatasets', method: 'GET', path: '/api/v2/datasets' },
-  { operationId: 'getDataset', method: 'GET', path: '/api/v2/datasets/{datasetId}' },
+  {
+    operationId: 'listDatasets',
+    method: 'GET',
+    path: '/api/v2/datasets',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'getDataset',
+    method: 'GET',
+    path: '/api/v2/datasets/{datasetId}',
+    requiredPermission: 'workspace.read',
+  },
   {
     operationId: 'listDatasetRecords',
     method: 'GET',
     path: '/api/v2/datasets/{datasetId}/records',
+    requiredPermission: 'workspace.read',
   },
   {
     operationId: 'listDatasetChanges',
     method: 'GET',
     path: '/api/v2/datasets/{datasetId}/changes',
+    requiredPermission: 'workspace.read',
   },
   {
     operationId: 'diffDataset',
     method: 'GET',
     path: '/api/v2/datasets/{datasetId}/diff',
+    requiredPermission: 'workspace.read',
   },
   {
     operationId: 'exportDataset',
     method: 'POST',
     path: '/api/v2/datasets/{datasetId}/exports',
+    requiredPermission: 'workspace.read',
   },
   {
     operationId: 'createDatasetSnapshot',
     method: 'POST',
     path: '/api/v2/datasets/{datasetId}/snapshots',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'listDatasetSnapshots',
     method: 'GET',
     path: '/api/v2/datasets/{datasetId}/snapshots',
+    requiredPermission: 'workspace.read',
   },
   {
     operationId: 'getDatasetSnapshot',
     method: 'GET',
     path: '/api/v2/datasets/{datasetId}/snapshots/{snapshotId}',
+    requiredPermission: 'workspace.read',
   },
-  { operationId: 'listRunRecords', method: 'GET', path: '/api/v2/runs/{runId}/records' },
-  { operationId: 'exportRunRecords', method: 'POST', path: '/api/v2/runs/{runId}/exports' },
+  {
+    operationId: 'listRunRecords',
+    method: 'GET',
+    path: '/api/v2/runs/{runId}/records',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'exportRunRecords',
+    method: 'POST',
+    path: '/api/v2/runs/{runId}/exports',
+    requiredPermission: 'workspace.read',
+  },
   {
     operationId: 'queryDataApiRecords',
     method: 'GET',
     path: '/api/v2/data/tasks/{taskId}/records',
+    requiredPermission: 'workspace.read',
   },
 ] as const satisfies readonly RouteContribution[];
 

@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const desktopRoot = resolve(import.meta.dir, '..');
@@ -45,3 +45,21 @@ await copyFile(
   resolve(desktopRoot, 'dist/runtime/utility-entry.js'),
 );
 await run(['bun', '--bun', 'vite', 'build'], desktopRoot);
+
+const rendererRoot = resolve(desktopRoot, 'dist/renderer');
+for (const file of await rendererFiles(rendererRoot)) {
+  const source = await readFile(file, 'utf8');
+  if (/https?:\/\/(?:127\.0\.0\.1|localhost):45100/u.test(source)) {
+    throw new Error(`Production Renderer contains a development fixture URL: ${file}`);
+  }
+}
+
+async function rendererFiles(directory: string): Promise<string[]> {
+  const result: string[] = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) result.push(...(await rendererFiles(path)));
+    else if (/\.(?:css|html|js|json|map)$/u.test(entry.name)) result.push(path);
+  }
+  return result;
+}

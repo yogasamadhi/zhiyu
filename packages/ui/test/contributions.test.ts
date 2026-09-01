@@ -10,6 +10,23 @@ describe('UI Contribution Registry', () => {
     ]);
     expect(resolved.routes.map(({ id }) => id)).toEqual(['collection.route']);
     expect(resolved.navigation.map(({ id }) => id)).toEqual(['collection.navigation']);
+    expect(resolved.routes[0]?.routes.map(({ path }) => path)).toEqual(
+      expect.arrayContaining([
+        '/',
+        '/tasks',
+        '/tasks/new',
+        '/tasks/:id/edit',
+        '/tasks/:id/quality',
+        '/tasks/:id/analysis',
+        '/tasks/:id/output',
+        '/tasks/:id/runs',
+      ]),
+    );
+    expect(resolved.routes[0]?.routes.map(({ path }) => path)).not.toContain('/tasks/:id/:section');
+    expect(resolved.navigation[0]).toMatchObject({
+      to: '/tasks',
+      group: 'collection',
+    });
   });
 
   it('loads Analytics and Corpus routes only for their signed contribution IDs', () => {
@@ -33,6 +50,27 @@ describe('UI Contribution Registry', () => {
     expect(resolved.navigation.map(({ id }) => id)).toEqual([
       'analytics.navigation',
       'corpus.navigation',
+    ]);
+  });
+
+  it('registers the stable identity member and audit contribution IDs', () => {
+    const resolved = resolveUiContributions([
+      'identity.members-route',
+      'identity.members-navigation',
+      'identity.audit-route',
+      'identity.audit-navigation',
+    ]);
+    expect(resolved.routes.map(({ id }) => id)).toEqual([
+      'identity.members-route',
+      'identity.audit-route',
+    ]);
+    expect(resolved.routes.flatMap(({ routes }) => routes.map(({ path }) => path))).toEqual([
+      '/members',
+      '/audit',
+    ]);
+    expect(resolved.navigation.map(({ id }) => id)).toEqual([
+      'identity.members-navigation',
+      'identity.audit-navigation',
     ]);
   });
 });

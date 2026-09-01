@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PlatformRepository } from '@zhiyun/platform-core';
+import { normalizeCrawlPlan } from '@zhiyun/shared';
 import {
   PostgresDatasetRepository,
   SqliteDatasetRepository,
@@ -207,11 +208,79 @@ function defineCollectionConformance(name: string, create: () => Promise<Fixture
       });
     });
 
+    it('atomically and idempotently creates an AI Task with its initial Rule', async () => {
+      const taskId = randomUUID();
+      const ruleId = randomUUID();
+      const versionId = randomUUID();
+      const input = {
+        taskId,
+        ruleId,
+        versionId,
+        task: { ...taskInput, outputBindings: [] },
+        ruleName: 'AI initial rule',
+        definition: normalizeCrawlPlan({
+          type: 'json' as const,
+          container: '$.items',
+          fields: { id: { path: '$.id', dataType: 'string' as const } },
+        }),
+      };
+      await expect(fixture.collection.createTaskWithInitialRule(input)).resolves.toEqual({
+        taskId,
+        ruleId,
+        versionId,
+      });
+      await expect(fixture.collection.createTaskWithInitialRule(input)).resolves.toEqual({
+        taskId,
+        ruleId,
+        versionId,
+      });
+      expect(await fixture.collection.getTask(taskId)).toMatchObject({
+        id: taskId,
+        status: 'ready',
+        activeRule: {
+          rule: { id: ruleId, activeVersionId: versionId },
+          version: { id: versionId, generatedBy: 'ai', version: 1 },
+        },
+      });
+      expect(await fixture.collection.listRules(taskId)).toHaveLength(1);
+    });
+
+    it('atomically persists an untested Task draft together with its first Rule', async () => {
+      const taskId = randomUUID();
+      const ruleId = randomUUID();
+      const versionId = randomUUID();
+      await fixture.collection.createTaskWithInitialRule({
+        taskId,
+        ruleId,
+        versionId,
+        task: { ...taskInput, outputBindings: [] },
+        ruleName: 'Untested draft rule',
+        definition: normalizeCrawlPlan({
+          type: 'json' as const,
+          container: '$.items',
+          fields: { id: { path: '$.id', dataType: 'string' as const } },
+        }),
+        generatedBy: 'human',
+        origin: { kind: 'manual' },
+        status: 'draft',
+      });
+      expect(await fixture.collection.getTask(taskId)).toMatchObject({
+        status: 'draft',
+        origin: { kind: 'manual' },
+        activeRule: {
+          rule: { id: ruleId, activeVersionId: versionId },
+          version: { generatedBy: 'human', version: 1 },
+        },
+      });
+    });
+
     it('enforces one active Run and records progress diagnostics', async () => {
       const task = await fixture.collection.createTask(taskInput);
       const run = await fixture.collection.createRun(task.id);
       await expect(fixture.collection.createRun(task.id)).rejects.toThrow();
       expect(await fixture.collection.startRun(run.id, task.id)).toBe(true);
+      expect(await fixture.collection.startRun(run.id, task.id)).toBe(false);
+      expect(await fixture.collection.startRun(run.id, task.id, true)).toBe(true);
       await fixture.collection.appendRunLog({
         runId: run.id,
         level: 'warn',

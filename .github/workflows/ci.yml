@@ -19,7 +19,7 @@ jobs:
           --health-cmd "pg_isready -U zhiyun"
           --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
-        image: redis:7-alpine
+        image: redis:8.2-alpine
         ports: ['46379:6379']
         options: >-
           --health-cmd "redis-cli ping"
@@ -68,6 +68,9 @@ jobs:
       - run: bun run --filter @zhiyun/api package:linux
       - run: bun run --filter @zhiyun/api test:packaged
       - run: docker build -f apps/api/Dockerfile -t zhiyun-headless:ci .
+      - run: bun run test:e2e:headless-compose
+        env:
+          ZHIYUN_IMAGE: zhiyun-headless:ci
 
   desktop-installers:
     strategy:

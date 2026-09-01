@@ -1,6 +1,16 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { assertNetworkAllowed } from '@zhiyun/crawler-runtime';
-import type { BrowserSettings, NetworkPolicy, RequestSettings } from '@zhiyun/contracts';
+import {
+  redactSensitiveText,
+  type BrowserAction,
+  type BrowserElementMetadata,
+  type BrowserSettings,
+  type InspectionElementSelection,
+  type InspectionStepInput,
+  type InspectionStepResult,
+  type NetworkPolicy,
+  type RequestSettings,
+} from '@zhiyun/contracts';
 
 interface InspectionSession {
   id: string;
@@ -9,6 +19,58 @@ interface InspectionSession {
   page: Page;
   expiresAt: number;
   timer: ReturnType<typeof setTimeout>;
+}
+
+interface InspectedElementProbe {
+  tag: string;
+  inputType: string | null;
+  attributes: Record<string, string>;
+}
+
+const PASSWORD_ACTION_ERROR =
+  '禁止在浏览器动作中填写密码；请使用安全 Login Session 或 CredentialStore。';
+
+export function classifyInspectedElement(probe: InspectedElementProbe): BrowserElementMetadata {
+  const inputType = probe.inputType?.trim().toLowerCase() || null;
+  const passwordSignals = [
+    inputType,
+    probe.attributes.id,
+    probe.attributes.name,
+    probe.attributes.autocomplete,
+    probe.attributes['aria-label'],
+    probe.attributes.placeholder,
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ');
+  return {
+    tag: probe.tag.toLowerCase(),
+    inputType,
+    sensitive: inputType === 'password' || /password|passwd|pwd/i.test(passwordSignals),
+  };
+}
+
+function safeInspectionAttributes(attributes: Record<string, string>): Record<string, string> {
+  const allowed = new Set([
+    'id',
+    'class',
+    'type',
+    'name',
+    'role',
+    'autocomplete',
+    'aria-label',
+    'placeholder',
+  ]);
+  return Object.fromEntries(Object.entries(attributes).filter(([name]) => allowed.has(name)));
+}
+
+function probeElement(element: Element): InspectedElementProbe {
+  return {
+    tag: element.tagName.toLowerCase(),
+    inputType: element instanceof HTMLInputElement ? element.type : null,
+    attributes: Object.fromEntries(
+      [...element.attributes].map((attribute) => [attribute.name, attribute.value]),
+    ),
+  };
 }
 
 export class InspectionManager {
@@ -105,9 +167,45 @@ export class InspectionManager {
     const session = this.get(id);
     return {
       url: session.page.url(),
-      image: (await session.page.screenshot({ type: 'png' })).toString('base64'),
-      width: 1280,
-      height: 800,
+      ...(await captureInspectionScreenshot(session.page)),
+    };
+  }
+
+  async step(id: string, input: InspectionStepInput): Promise<InspectionStepResult> {
+    const { page } = this.get(id);
+    let status: InspectionStepResult['status'] = 'succeeded';
+    let error: string | null = null;
+    let target: BrowserElementMetadata | null = null;
+    try {
+      if (input.action.type === 'fill') {
+        const probe = await page.locator(input.action.selector).first().evaluate(probeElement);
+        target = classifyInspectedElement(probe);
+        if (input.action.value.length > 0 && target.sensitive)
+          throw new Error(PASSWORD_ACTION_ERROR);
+      }
+      await executeInspectionBrowserAction(page, input.action);
+      await page.waitForTimeout(250);
+    } catch (reason) {
+      status = 'failed';
+      error = redactInspectionStepError(reason, input.action);
+    }
+
+    let screenshot: InspectionStepResult['screenshot'];
+    try {
+      screenshot = await captureInspectionScreenshot(page);
+    } catch (reason) {
+      status = 'failed';
+      const screenshotError = redactInspectionStepError(reason, input.action);
+      error = error ? `${error}; screenshot: ${screenshotError}` : screenshotError;
+      screenshot = { image: '', width: 1280, height: 800 };
+    }
+    return {
+      stepIndex: input.stepIndex,
+      status,
+      url: page.url(),
+      screenshot,
+      error,
+      target,
     };
   }
 
@@ -123,8 +221,8 @@ export class InspectionManager {
     return { url: page.url() };
   }
 
-  async select(id: string, x: number, y: number) {
-    return this.get(id).page.evaluate(
+  async select(id: string, x: number, y: number): Promise<InspectionElementSelection | null> {
+    const selected = await this.get(id).page.evaluate(
       ({ x: pointX, y: pointY }) => {
         const element = document.elementFromPoint(pointX, pointY) as HTMLElement | null;
         if (!element) return null;
@@ -153,6 +251,7 @@ export class InspectionManager {
           selector: parts.join(' > '),
           tag: element.tagName.toLowerCase(),
           text: (element.textContent ?? '').trim().slice(0, 300),
+          inputType: element instanceof HTMLInputElement ? element.type : null,
           attributes: Object.fromEntries(
             [...element.attributes].map((attribute) => [attribute.name, attribute.value]),
           ),
@@ -161,6 +260,16 @@ export class InspectionManager {
       },
       { x, y },
     );
+    if (!selected) return null;
+    const metadata = classifyInspectedElement(selected);
+    return {
+      selector: selected.selector,
+      tag: selected.tag,
+      text: metadata.sensitive ? '' : selected.text,
+      attributes: safeInspectionAttributes(selected.attributes),
+      box: selected.box,
+      metadata,
+    };
   }
 
   async close(id: string): Promise<boolean> {
@@ -176,4 +285,46 @@ export class InspectionManager {
   async closeAll(): Promise<void> {
     await Promise.all([...this.sessions.keys()].map((id) => this.close(id)));
   }
+}
+
+export async function executeInspectionBrowserAction(
+  page: Page,
+  action: BrowserAction,
+): Promise<void> {
+  if (action.type === 'click') await page.locator(action.selector).first().click();
+  if (action.type === 'fill') {
+    if (action.value.length > 0 && action.target?.sensitive) throw new Error(PASSWORD_ACTION_ERROR);
+    await page.locator(action.selector).first().fill(action.value);
+  }
+  if (action.type === 'select')
+    await page.locator(action.selector).first().selectOption(action.value);
+  if (action.type === 'press') await page.locator(action.selector).first().press(action.key);
+  if (action.type === 'hover') await page.locator(action.selector).first().hover();
+  if (action.type === 'wait') await page.waitForTimeout(action.milliseconds);
+  if (action.type === 'waitFor') await page.locator(action.selector).first().waitFor();
+  if (action.type === 'scroll') {
+    for (let index = 0; index < action.count; index += 1) {
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await page.waitForTimeout(250);
+    }
+  }
+}
+
+export function redactInspectionStepError(error: unknown, action: BrowserAction): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const withoutFillValue =
+    action.type === 'fill' && action.value.length > 0
+      ? raw.replaceAll(action.value, '[REDACTED]')
+      : raw;
+  return redactSensitiveText(withoutFillValue).slice(0, 2_000) || 'Browser action failed';
+}
+
+async function captureInspectionScreenshot(
+  page: Page,
+): Promise<InspectionStepResult['screenshot']> {
+  return {
+    image: (await page.screenshot({ type: 'png' })).toString('base64'),
+    width: 1280,
+    height: 800,
+  };
 }

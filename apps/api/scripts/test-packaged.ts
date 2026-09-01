@@ -9,6 +9,7 @@ await Promise.all([access(launcher, constants.X_OK), access(worker, constants.X_
 await Promise.all([
   access(resolve(releaseRoot, 'compliance/node.json')),
   access(resolve(releaseRoot, 'compliance/python.json')),
+  access(resolve(releaseRoot, 'web/index.html')),
 ]);
 const [launcherStat, workerStat, checksums] = await Promise.all([
   stat(launcher),
@@ -18,7 +19,11 @@ const [launcherStat, workerStat, checksums] = await Promise.all([
 if (launcherStat.size < 10 * 1024 * 1024)
   throw new Error('Headless launcher is unexpectedly small');
 if (workerStat.size < 1024 * 1024) throw new Error('Analytics Worker is unexpectedly small');
-if (!checksums.includes('zhiyun-api') || !checksums.includes('analytics-worker')) {
+if (
+  !checksums.includes('zhiyun-api') ||
+  !checksums.includes('analytics-worker') ||
+  !checksums.includes('web/index.html')
+) {
   throw new Error('Packaged checksums are incomplete');
 }
 console.log(

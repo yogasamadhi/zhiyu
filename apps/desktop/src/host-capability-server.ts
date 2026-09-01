@@ -33,6 +33,11 @@ async function body(request: IncomingMessage, maxBytes = 100 * 1024 * 1024): Pro
 }
 
 function parsePromptCredential(kind: string, source: string): unknown {
+  if (kind === 'ai-api-key') {
+    if (!source.trim()) throw new Error('API Key 不能为空');
+    if (source.length > 16_384) throw new Error('API Key 太长');
+    return source.trim();
+  }
   if (kind === 'output-webhook') {
     if (!source.trim()) throw new Error('Webhook Secret 不能为空');
     return { secret: source };
@@ -42,6 +47,38 @@ function parsePromptCredential(kind: string, source: string): unknown {
       throw new Error('必须输入 PostgreSQL connection string');
     }
     return { connectionString: source };
+  }
+  if (kind === 'output-google-sheets') {
+    const value = JSON.parse(source) as unknown;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('Google 服务账号必须是 JSON 对象');
+    }
+    const serviceAccount = value as Record<string, unknown>;
+    if (
+      typeof serviceAccount.client_email !== 'string' ||
+      !serviceAccount.client_email.includes('@') ||
+      typeof serviceAccount.private_key !== 'string' ||
+      !serviceAccount.private_key.includes('BEGIN PRIVATE KEY')
+    ) {
+      throw new Error('Google 服务账号 JSON 缺少 client_email 或 private_key');
+    }
+    return value;
+  }
+  if (kind === 'output-s3') {
+    const value = JSON.parse(source) as unknown;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('S3 凭据必须是 JSON 对象');
+    }
+    const credential = value as Record<string, unknown>;
+    if (
+      typeof credential.accessKeyId !== 'string' ||
+      !credential.accessKeyId ||
+      typeof credential.secretAccessKey !== 'string' ||
+      !credential.secretAccessKey
+    ) {
+      throw new Error('S3 凭据缺少 accessKeyId 或 secretAccessKey');
+    }
+    return value;
   }
   const value = JSON.parse(source) as unknown;
   if (kind === 'task-secret-headers') {
@@ -157,6 +194,19 @@ export class HostCapabilityServer {
         if (value === null) return json(response, 200, { canceled: true });
         return json(response, 200, {
           reference: await this.putCredential('browser-storage-state', value),
+        });
+      }
+      if (path === '/outputs/select-directory') {
+        if (!safeStorage.isEncryptionAvailable()) {
+          return json(response, 503, { error: 'safeStorage is unavailable' });
+        }
+        const result = await dialog.showOpenDialog({
+          properties: ['openDirectory', 'createDirectory'],
+        });
+        const directoryPath = result.filePaths[0];
+        if (result.canceled || !directoryPath) return json(response, 200, { canceled: true });
+        return json(response, 200, {
+          reference: await this.putCredential('output-local-directory', { directoryPath }),
         });
       }
       if (path === '/artifacts/save') {

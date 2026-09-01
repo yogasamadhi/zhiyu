@@ -22,9 +22,12 @@
     "@zhiyun/plugin-collection": "workspace:*",
     "@zhiyun/plugin-corpus": "workspace:*",
     "@zhiyun/plugin-datasets": "workspace:*",
+    "@zhiyun/plugin-identity": "workspace:*",
     "@zhiyun/plugin-outputs": "workspace:*",
+    "@zhiyun/plugin-monitoring": "workspace:*",
     "@zhiyun/plugin-platform": "workspace:*",
-    "@zhiyun/plugin-preferences": "workspace:*"
+    "@zhiyun/plugin-preferences": "workspace:*",
+    "@zhiyun/plugin-templates": "workspace:*"
   },
   "devDependencies": {
     "prettier": "^3.8.2"

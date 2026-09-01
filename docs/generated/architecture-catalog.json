@@ -1,5 +1,5 @@
 {
-  "graphRevision": "bed2f26e70070f15ffadc2d00577c37050648622a6bf393ba1255018eb92065a",
+  "graphRevision": "35c964355d7125091d25a44026124e65dd112c1162947bfd27565802f572cef4",
   "profileId": "desktop-studio",
   "plugins": [
     { "id": "datasets", "version": "1.0.0", "dependencies": [] },
@@ -12,6 +12,11 @@
     { "id": "analytics", "version": "1.0.0", "dependencies": ["datasets"] },
     { "id": "corpus", "version": "1.0.0", "dependencies": ["datasets"] },
     {
+      "id": "monitoring",
+      "version": "1.0.0",
+      "dependencies": ["collection", "datasets"]
+    },
+    {
       "id": "outputs",
       "version": "1.0.0",
       "dependencies": ["collection", "datasets"]
@@ -21,7 +26,8 @@
       "id": "preferences",
       "version": "1.0.0",
       "dependencies": ["collection", "datasets"]
-    }
+    },
+    { "id": "templates", "version": "1.0.0", "dependencies": ["collection"] }
   ],
   "services": [
     { "id": "ai-assistance.service", "owner": "ai-assistance" },
@@ -32,704 +38,1034 @@
     { "id": "datasets.ingestion", "owner": "datasets" },
     { "id": "datasets.read", "owner": "datasets" },
     { "id": "datasets.snapshot", "owner": "datasets" },
+    { "id": "monitoring.service", "owner": "monitoring" },
     { "id": "outputs.service", "owner": "outputs" },
     { "id": "platform.repository", "owner": "platform" },
     { "id": "preferences.service", "owner": "preferences" }
   ],
   "routes": [
     {
+      "id": "analyzeDraftTaskRule",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/rules/analyze",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "analyzeTaskRule",
       "owner": "ai-assistance",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/rule-analysis"
+      "path": "/api/v2/tasks/{taskId}/rule-analysis",
+      "requiredPermission": "task.write"
     },
     {
       "id": "applyRuleRepairProposal",
       "owner": "ai-assistance",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/apply"
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/apply",
+      "requiredPermission": "task.write"
     },
     {
       "id": "bootstrapTrendSources",
       "owner": "preferences",
       "method": "POST",
-      "path": "/api/v2/trend-sources/bootstrap"
+      "path": "/api/v2/trend-sources/bootstrap",
+      "requiredPermission": "task.write"
     },
     {
       "id": "cancelAnalysisJob",
       "owner": "analytics",
       "method": "POST",
-      "path": "/api/v2/analytics/jobs/{jobId}/cancel"
+      "path": "/api/v2/analytics/jobs/{jobId}/cancel",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "cancelCorpusBuild",
       "owner": "corpus",
       "method": "POST",
-      "path": "/api/v2/corpus-builds/{buildId}/cancel"
+      "path": "/api/v2/corpus-builds/{buildId}/cancel",
+      "requiredPermission": "analysis.write"
+    },
+    {
+      "id": "cancelCrawlerAssistantTurn",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/crawler-assistant/turns/{id}/cancel",
+      "requiredPermission": "task.write"
     },
     {
       "id": "cancelRun",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/runs/{runId}/cancel"
+      "path": "/api/v2/runs/{runId}/cancel",
+      "requiredPermission": "run.execute"
     },
     {
       "id": "clearPreferenceSignals",
       "owner": "preferences",
       "method": "DELETE",
-      "path": "/api/v2/preferences/signals"
+      "path": "/api/v2/preferences/signals",
+      "requiredPermission": "task.write"
     },
     {
       "id": "closeInspectionSession",
       "owner": "collection",
       "method": "DELETE",
-      "path": "/api/v2/inspection-sessions/{sessionId}"
+      "path": "/api/v2/inspection-sessions/{sessionId}",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "commitCrawlerAssistantDraft",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/crawler-assistant/conversations/{id}/commit",
+      "requiredPermission": "task.write"
     },
     {
       "id": "createAnalysisJob",
       "owner": "analytics",
       "method": "POST",
-      "path": "/api/v2/analytics/jobs"
+      "path": "/api/v2/analytics/jobs",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "createAnalysisRecipe",
       "owner": "analytics",
       "method": "POST",
-      "path": "/api/v2/analytics/recipes"
+      "path": "/api/v2/analytics/recipes",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "createApiToken",
       "owner": "outputs",
       "method": "POST",
-      "path": "/api/v2/api-tokens"
+      "path": "/api/v2/api-tokens",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "createCorpus",
       "owner": "corpus",
       "method": "POST",
-      "path": "/api/v2/corpora"
+      "path": "/api/v2/corpora",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "createCorpusBuild",
       "owner": "corpus",
       "method": "POST",
-      "path": "/api/v2/corpora/{corpusId}/builds"
+      "path": "/api/v2/corpora/{corpusId}/builds",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "createCorpusRecipe",
       "owner": "corpus",
       "method": "POST",
-      "path": "/api/v2/corpora/{corpusId}/recipes"
+      "path": "/api/v2/corpora/{corpusId}/recipes",
+      "requiredPermission": "analysis.write"
+    },
+    {
+      "id": "createCrawlerAssistantConversation",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/crawler-assistant/conversations",
+      "requiredPermission": "task.write"
     },
     {
       "id": "createDatasetSnapshot",
       "owner": "datasets",
       "method": "POST",
-      "path": "/api/v2/datasets/{datasetId}/snapshots"
+      "path": "/api/v2/datasets/{datasetId}/snapshots",
+      "requiredPermission": "task.write"
     },
     {
       "id": "createInspectionSession",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/inspection-sessions"
+      "path": "/api/v2/inspection-sessions",
+      "requiredPermission": "task.write"
     },
     {
       "id": "createOutputDestination",
       "owner": "outputs",
       "method": "POST",
-      "path": "/api/v2/output-destinations"
+      "path": "/api/v2/output-destinations",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "createPreferenceSignal",
       "owner": "preferences",
       "method": "POST",
-      "path": "/api/v2/preferences/signals"
+      "path": "/api/v2/preferences/signals",
+      "requiredPermission": "task.write"
     },
     {
       "id": "createRule",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/rules"
+      "path": "/api/v2/tasks/{taskId}/rules",
+      "requiredPermission": "task.write"
     },
     {
       "id": "createRuleRepairProposal",
       "owner": "ai-assistance",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals"
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals",
+      "requiredPermission": "task.write"
     },
     {
       "id": "createRuleVersion",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/versions"
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/versions",
+      "requiredPermission": "task.write"
     },
     {
       "id": "createRun",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/runs"
+      "path": "/api/v2/tasks/{taskId}/runs",
+      "requiredPermission": "run.execute"
     },
     {
       "id": "createSession",
       "owner": "platform",
       "method": "POST",
-      "path": "/api/v2/session"
+      "path": "/api/v2/session",
+      "requiredPermission": null
     },
     {
       "id": "createTask",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/tasks"
+      "path": "/api/v2/tasks",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "createTaskWithInitialRule",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/tasks/initialize",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "deleteAiProviderCredential",
+      "owner": "ai-assistance",
+      "method": "DELETE",
+      "path": "/api/v2/ai/provider/credential",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "deleteAnalysisRecipe",
       "owner": "analytics",
       "method": "DELETE",
-      "path": "/api/v2/analytics/recipes/{recipeId}"
+      "path": "/api/v2/analytics/recipes/{recipeId}",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "deleteCorpus",
       "owner": "corpus",
       "method": "DELETE",
-      "path": "/api/v2/corpora/{corpusId}"
+      "path": "/api/v2/corpora/{corpusId}",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "deleteCorpusRecipe",
       "owner": "corpus",
       "method": "DELETE",
-      "path": "/api/v2/corpora/{corpusId}/recipes/{recipeId}"
+      "path": "/api/v2/corpora/{corpusId}/recipes/{recipeId}",
+      "requiredPermission": "analysis.write"
+    },
+    {
+      "id": "deleteCrawlerAssistantConversation",
+      "owner": "ai-assistance",
+      "method": "DELETE",
+      "path": "/api/v2/crawler-assistant/conversations/{id}",
+      "requiredPermission": "task.write"
     },
     {
       "id": "deleteOutputDestination",
       "owner": "outputs",
       "method": "DELETE",
-      "path": "/api/v2/output-destinations/{destinationId}"
+      "path": "/api/v2/output-destinations/{destinationId}",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "deletePreferenceSignal",
       "owner": "preferences",
       "method": "DELETE",
-      "path": "/api/v2/preferences/signals/{signalId}"
+      "path": "/api/v2/preferences/signals/{signalId}",
+      "requiredPermission": "task.write"
     },
     {
       "id": "deleteTask",
       "owner": "collection",
       "method": "DELETE",
-      "path": "/api/v2/tasks/{taskId}"
+      "path": "/api/v2/tasks/{taskId}",
+      "requiredPermission": "task.write"
     },
     {
       "id": "deleteTaskCredential",
       "owner": "collection",
       "method": "DELETE",
-      "path": "/api/v2/tasks/{taskId}/credentials/{kind}"
+      "path": "/api/v2/tasks/{taskId}/credentials/{kind}",
+      "requiredPermission": "task.write"
     },
     {
       "id": "diffDataset",
       "owner": "datasets",
       "method": "GET",
-      "path": "/api/v2/datasets/{datasetId}/diff"
+      "path": "/api/v2/datasets/{datasetId}/diff",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "diffRuleVersions",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/diff"
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/diff",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "explainRunFailure",
       "owner": "ai-assistance",
       "method": "POST",
-      "path": "/api/v2/runs/{runId}/explain-failure"
+      "path": "/api/v2/runs/{runId}/explain-failure",
+      "requiredPermission": "task.write"
     },
     {
       "id": "exportAnalysisResult",
       "owner": "analytics",
       "method": "POST",
-      "path": "/api/v2/analytics/results/{resultId}/exports"
+      "path": "/api/v2/analytics/results/{resultId}/exports",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "exportCorpusVersion",
       "owner": "corpus",
       "method": "POST",
-      "path": "/api/v2/corpora/{corpusId}/versions/{versionId}/exports"
+      "path": "/api/v2/corpora/{corpusId}/versions/{versionId}/exports",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "exportDataset",
       "owner": "datasets",
       "method": "POST",
-      "path": "/api/v2/datasets/{datasetId}/exports"
+      "path": "/api/v2/datasets/{datasetId}/exports",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "exportRunRecords",
       "owner": "datasets",
       "method": "POST",
-      "path": "/api/v2/runs/{runId}/exports"
+      "path": "/api/v2/runs/{runId}/exports",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "extractDraftTaskWithAi",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/rules/ai-extract",
+      "requiredPermission": "task.write"
     },
     {
       "id": "extractTaskWithAi",
       "owner": "ai-assistance",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/ai/extract"
+      "path": "/api/v2/tasks/{taskId}/ai/extract",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "getAiProviderSettings",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/ai/provider",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getAnalysisJob",
       "owner": "analytics",
       "method": "GET",
-      "path": "/api/v2/analytics/jobs/{jobId}"
+      "path": "/api/v2/analytics/jobs/{jobId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getAnalysisRecipe",
       "owner": "analytics",
       "method": "GET",
-      "path": "/api/v2/analytics/recipes/{recipeId}"
+      "path": "/api/v2/analytics/recipes/{recipeId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getAnalysisResult",
       "owner": "analytics",
       "method": "GET",
-      "path": "/api/v2/analytics/results/{resultId}"
+      "path": "/api/v2/analytics/results/{resultId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getArtifactContent",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/artifacts/{artifactId}/content"
+      "path": "/api/v2/artifacts/{artifactId}/content",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getCapabilities",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/capabilities"
+      "path": "/api/v2/capabilities",
+      "requiredPermission": null
     },
     {
       "id": "getCorpus",
       "owner": "corpus",
       "method": "GET",
-      "path": "/api/v2/corpora/{corpusId}"
+      "path": "/api/v2/corpora/{corpusId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getCorpusBuild",
       "owner": "corpus",
       "method": "GET",
-      "path": "/api/v2/corpus-builds/{buildId}"
+      "path": "/api/v2/corpus-builds/{buildId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getCorpusVersion",
       "owner": "corpus",
       "method": "GET",
-      "path": "/api/v2/corpora/{corpusId}/versions/{versionId}"
+      "path": "/api/v2/corpora/{corpusId}/versions/{versionId}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getCrawlerAssistantConversation",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/crawler-assistant/conversations/{id}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getDataset",
       "owner": "datasets",
       "method": "GET",
-      "path": "/api/v2/datasets/{datasetId}"
+      "path": "/api/v2/datasets/{datasetId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getDatasetSnapshot",
       "owner": "datasets",
       "method": "GET",
-      "path": "/api/v2/datasets/{datasetId}/snapshots/{snapshotId}"
+      "path": "/api/v2/datasets/{datasetId}/snapshots/{snapshotId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getDesktopDiagnostics",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/desktop/diagnostics"
+      "path": "/api/v2/desktop/diagnostics",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getHealth",
       "owner": "platform",
       "method": "GET",
-      "path": "/health"
+      "path": "/health",
+      "requiredPermission": null
     },
     {
       "id": "getInspectionScreenshot",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/inspection-sessions/{sessionId}/screenshot"
+      "path": "/api/v2/inspection-sessions/{sessionId}/screenshot",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getOutputDestination",
       "owner": "outputs",
       "method": "GET",
-      "path": "/api/v2/output-destinations/{destinationId}"
+      "path": "/api/v2/output-destinations/{destinationId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getPreferenceProfile",
       "owner": "preferences",
       "method": "GET",
-      "path": "/api/v2/preferences/profile"
+      "path": "/api/v2/preferences/profile",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getProductOpenApi",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/openapi.json"
+      "path": "/api/v2/openapi.json",
+      "requiredPermission": null
+    },
+    {
+      "id": "getReadiness",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/ready",
+      "requiredPermission": null
     },
     {
       "id": "getRun",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/runs/{runId}"
+      "path": "/api/v2/runs/{runId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getRuntime",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/runtime"
+      "path": "/api/v2/runtime",
+      "requiredPermission": null
     },
     {
       "id": "getRuntimeGraph",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/runtime/graph"
+      "path": "/api/v2/runtime/graph",
+      "requiredPermission": null
     },
     {
       "id": "getRuntimeSummary",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/runtime/summary"
+      "path": "/api/v2/runtime/summary",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getTask",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/tasks/{taskId}"
+      "path": "/api/v2/tasks/{taskId}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getTaskHealth",
+      "owner": "monitoring",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}/health",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getTaskQualityPolicy",
+      "owner": "monitoring",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}/quality-policy",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getTaskTemplate",
+      "owner": "templates",
+      "method": "GET",
+      "path": "/api/v2/task-templates/{templateId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "getVersion",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/version"
+      "path": "/api/v2/version",
+      "requiredPermission": null
     },
     {
       "id": "importPreference",
       "owner": "preferences",
       "method": "POST",
-      "path": "/api/v2/preferences/import"
+      "path": "/api/v2/preferences/import",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "instantiateTaskTemplate",
+      "owner": "templates",
+      "method": "POST",
+      "path": "/api/v2/task-templates/{templateId}/instantiate",
+      "requiredPermission": "task.write"
     },
     {
       "id": "interactWithInspection",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/inspection-sessions/{sessionId}/actions"
+      "path": "/api/v2/inspection-sessions/{sessionId}/actions",
+      "requiredPermission": "task.write"
     },
     {
       "id": "listAnalysisJobs",
       "owner": "analytics",
       "method": "GET",
-      "path": "/api/v2/analytics/jobs"
+      "path": "/api/v2/analytics/jobs",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listAnalysisMethods",
       "owner": "analytics",
       "method": "GET",
-      "path": "/api/v2/analytics/methods"
+      "path": "/api/v2/analytics/methods",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listAnalysisRecipes",
       "owner": "analytics",
       "method": "GET",
-      "path": "/api/v2/analytics/recipes"
+      "path": "/api/v2/analytics/recipes",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listApiTokens",
       "owner": "outputs",
       "method": "GET",
-      "path": "/api/v2/api-tokens"
+      "path": "/api/v2/api-tokens",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "listCorpora",
       "owner": "corpus",
       "method": "GET",
-      "path": "/api/v2/corpora"
+      "path": "/api/v2/corpora",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listCorpusBuilds",
       "owner": "corpus",
       "method": "GET",
-      "path": "/api/v2/corpus-builds"
+      "path": "/api/v2/corpus-builds",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listCorpusRecipes",
       "owner": "corpus",
       "method": "GET",
-      "path": "/api/v2/corpora/{corpusId}/recipes"
+      "path": "/api/v2/corpora/{corpusId}/recipes",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listCorpusVersions",
       "owner": "corpus",
       "method": "GET",
-      "path": "/api/v2/corpora/{corpusId}/versions"
+      "path": "/api/v2/corpora/{corpusId}/versions",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listCrawlerAssistantConversations",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/crawler-assistant/conversations",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listCrawlerAssistantMessages",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/crawler-assistant/conversations/{id}/messages",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listDatasetChanges",
       "owner": "datasets",
       "method": "GET",
-      "path": "/api/v2/datasets/{datasetId}/changes"
+      "path": "/api/v2/datasets/{datasetId}/changes",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listDatasetRecords",
       "owner": "datasets",
       "method": "GET",
-      "path": "/api/v2/datasets/{datasetId}/records"
+      "path": "/api/v2/datasets/{datasetId}/records",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listDatasets",
       "owner": "datasets",
       "method": "GET",
-      "path": "/api/v2/datasets"
+      "path": "/api/v2/datasets",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listDatasetSnapshots",
       "owner": "datasets",
       "method": "GET",
-      "path": "/api/v2/datasets/{datasetId}/snapshots"
+      "path": "/api/v2/datasets/{datasetId}/snapshots",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listDeliveryAttempts",
       "owner": "outputs",
       "method": "GET",
-      "path": "/api/v2/delivery-attempts"
+      "path": "/api/v2/delivery-attempts",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listOutputDestinations",
       "owner": "outputs",
       "method": "GET",
-      "path": "/api/v2/output-destinations"
+      "path": "/api/v2/output-destinations",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listPreferenceSignals",
       "owner": "preferences",
       "method": "GET",
-      "path": "/api/v2/preferences/signals"
+      "path": "/api/v2/preferences/signals",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listRuleRepairProposals",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals"
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listRules",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/tasks/{taskId}/rules"
+      "path": "/api/v2/tasks/{taskId}/rules",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listRunLogs",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/runs/{runId}/logs"
+      "path": "/api/v2/runs/{runId}/logs",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listRunRecords",
       "owner": "datasets",
       "method": "GET",
-      "path": "/api/v2/runs/{runId}/records"
+      "path": "/api/v2/runs/{runId}/records",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listRunRequests",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/runs/{runId}/requests"
+      "path": "/api/v2/runs/{runId}/requests",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listRuns",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/tasks/{taskId}/runs"
+      "path": "/api/v2/tasks/{taskId}/runs",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listTaskHealth",
+      "owner": "monitoring",
+      "method": "GET",
+      "path": "/api/v2/task-health",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listTaskQualityEvaluations",
+      "owner": "monitoring",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}/quality-evaluations",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listTasks",
       "owner": "collection",
       "method": "GET",
-      "path": "/api/v2/tasks"
+      "path": "/api/v2/tasks",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listTaskTemplates",
+      "owner": "templates",
+      "method": "GET",
+      "path": "/api/v2/task-templates",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listTrends",
       "owner": "preferences",
       "method": "GET",
-      "path": "/api/v2/trends"
+      "path": "/api/v2/trends",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "listTrendSources",
       "owner": "preferences",
       "method": "GET",
-      "path": "/api/v2/trend-sources"
+      "path": "/api/v2/trend-sources",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "pauseScheduler",
       "owner": "platform",
       "method": "POST",
-      "path": "/api/v2/scheduler/pause"
+      "path": "/api/v2/scheduler/pause",
+      "requiredPermission": "workspace.manage"
+    },
+    {
+      "id": "postCrawlerAssistantMessage",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/crawler-assistant/conversations/{id}/messages",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "previewInitialRule",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/rules/preview",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "previewSchedule",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/schedules/preview",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "promptAiProviderCredential",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/ai/provider/credential/prompt",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "promptOutputCredential",
       "owner": "outputs",
       "method": "POST",
-      "path": "/api/v2/output-destinations/{destinationId}/credential/prompt"
+      "path": "/api/v2/output-destinations/{destinationId}/credential/prompt",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "promptTaskCredential",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/credentials/{kind}"
+      "path": "/api/v2/tasks/{taskId}/credentials/{kind}",
+      "requiredPermission": "task.write"
     },
     {
       "id": "queryDataApiRecords",
       "owner": "datasets",
       "method": "GET",
-      "path": "/api/v2/data/tasks/{taskId}/records"
+      "path": "/api/v2/data/tasks/{taskId}/records",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "rejectRuleRepairProposal",
       "owner": "ai-assistance",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/reject"
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/reject",
+      "requiredPermission": "task.write"
     },
     {
       "id": "resumeScheduler",
       "owner": "platform",
       "method": "POST",
-      "path": "/api/v2/scheduler/resume"
+      "path": "/api/v2/scheduler/resume",
+      "requiredPermission": "workspace.manage"
     },
     {
       "id": "retryAnalysisJob",
       "owner": "analytics",
       "method": "POST",
-      "path": "/api/v2/analytics/jobs/{jobId}/retry"
+      "path": "/api/v2/analytics/jobs/{jobId}/retry",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "retryCorpusBuild",
       "owner": "corpus",
       "method": "POST",
-      "path": "/api/v2/corpus-builds/{buildId}/retry"
+      "path": "/api/v2/corpus-builds/{buildId}/retry",
+      "requiredPermission": "analysis.write"
+    },
+    {
+      "id": "retryCrawlerAssistantTurn",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/crawler-assistant/turns/{id}/retry",
+      "requiredPermission": "task.write"
     },
     {
       "id": "retryDeliveryAttempt",
       "owner": "outputs",
       "method": "POST",
-      "path": "/api/v2/delivery-attempts/{attemptId}/retry"
+      "path": "/api/v2/delivery-attempts/{attemptId}/retry",
+      "requiredPermission": "output.bind"
     },
     {
       "id": "retryRun",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/runs/{runId}/retry"
+      "path": "/api/v2/runs/{runId}/retry",
+      "requiredPermission": "run.execute"
     },
     {
       "id": "revokeApiToken",
       "owner": "outputs",
       "method": "DELETE",
-      "path": "/api/v2/api-tokens/{tokenId}"
+      "path": "/api/v2/api-tokens/{tokenId}",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "rollbackRuleVersion",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/rollback"
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/rollback",
+      "requiredPermission": "task.write"
     },
     {
       "id": "runTrendSource",
       "owner": "preferences",
       "method": "POST",
-      "path": "/api/v2/trend-sources/{sourceKey}/run"
+      "path": "/api/v2/trend-sources/{sourceKey}/run",
+      "requiredPermission": "run.execute"
     },
     {
       "id": "runTrendSources",
       "owner": "preferences",
       "method": "POST",
-      "path": "/api/v2/trend-sources/run"
+      "path": "/api/v2/trend-sources/run",
+      "requiredPermission": "run.execute"
     },
     {
       "id": "saveArtifactWithHost",
       "owner": "platform",
       "method": "POST",
-      "path": "/api/v2/artifacts/{artifactId}/save"
+      "path": "/api/v2/artifacts/{artifactId}/save",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "selectCrawlerAssistantSite",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/crawler-assistant/conversations/{id}/site-selection",
+      "requiredPermission": "task.write"
     },
     {
       "id": "selectInspectionElement",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/inspection-sessions/{sessionId}/select"
+      "path": "/api/v2/inspection-sessions/{sessionId}/select",
+      "requiredPermission": "task.write"
     },
     {
       "id": "startTaskLoginSession",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/browser-session/login"
+      "path": "/api/v2/tasks/{taskId}/browser-session/login",
+      "requiredPermission": "task.write"
     },
     {
       "id": "streamDomainEvents",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/events/domain"
+      "path": "/api/v2/events/domain",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "streamRealtimeEvents",
       "owner": "platform",
       "method": "GET",
-      "path": "/api/v2/events/realtime"
+      "path": "/api/v2/events/realtime",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "testAiProviderSettings",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/ai/provider/test",
+      "requiredPermission": "output.manage"
+    },
+    {
+      "id": "testCrawlerAssistantDraft",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/crawler-assistant/conversations/{id}/draft/test",
+      "requiredPermission": "task.write"
     },
     {
       "id": "testOutputDestination",
       "owner": "outputs",
       "method": "POST",
-      "path": "/api/v2/output-destinations/{destinationId}/test"
+      "path": "/api/v2/output-destinations/{destinationId}/test",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "testRule",
       "owner": "collection",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/rules/test"
+      "path": "/api/v2/tasks/{taskId}/rules/test",
+      "requiredPermission": "task.write"
     },
     {
       "id": "testRuleRepairProposal",
       "owner": "ai-assistance",
       "method": "POST",
-      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/test"
+      "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/test",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "updateAiProviderSettings",
+      "owner": "ai-assistance",
+      "method": "PUT",
+      "path": "/api/v2/ai/provider",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "updateAnalysisRecipe",
       "owner": "analytics",
       "method": "PUT",
-      "path": "/api/v2/analytics/recipes/{recipeId}"
+      "path": "/api/v2/analytics/recipes/{recipeId}",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "updateCorpus",
       "owner": "corpus",
       "method": "PUT",
-      "path": "/api/v2/corpora/{corpusId}"
+      "path": "/api/v2/corpora/{corpusId}",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "updateCorpusRecipe",
       "owner": "corpus",
       "method": "PUT",
-      "path": "/api/v2/corpora/{corpusId}/recipes/{recipeId}"
+      "path": "/api/v2/corpora/{corpusId}/recipes/{recipeId}",
+      "requiredPermission": "analysis.write"
     },
     {
       "id": "updateOutputDestination",
       "owner": "outputs",
       "method": "PUT",
-      "path": "/api/v2/output-destinations/{destinationId}"
+      "path": "/api/v2/output-destinations/{destinationId}",
+      "requiredPermission": "output.manage"
     },
     {
       "id": "updateTask",
       "owner": "collection",
       "method": "PUT",
-      "path": "/api/v2/tasks/{taskId}"
+      "path": "/api/v2/tasks/{taskId}",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "updateTaskQualityPolicy",
+      "owner": "monitoring",
+      "method": "PUT",
+      "path": "/api/v2/tasks/{taskId}/quality-policy",
+      "requiredPermission": "task.write"
     },
     {
       "id": "updateTrendSource",
       "owner": "preferences",
       "method": "PUT",
-      "path": "/api/v2/trend-sources/{sourceKey}"
+      "path": "/api/v2/trend-sources/{sourceKey}",
+      "requiredPermission": "task.write"
     }
   ],
   "events": [
+    { "id": "ai.draft.updated", "owner": "ai-assistance" },
     { "id": "ai.request.completed", "owner": "ai-assistance" },
+    { "id": "ai.tool.status", "owner": "ai-assistance" },
+    { "id": "ai.turn.delta", "owner": "ai-assistance" },
+    { "id": "ai.turn.status", "owner": "ai-assistance" },
     { "id": "analysis.job.canceled", "owner": "analytics" },
     { "id": "analysis.job.created", "owner": "analytics" },
     { "id": "analysis.job.failed", "owner": "analytics" },
@@ -767,13 +1103,23 @@
     { "id": "outputs.delivery.failed", "owner": "outputs" },
     { "id": "outputs.delivery.succeeded", "owner": "outputs" },
     { "id": "outputs.destination.updated", "owner": "outputs" },
+    { "id": "outputs.event-notification.failed", "owner": "outputs" },
+    { "id": "outputs.event-notification.succeeded", "owner": "outputs" },
     { "id": "platform.job.created", "owner": "platform" },
     { "id": "platform.job.dead-lettered", "owner": "platform" },
     { "id": "platform.job.interrupted", "owner": "platform" },
     { "id": "preferences.signal.updated", "owner": "preferences" },
-    { "id": "preferences.trend-source.updated", "owner": "preferences" }
+    { "id": "preferences.trend-source.updated", "owner": "preferences" },
+    { "id": "quality.issue.detected", "owner": "monitoring" },
+    { "id": "quality.recovered", "owner": "monitoring" }
   ],
   "tables": [
+    { "id": "ai_conversations", "owner": "ai-assistance" },
+    { "id": "ai_draft_versions", "owner": "ai-assistance" },
+    { "id": "ai_messages", "owner": "ai-assistance" },
+    { "id": "ai_provider_settings", "owner": "ai-assistance" },
+    { "id": "ai_tool_invocations", "owner": "ai-assistance" },
+    { "id": "ai_turns", "owner": "ai-assistance" },
     { "id": "analysis_artifacts", "owner": "analytics" },
     { "id": "analysis_jobs", "owner": "analytics" },
     { "id": "analysis_recipes", "owner": "analytics" },
@@ -790,6 +1136,7 @@
     { "id": "delivery_attempts", "owner": "outputs" },
     { "id": "event_consumer_checkpoints", "owner": "platform" },
     { "id": "event_dead_letters", "owner": "platform" },
+    { "id": "event_notification_attempts", "owner": "outputs" },
     { "id": "idempotency_keys", "owner": "platform" },
     { "id": "output_destinations", "owner": "outputs" },
     { "id": "platform_artifacts", "owner": "platform" },
@@ -797,6 +1144,10 @@
     { "id": "platform_jobs", "owner": "platform" },
     { "id": "plugin_migrations", "owner": "platform" },
     { "id": "preference_signals", "owner": "preferences" },
+    { "id": "quality_evaluations", "owner": "monitoring" },
+    { "id": "quality_notifications", "owner": "monitoring" },
+    { "id": "quality_policies", "owner": "monitoring" },
+    { "id": "quality_task_state", "owner": "monitoring" },
     { "id": "record_changes", "owner": "datasets" },
     { "id": "records", "owner": "datasets" },
     { "id": "rule_repair_proposals", "owner": "collection" },
@@ -813,15 +1164,28 @@
     { "id": "zhiyun_meta", "owner": "platform" }
   ],
   "migrations": [
+    { "id": "001-conversations", "owner": "ai-assistance" },
     { "id": "001-initial", "owner": "datasets" },
     { "id": "001-initial", "owner": "collection" },
     { "id": "001-initial", "owner": "analytics" },
     { "id": "001-initial", "owner": "corpus" },
+    { "id": "001-initial", "owner": "monitoring" },
     { "id": "001-initial", "owner": "outputs" },
     { "id": "001-initial", "owner": "platform" },
-    { "id": "001-initial", "owner": "preferences" }
+    { "id": "001-initial", "owner": "preferences" },
+    { "id": "002-destination-types", "owner": "outputs" },
+    { "id": "002-durable-notifications", "owner": "monitoring" },
+    { "id": "002-task-origin", "owner": "collection" },
+    { "id": "003-event-notification-attempts", "owner": "outputs" },
+    { "id": "004-delivery-metadata", "owner": "outputs" },
+    { "id": "005-webhook-event-subscriptions", "owner": "outputs" }
   ],
   "uiContributions": [
+    {
+      "id": "ai-assistance.crawler-assistant-navigation",
+      "owner": "ai-assistance"
+    },
+    { "id": "ai-assistance.crawler-assistant-route", "owner": "ai-assistance" },
     {
       "id": "ai-assistance.failure-explanation-panel",
       "owner": "ai-assistance"
@@ -846,10 +1210,13 @@
     { "id": "preferences.route", "owner": "preferences" }
   ],
   "backgroundHandlers": [
+    { "id": "ai.conversation.turn", "owner": "ai-assistance" },
     { "id": "analytics.job.execute", "owner": "analytics" },
     { "id": "collection.crawl.execute", "owner": "collection" },
     { "id": "corpus.build.execute", "owner": "corpus" },
     { "id": "datasets.snapshot.prepare", "owner": "datasets" },
-    { "id": "outputs.delivery.execute", "owner": "outputs" }
+    { "id": "monitoring.quality.evaluate", "owner": "monitoring" },
+    { "id": "outputs.delivery.execute", "owner": "outputs" },
+    { "id": "outputs.event-notification.execute", "owner": "outputs" }
   ]
 }

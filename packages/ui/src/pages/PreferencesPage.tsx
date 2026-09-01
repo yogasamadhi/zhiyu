@@ -44,6 +44,7 @@ function metricLabel(key: string): string {
     words: '字数',
     readCount: '在读',
     wordCount: '字数',
+    monthlyTickets: '月票',
   };
   return labels[key] ?? key;
 }
@@ -210,6 +211,7 @@ export function PreferencesPage() {
   const trendSections = [
     { key: 'hongguo.latest', title: t('latestDrama') },
     { key: 'fanqie.read-ranking', title: t('novelRanking') },
+    { key: 'qidian.monthly-ticket-ranking', title: t('qidianRanking') },
     { key: 'bilibili.popular', title: t('bilibiliPopular') },
   ];
 
@@ -457,7 +459,7 @@ export function PreferencesPage() {
                 <Input
                   type="url"
                   value={importUrl}
-                  placeholder="https://fanqienovel.com/page/..."
+                  placeholder="https://m.qidian.com/book/..."
                   onChange={(event) => setImportUrl(event.target.value)}
                 />
               </label>

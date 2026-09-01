@@ -16,6 +16,24 @@ export class AiAssistanceService implements AiAssistanceServiceContract {
     private readonly crawler: CrawlerPort,
   ) {}
 
+  async analyzeDraftTaskRule(
+    task: Parameters<AiAssistanceServiceContract['analyzeDraftTaskRule']>[0],
+    options: { useAi: boolean; forceBrowser: boolean },
+  ): Promise<AnalysisResult> {
+    return analyzePage(
+      {
+        url: task.startUrl,
+        instruction: task.instruction,
+        requestSettings: task.requestSettings,
+        browserSettings: task.browserSettings,
+        networkPolicy: task.networkPolicy,
+        useAi: options.useAi,
+        forceBrowser: options.forceBrowser,
+      },
+      this.ai,
+    );
+  }
+
   async analyzeTaskRule(
     taskId: string,
     options: { useAi: boolean; forceBrowser: boolean },
@@ -75,6 +93,24 @@ export class AiAssistanceService implements AiAssistanceServiceContract {
       instruction: options.instruction ?? task.instruction,
       schema: definition,
       context: { taskId },
+    });
+    return { records: records.slice(0, 10), sourceUrl: source.finalUrl, persisted: false as const };
+  }
+
+  async extractDraftTask(
+    task: Parameters<AiAssistanceServiceContract['extractDraftTask']>[0],
+    options: Parameters<AiAssistanceServiceContract['extractDraftTask']>[1],
+  ) {
+    const source = await fetchPageSource(task.startUrl, {
+      rootUrl: task.startUrl,
+      requestSettings: task.requestSettings,
+      networkPolicy: task.networkPolicy,
+    });
+    const records = await this.ai.extract({
+      html: source.text,
+      instruction: options.instruction ?? task.instruction,
+      schema: options.definition,
+      context: {},
     });
     return { records: records.slice(0, 10), sourceUrl: source.finalUrl, persisted: false as const };
   }
@@ -186,3 +222,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 export * from './analyzer.js';
+export * from './crawler-assistant.js';
+export * from './pi-adapter.js';
+export * from './provider-catalog.js';
+export * from './provider.js';
+export * from './provider-settings.js';
+export * from './web-search.js';

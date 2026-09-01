@@ -11,11 +11,14 @@ import {
   type PlatformJobQueue,
   type PlatformRepository,
 } from '@zhiyun/platform-core';
-import type {
-  BrowserSettings,
-  CrawlerService,
-  CredentialStore,
-  TaskCredentialBindings,
+import {
+  redactSensitiveText,
+  scheduleSchema,
+  type BrowserSettings,
+  type CrawlerService,
+  type CredentialStore,
+  type Schedule,
+  type TaskCredentialBindings,
 } from '@zhiyun/contracts';
 
 export class CollectionService implements CollectionServiceContract {
@@ -79,6 +82,10 @@ export interface CollectionJobHandlerDependencies {
     task: CollectionTaskDetail;
     run: NonNullable<Awaited<ReturnType<CollectionRepository['getRun']>>>;
   }): Promise<void>;
+  afterFailed?(input: {
+    task: CollectionTaskDetail;
+    run: NonNullable<Awaited<ReturnType<CollectionRepository['getRun']>>>;
+  }): Promise<void>;
 }
 
 export function createCollectionJobHandler(dependencies: CollectionJobHandlerDependencies) {
@@ -101,7 +108,7 @@ export function createCollectionJobHandler(dependencies: CollectionJobHandlerDep
       await dependencies.afterSucceeded?.({ task, run });
       return;
     }
-    if (!(await dependencies.repository.startRun(runId, taskId))) {
+    if (!(await dependencies.repository.startRun(runId, taskId, context.job.attempt > 1))) {
       throw new PlatformJobExecutionError(
         'COLLECTION_JOB_CONFLICT',
         `Collection Run cannot start from ${run.status}`,
@@ -177,13 +184,15 @@ export function createCollectionJobHandler(dependencies: CollectionJobHandlerDep
         });
         throw new PlatformJobExecutionError('CANCELED', 'Collection Job was canceled', false);
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = redactSensitiveText(error instanceof Error ? error.message : String(error));
       const retryable = !/VALIDATION|RULE|NETWORK_POLICY|RESOURCE_LIMIT/.test(message);
-      await dependencies.repository.failRun(
+      const finalFailure = !retryable || context.job.attempt >= context.job.maxAttempts;
+      const failed = await dependencies.repository.failRun(
         runId,
         taskId,
         message.slice(0, 2_000),
         retryable ? 'CRAWLER_ERROR' : 'VALIDATION_ERROR',
+        finalFailure,
       );
       await dependencies.repository.appendRunLog({
         runId,
@@ -194,6 +203,7 @@ export function createCollectionJobHandler(dependencies: CollectionJobHandlerDep
         errorCode: retryable ? 'CRAWLER_ERROR' : 'VALIDATION_ERROR',
         metadata: {},
       });
+      if (failed && finalFailure) await dependencies.afterFailed?.({ task, run: failed });
       throw new PlatformJobExecutionError(
         retryable ? 'CRAWLER_ERROR' : 'VALIDATION_ERROR',
         message,
@@ -327,6 +337,26 @@ function missedRun(pattern: string, timezone: string, lastTriggeredAt: string): 
   try {
     const next = calculator.nextRun(new Date(lastTriggeredAt));
     return Boolean(next && next.getTime() < Date.now());
+  } finally {
+    calculator.stop();
+  }
+}
+
+export function previewSchedule(schedule: Schedule, count = 5, from = new Date()): string[] {
+  const parsed = scheduleSchema.parse(schedule);
+  if (parsed.mode === 'manual') return [];
+  if (!parsed.cron) throw new Error('A cron expression is required');
+  const calculator = new Cron(parsed.cron, { timezone: parsed.timezone, paused: true });
+  try {
+    const result: string[] = [];
+    let cursor = from;
+    for (let index = 0; index < Math.min(Math.max(count, 1), 20); index += 1) {
+      const next = calculator.nextRun(cursor);
+      if (!next) break;
+      result.push(next.toISOString());
+      cursor = new Date(next.getTime() + 1);
+    }
+    return result;
   } finally {
     calculator.stop();
   }

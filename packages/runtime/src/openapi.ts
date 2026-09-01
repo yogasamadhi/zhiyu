@@ -13,12 +13,17 @@ import {
   deliveryAttemptSchema,
   domainEventSchema,
   extractedRecordSchema,
+  inspectionElementSelectionSchema,
+  inspectionStepInputSchema,
+  inspectionStepResultSchema,
   outputDestinationSchema,
   preferenceImportSchema,
   preferenceProfileSchema,
   preferenceSignalInputSchema,
   preferenceSignalSchema,
   problemDetailsSchema,
+  qualityEvaluationSchema,
+  qualityPolicySchema,
   recordChangeSchema,
   ruleRepairProposalSchema,
   ruleVersionSchema,
@@ -26,9 +31,12 @@ import {
   runRequestEntrySchema,
   runtimeCapabilitiesSchema,
   runtimeMetadataSchema,
+  scheduleSchema,
   taskCreateSchema,
   taskDetailSchema,
   taskListItemSchema,
+  taskHealthSchema,
+  taskTemplateSchema,
   taskUpdateSchema,
   trendItemSchema,
   trendSourceSchema,
@@ -463,8 +471,85 @@ function corpusVersionOpenApiSchema() {
   };
 }
 
-export function openApiDocument() {
+function identityUserOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'email', 'displayName', 'role', 'disabled', 'createdAt', 'updatedAt'],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      email: { type: 'string', format: 'email' },
+      displayName: { type: 'string' },
+      role: { type: 'string', enum: ['admin', 'editor', 'viewer'] },
+      disabled: { type: 'boolean' },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  };
+}
+
+function identityInvitationOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'id',
+      'email',
+      'role',
+      'expiresAt',
+      'createdBy',
+      'acceptedAt',
+      'revokedAt',
+      'createdAt',
+    ],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      email: { type: 'string', format: 'email' },
+      role: { type: 'string', enum: ['admin', 'editor', 'viewer'] },
+      expiresAt: { type: 'string', format: 'date-time' },
+      createdBy: { type: 'string', format: 'uuid' },
+      acceptedAt: { type: ['string', 'null'], format: 'date-time' },
+      revokedAt: { type: ['string', 'null'], format: 'date-time' },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+  };
+}
+
+function identityAuditEventOpenApiSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'id',
+      'actorUserId',
+      'operationId',
+      'resourceType',
+      'resourceId',
+      'result',
+      'traceId',
+      'networkHash',
+      'details',
+      'occurredAt',
+    ],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      actorUserId: { type: ['string', 'null'], format: 'uuid' },
+      operationId: { type: 'string' },
+      resourceType: { type: 'string' },
+      resourceId: { type: ['string', 'null'] },
+      result: { type: 'string', enum: ['succeeded', 'failed', 'denied'] },
+      traceId: { type: ['string', 'null'] },
+      networkHash: { type: ['string', 'null'] },
+      details: {},
+      occurredAt: { type: 'string', format: 'date-time' },
+    },
+  };
+}
+
+export function openApiDocument(profileId = 'desktop-studio') {
   const paths: Record<string, Record<string, Record<string, unknown>>> = {
+    '/health': { get: { operationId: 'getHealth' } },
+    '/ready': { get: { operationId: 'getReadiness' } },
     '/api/v2/session': { post: { operationId: 'createRuntimeSession' } },
     '/api/v2/version': { get: { operationId: 'getVersion' } },
     '/api/v2/capabilities': { get: { operationId: 'getCapabilities' } },
@@ -491,13 +576,90 @@ export function openApiDocument() {
       get: { operationId: 'listTasks' },
       post: { operationId: 'createTask' },
     },
+    '/api/v2/rules/preview': { post: { operationId: 'previewInitialRule' } },
+    '/api/v2/tasks/initialize': { post: { operationId: 'createTaskWithInitialRule' } },
+    '/api/v2/schedules/preview': { post: { operationId: 'previewSchedule' } },
+    '/api/v2/task-health': { get: { operationId: 'listTaskHealth' } },
+    '/api/v2/tasks/{id}/quality-policy': {
+      get: { operationId: 'getTaskQualityPolicy' },
+      put: { operationId: 'updateTaskQualityPolicy' },
+    },
+    '/api/v2/tasks/{id}/health': { get: { operationId: 'getTaskHealth' } },
+    '/api/v2/tasks/{id}/quality-evaluations': {
+      get: { operationId: 'listTaskQualityEvaluations' },
+    },
+    '/api/v2/task-templates': { get: { operationId: 'listTaskTemplates' } },
+    '/api/v2/task-templates/{templateId}': { get: { operationId: 'getTaskTemplate' } },
+    '/api/v2/task-templates/{templateId}/instantiate': {
+      post: { operationId: 'instantiateTaskTemplate' },
+    },
+    '/api/v2/auth/status': { get: { operationId: 'getAuthStatus' } },
+    '/api/v2/auth/setup': { post: { operationId: 'setupAuth' } },
+    '/api/v2/auth/login': { post: { operationId: 'login' } },
+    '/api/v2/auth/logout': { post: { operationId: 'logout' } },
+    '/api/v2/auth/me': { get: { operationId: 'getCurrentUser' } },
+    '/api/v2/auth/password': { post: { operationId: 'changePassword' } },
+    '/api/v2/members': { get: { operationId: 'listMembers' } },
+    '/api/v2/members/{memberId}': { patch: { operationId: 'updateMember' } },
+    '/api/v2/members/{memberId}/password-reset': {
+      post: { operationId: 'createMemberPasswordReset' },
+    },
+    '/api/v2/invitations': {
+      get: { operationId: 'listInvitations' },
+      post: { operationId: 'createInvitation' },
+    },
+    '/api/v2/invitations/{invitationId}': {
+      delete: { operationId: 'deleteInvitation' },
+    },
+    '/api/v2/invitations/accept': { post: { operationId: 'acceptInvitation' } },
+    '/api/v2/audit-events': { get: { operationId: 'listAuditEvents' } },
     '/api/v2/tasks/{id}': {
       get: { operationId: 'getTask' },
       put: { operationId: 'updateTask' },
       delete: { operationId: 'deleteTask' },
     },
     '/api/v2/tasks/{id}/rule-analysis': { post: { operationId: 'analyzeTaskRule' } },
+    '/api/v2/rules/analyze': { post: { operationId: 'analyzeDraftTaskRule' } },
     '/api/v2/tasks/{id}/ai/extract': { post: { operationId: 'runAiExtractDemo' } },
+    '/api/v2/rules/ai-extract': { post: { operationId: 'extractDraftTaskWithAi' } },
+    '/api/v2/crawler-assistant/conversations': {
+      get: { operationId: 'listCrawlerAssistantConversations' },
+      post: { operationId: 'createCrawlerAssistantConversation' },
+    },
+    '/api/v2/crawler-assistant/conversations/{id}': {
+      get: { operationId: 'getCrawlerAssistantConversation' },
+      delete: { operationId: 'deleteCrawlerAssistantConversation' },
+    },
+    '/api/v2/crawler-assistant/conversations/{id}/messages': {
+      get: { operationId: 'listCrawlerAssistantMessages' },
+      post: { operationId: 'postCrawlerAssistantMessage' },
+    },
+    '/api/v2/crawler-assistant/conversations/{id}/site-selection': {
+      post: { operationId: 'selectCrawlerAssistantSite' },
+    },
+    '/api/v2/crawler-assistant/conversations/{id}/draft/test': {
+      post: { operationId: 'testCrawlerAssistantDraft' },
+    },
+    '/api/v2/crawler-assistant/conversations/{id}/commit': {
+      post: { operationId: 'commitCrawlerAssistantDraft' },
+    },
+    '/api/v2/crawler-assistant/turns/{id}/cancel': {
+      post: { operationId: 'cancelCrawlerAssistantTurn' },
+    },
+    '/api/v2/crawler-assistant/turns/{id}/retry': {
+      post: { operationId: 'retryCrawlerAssistantTurn' },
+    },
+    '/api/v2/ai/provider': {
+      get: { operationId: 'getAiProviderSettings' },
+      put: { operationId: 'updateAiProviderSettings' },
+    },
+    '/api/v2/ai/provider/credential/prompt': {
+      post: { operationId: 'promptAiProviderCredential' },
+    },
+    '/api/v2/ai/provider/credential': {
+      delete: { operationId: 'deleteAiProviderCredential' },
+    },
+    '/api/v2/ai/provider/test': { post: { operationId: 'testAiProviderSettings' } },
     '/api/v2/tasks/{id}/browser-session/login': {
       post: { operationId: 'createTaskLoginSession' },
     },
@@ -570,6 +732,7 @@ export function openApiDocument() {
       post: { operationId: 'createOutputDestination' },
     },
     '/api/v2/output-destinations/{id}': {
+      get: { operationId: 'getOutputDestination' },
       put: { operationId: 'updateOutputDestination' },
       delete: { operationId: 'deleteOutputDestination' },
     },
@@ -761,6 +924,58 @@ export function openApiDocument() {
     },
   });
   paths['/api/v2/capabilities']!.get!.responses = responses(ref('RuntimeCapabilities'));
+  paths['/ready']!.get!.responses = responses({
+    type: 'object',
+    additionalProperties: false,
+    required: ['status', 'checks'],
+    properties: {
+      status: { type: 'string', enum: ['ready', 'not-ready'] },
+      checks: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['database', 'redis', 'queue', 'browser', 'analyticsWorker'],
+        properties: Object.fromEntries(
+          ['database', 'redis', 'queue', 'browser', 'analyticsWorker'].map((name) => [
+            name,
+            {
+              type: 'object',
+              required: ['status'],
+              properties: { status: { type: 'string' } },
+              additionalProperties: true,
+            },
+          ]),
+        ),
+      },
+    },
+  });
+  paths['/api/v2/runtime/summary']!.get!.responses = responses({
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'schedulingPaused',
+      'startedAt',
+      'uptimeSeconds',
+      'queueBacklog',
+      'jobsByState',
+      'jobs',
+      'analyticsWorkerStatus',
+    ],
+    properties: {
+      schedulingPaused: { type: 'boolean' },
+      startedAt: { type: 'string', format: 'date-time' },
+      uptimeSeconds: { type: 'integer', minimum: 0 },
+      queueBacklog: { type: 'integer', minimum: 0 },
+      jobsByState: {
+        type: 'object',
+        additionalProperties: { type: 'integer', minimum: 0 },
+      },
+      jobs: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      analyticsWorkerStatus: {
+        type: 'string',
+        enum: ['starting', 'ready', 'degraded', 'unavailable'],
+      },
+    },
+  });
   paths['/api/v2/trend-sources']!.get!.responses = responses({
     type: 'array',
     items: ref('TrendSource'),
@@ -839,6 +1054,363 @@ export function openApiDocument() {
     requestBody: body(ref('TaskCreate')),
     responses: responses(ref('TaskDetail'), '201'),
   });
+  Object.assign(paths['/api/v2/schedules/preview']!.post!, {
+    requestBody: body(ref('Schedule')),
+    responses: responses({
+      type: 'object',
+      required: ['nextRuns'],
+      properties: {
+        nextRuns: {
+          type: 'array',
+          minItems: 5,
+          maxItems: 5,
+          items: { type: 'string', format: 'date-time' },
+        },
+      },
+    }),
+  });
+  Object.assign(paths['/api/v2/inspection-sessions']!.post!, {
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['taskId'],
+      properties: { taskId: { type: 'string', format: 'uuid' } },
+    }),
+    responses: responses(
+      {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'url', 'expiresAt'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          url: { type: 'string' },
+          expiresAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      '201',
+    ),
+  });
+  paths['/api/v2/inspection-sessions/{sessionId}/screenshot']!.get!.responses = responses({
+    type: 'object',
+    additionalProperties: false,
+    required: ['url', 'image', 'width', 'height'],
+    properties: {
+      url: { type: 'string' },
+      image: { type: 'string', contentEncoding: 'base64' },
+      width: { type: 'integer', minimum: 1 },
+      height: { type: 'integer', minimum: 1 },
+    },
+  });
+  Object.assign(paths['/api/v2/inspection-sessions/{sessionId}/actions']!.post!, {
+    requestBody: body({
+      oneOf: [
+        ref('InspectionStepInput'),
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['type'],
+          properties: {
+            type: { type: 'string', enum: ['click', 'scroll', 'refresh'] },
+            x: { type: 'number' },
+            y: { type: 'number' },
+            deltaY: { type: 'number' },
+          },
+        },
+      ],
+    }),
+    responses: responses({
+      oneOf: [
+        ref('InspectionStepResult'),
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['url'],
+          properties: { url: { type: 'string' } },
+        },
+      ],
+    }),
+  });
+  Object.assign(paths['/api/v2/inspection-sessions/{sessionId}/select']!.post!, {
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['x', 'y'],
+      properties: {
+        x: { type: 'number', minimum: 0 },
+        y: { type: 'number', minimum: 0 },
+      },
+    }),
+    responses: responses(ref('InspectionElementSelection')),
+  });
+  Object.assign(paths['/api/v2/task-health']!.get!, {
+    parameters: [
+      {
+        name: 'taskIds',
+        in: 'query',
+        required: true,
+        schema: { type: 'string', description: 'Comma-separated task IDs, at most 100' },
+      },
+    ],
+    responses: responses({ type: 'array', items: ref('TaskHealth') }),
+  });
+  paths['/api/v2/tasks/{id}/quality-policy']!.get!.responses = responses(ref('QualityPolicy'));
+  Object.assign(paths['/api/v2/tasks/{id}/quality-policy']!.put!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body(ref('QualityPolicy')),
+    responses: responses(ref('QualityPolicy')),
+  });
+  paths['/api/v2/tasks/{id}/health']!.get!.responses = responses(ref('TaskHealth'));
+  Object.assign(paths['/api/v2/tasks/{id}/quality-evaluations']!.get!, {
+    parameters: [
+      { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 500 } },
+    ],
+    responses: responses({ type: 'array', items: ref('QualityEvaluation') }),
+  });
+  paths['/api/v2/task-templates']!.get!.responses = responses({
+    type: 'array',
+    items: ref('TaskTemplate'),
+  });
+  paths['/api/v2/task-templates/{templateId}']!.get!.responses = responses(ref('TaskTemplate'));
+  Object.assign(paths['/api/v2/task-templates/{templateId}/instantiate']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['parameters'],
+      anyOf: [{ required: ['startUrl'] }, { required: ['task'] }],
+      properties: {
+        startUrl: { type: 'string', format: 'uri' },
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        instruction: { type: 'string', minLength: 1 },
+        schedule: ref('Schedule'),
+        task: ref('TaskCreate'),
+        definition: ref('CrawlPlanDefinition'),
+        previewKey: { type: 'string', minLength: 1, maxLength: 200 },
+        limit: { type: 'integer', minimum: 1, maximum: 10, default: 10 },
+        saveAsDraft: { type: 'boolean', default: false },
+        parameters: { type: 'object', additionalProperties: true },
+      },
+    }),
+    responses: responses(ref('TaskDetail'), '201'),
+  });
+  paths['/api/v2/auth/status']!.get!.responses = responses({
+    type: 'object',
+    required: ['initialized'],
+    properties: { initialized: { type: 'boolean' } },
+  });
+  const identityCredentialFields = {
+    email: { type: 'string', format: 'email' },
+    displayName: { type: 'string', minLength: 1, maxLength: 200 },
+    password: { type: 'string', minLength: 12, writeOnly: true },
+  };
+  Object.assign(paths['/api/v2/auth/setup']!.post!, {
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['bootstrapToken', 'email', 'displayName', 'password'],
+      properties: {
+        bootstrapToken: { type: 'string', minLength: 32, writeOnly: true },
+        ...identityCredentialFields,
+      },
+    }),
+    responses: responses(ref('IdentityUser'), '201'),
+  });
+  Object.assign(paths['/api/v2/auth/login']!.post!, {
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['email', 'password'],
+      properties: {
+        email: identityCredentialFields.email,
+        password: identityCredentialFields.password,
+      },
+    }),
+    responses: responses({
+      type: 'object',
+      required: ['user', 'csrfToken', 'idleExpiresAt', 'absoluteExpiresAt'],
+      properties: {
+        user: ref('IdentityUser'),
+        csrfToken: { type: 'string', writeOnly: true },
+        idleExpiresAt: { type: 'string', format: 'date-time' },
+        absoluteExpiresAt: { type: 'string', format: 'date-time' },
+      },
+    }),
+  });
+  paths['/api/v2/auth/logout']!.post!.parameters = [
+    {
+      name: 'X-CSRF-Token',
+      in: 'header',
+      required: true,
+      schema: { type: 'string', minLength: 1 },
+    },
+  ];
+  paths['/api/v2/auth/logout']!.post!.responses = {
+    '204': { description: 'Logged out' },
+    default: problemResponse,
+  };
+  paths['/api/v2/auth/me']!.get!.responses = responses({
+    type: 'object',
+    required: ['user', 'permissions', 'csrfToken', 'idleExpiresAt', 'absoluteExpiresAt'],
+    properties: {
+      user: ref('IdentityUser'),
+      permissions: { type: 'array', items: { type: 'string' }, uniqueItems: true },
+      csrfToken: { type: 'string', writeOnly: true },
+      idleExpiresAt: { type: 'string', format: 'date-time' },
+      absoluteExpiresAt: { type: 'string', format: 'date-time' },
+    },
+  });
+  Object.assign(paths['/api/v2/auth/password']!.post!, {
+    requestBody: body({
+      oneOf: [
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['currentPassword', 'newPassword'],
+          properties: {
+            currentPassword: { type: 'string', writeOnly: true },
+            newPassword: { type: 'string', minLength: 12, writeOnly: true },
+          },
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['resetToken', 'newPassword'],
+          properties: {
+            resetToken: { type: 'string', writeOnly: true },
+            newPassword: { type: 'string', minLength: 12, writeOnly: true },
+          },
+        },
+      ],
+    }),
+    responses: { '204': { description: 'Password changed' }, default: problemResponse },
+  });
+  paths['/api/v2/members']!.get!.responses = responses({
+    type: 'object',
+    required: ['items'],
+    properties: { items: { type: 'array', items: ref('IdentityUser') } },
+  });
+  Object.assign(paths['/api/v2/members/{memberId}']!.patch!, {
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        role: { type: 'string', enum: ['admin', 'editor', 'viewer'] },
+        disabled: { type: 'boolean' },
+        displayName: { type: 'string', minLength: 1, maxLength: 200 },
+      },
+    }),
+    responses: responses(ref('IdentityUser')),
+  });
+  paths['/api/v2/members/{memberId}/password-reset']!.post!.responses = responses(
+    {
+      type: 'object',
+      required: ['token', 'expiresAt'],
+      properties: {
+        token: { type: 'string', writeOnly: true },
+        expiresAt: { type: 'string', format: 'date-time' },
+      },
+    },
+    '201',
+  );
+  paths['/api/v2/invitations']!.get!.responses = responses({
+    type: 'object',
+    required: ['items'],
+    properties: { items: { type: 'array', items: ref('IdentityInvitation') } },
+  });
+  Object.assign(paths['/api/v2/invitations']!.post!, {
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['email', 'role'],
+      properties: {
+        email: identityCredentialFields.email,
+        role: { type: 'string', enum: ['admin', 'editor', 'viewer'] },
+      },
+    }),
+    responses: responses(
+      {
+        type: 'object',
+        required: ['invitation', 'token'],
+        properties: {
+          invitation: ref('IdentityInvitation'),
+          token: { type: 'string', writeOnly: true },
+        },
+      },
+      '201',
+    ),
+  });
+  paths['/api/v2/invitations/{invitationId}']!.delete!.responses = {
+    '204': { description: 'Invitation revoked' },
+    default: problemResponse,
+  };
+  Object.assign(paths['/api/v2/invitations/accept']!.post!, {
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['token', 'displayName', 'password'],
+      properties: {
+        token: { type: 'string', writeOnly: true },
+        displayName: identityCredentialFields.displayName,
+        password: identityCredentialFields.password,
+      },
+    }),
+    responses: responses(ref('IdentityUser'), '201'),
+  });
+  Object.assign(paths['/api/v2/audit-events']!.get!, {
+    parameters: [
+      { name: 'cursor', in: 'query', schema: { type: 'string' } },
+      { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 200 } },
+    ],
+    responses: responses(page(ref('IdentityAuditEvent'))),
+  });
+  const initialRuleRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['task', 'definition'],
+    properties: {
+      task: ref('TaskCreate'),
+      definition: ref('CrawlPlanDefinition'),
+      ruleName: { type: 'string', minLength: 1, maxLength: 200 },
+      limit: { type: 'integer', minimum: 1, maximum: 10 },
+    },
+  };
+  Object.assign(paths['/api/v2/rules/preview']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body(initialRuleRequest),
+    responses: responses({
+      type: 'object',
+      required: ['records', 'previewKey'],
+      properties: {
+        records: { type: 'array', items: ref('ExtractedRecord') },
+        previewKey: { type: 'string' },
+        metadata: { type: 'object', additionalProperties: true },
+      },
+    }),
+  });
+  Object.assign(paths['/api/v2/tasks/initialize']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body({
+      ...initialRuleRequest,
+      required: initialRuleRequest.required,
+      properties: {
+        ...initialRuleRequest.properties,
+        previewKey: { type: 'string', minLength: 1, maxLength: 200 },
+        runAfterCreate: { type: 'boolean', default: false },
+        saveAsDraft: { type: 'boolean', default: false },
+      },
+    }),
+    responses: responses(
+      {
+        type: 'object',
+        required: ['task', 'run'],
+        properties: {
+          task: ref('TaskDetail'),
+          run: { oneOf: [ref('CrawlRun'), { type: 'null' }] },
+        },
+      },
+      '201',
+    ),
+  });
   paths['/api/v2/tasks/{id}']!.get!.responses = responses(ref('TaskDetail'));
   Object.assign(paths['/api/v2/tasks/{id}']!.put!, {
     requestBody: body(ref('TaskUpdate')),
@@ -855,6 +1427,40 @@ export function openApiDocument() {
       properties: { useAi: { type: 'boolean' }, forceBrowser: { type: 'boolean' } },
     }),
     responses: responses(ref('RuleAnalysisResult')),
+  });
+  Object.assign(paths['/api/v2/rules/analyze']!.post!, {
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['task', 'useAi', 'forceBrowser'],
+      properties: {
+        task: ref('TaskCreate'),
+        useAi: { type: 'boolean' },
+        forceBrowser: { type: 'boolean' },
+      },
+    }),
+    responses: responses(ref('RuleAnalysisResult')),
+  });
+  Object.assign(paths['/api/v2/rules/ai-extract']!.post!, {
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['task', 'definition'],
+      properties: {
+        task: ref('TaskCreate'),
+        definition: ref('CrawlPlanDefinition'),
+        instruction: { type: 'string' },
+      },
+    }),
+    responses: responses({
+      type: 'object',
+      required: ['records', 'sourceUrl', 'persisted'],
+      properties: {
+        records: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        sourceUrl: { type: 'string', format: 'uri' },
+        persisted: { type: 'boolean', const: false },
+      },
+    }),
   });
   paths['/api/v2/tasks/{id}/runs']!.get!.responses = responses(page(ref('CrawlRun')));
   paths['/api/v2/datasets/{datasetId}/records']!.get!.responses = responses(
@@ -888,14 +1494,101 @@ export function openApiDocument() {
     type: 'array',
     items: ref('OutputDestination'),
   });
+  const outputDestinationInput = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name', 'type', 'config'],
+    properties: {
+      name: { type: 'string', minLength: 1, maxLength: 200 },
+      type: {
+        type: 'string',
+        enum: ['webhook', 'postgres', 'local-directory', 'google-sheets', 's3'],
+      },
+      config: { type: 'object', additionalProperties: true },
+      credential: { description: 'Write-only credential payload; never returned by the API' },
+      enabled: { type: 'boolean', default: true },
+    },
+  };
+  Object.assign(paths['/api/v2/output-destinations']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body(outputDestinationInput),
+    responses: responses(ref('OutputDestination'), '201'),
+  });
+  paths['/api/v2/output-destinations/{id}']!.get!.responses = responses(ref('OutputDestination'));
+  Object.assign(paths['/api/v2/output-destinations/{id}']!.put!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        name: outputDestinationInput.properties.name,
+        config: outputDestinationInput.properties.config,
+        enabled: outputDestinationInput.properties.enabled,
+      },
+    }),
+    responses: responses(ref('OutputDestination')),
+  });
+  appendParameters(paths['/api/v2/output-destinations/{id}']!.delete!, idempotencyHeader());
+  paths['/api/v2/output-destinations/{id}']!.delete!.responses = {
+    '204': { description: 'Deleted' },
+    default: problemResponse,
+  };
+  appendParameters(paths['/api/v2/output-destinations/{id}/test']!.post!, idempotencyHeader());
+  paths['/api/v2/output-destinations/{id}/test']!.post!.responses = responses({
+    type: 'object',
+    required: ['ok', 'destinationId'],
+    properties: {
+      ok: { type: 'boolean', const: true },
+      destinationId: { type: 'string', format: 'uuid' },
+    },
+  });
+  appendParameters(
+    paths['/api/v2/output-destinations/{id}/credential/prompt']!.post!,
+    idempotencyHeader(),
+  );
+  paths['/api/v2/output-destinations/{id}/credential/prompt']!.post!.responses = responses(
+    ref('OutputDestination'),
+  );
   paths['/api/v2/delivery-attempts']!.get!.responses = responses({
     type: 'array',
     items: ref('DeliveryAttempt'),
   });
+  appendParameters(paths['/api/v2/delivery-attempts/{id}/retry']!.post!, idempotencyHeader());
+  paths['/api/v2/delivery-attempts/{id}/retry']!.post!.responses = responses(
+    ref('DeliveryAttempt'),
+  );
   paths['/api/v2/api-tokens']!.get!.responses = responses({
     type: 'array',
     items: ref('ApiToken'),
   });
+  Object.assign(paths['/api/v2/api-tokens']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'taskIds', 'rateLimitPerMinute'],
+      properties: {
+        name: { type: 'string', minLength: 1 },
+        taskIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+        rateLimitPerMinute: { type: 'integer', minimum: 1, maximum: 10_000 },
+        expiresAt: { type: ['string', 'null'], format: 'date-time' },
+      },
+    }),
+    responses: responses(
+      {
+        allOf: [ref('ApiToken')],
+        type: 'object',
+        required: ['token'],
+        properties: { token: { type: 'string', description: 'Returned once' } },
+      },
+      '201',
+    ),
+  });
+  appendParameters(paths['/api/v2/api-tokens/{id}']!.delete!, idempotencyHeader());
+  paths['/api/v2/api-tokens/{id}']!.delete!.responses = {
+    '204': { description: 'Revoked' },
+    default: problemResponse,
+  };
   paths['/api/v2/analytics/methods']!.get!.responses = responses({
     type: 'array',
     items: ref('AnalysisMethodDescriptor'),
@@ -1062,9 +1755,124 @@ export function openApiDocument() {
       artifacts: corpusVersionOpenApiSchema().properties.artifacts,
     },
   });
+  const assistantObject = { type: 'object', additionalProperties: true };
+  Object.assign(paths['/api/v2/crawler-assistant/conversations']!.get!, {
+    parameters: [
+      { name: 'cursor', in: 'query', schema: { type: 'string' } },
+      { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100 } },
+    ],
+    responses: responses(assistantObject),
+  });
+  Object.assign(paths['/api/v2/crawler-assistant/conversations']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      properties: { title: { type: 'string', maxLength: 120 } },
+    }),
+    responses: responses(assistantObject, '201'),
+  });
+  paths['/api/v2/crawler-assistant/conversations/{id}']!.get!.responses =
+    responses(assistantObject);
+  appendParameters(
+    paths['/api/v2/crawler-assistant/conversations/{id}']!.delete!,
+    idempotencyHeader(),
+  );
+  paths['/api/v2/crawler-assistant/conversations/{id}']!.delete!.responses =
+    responses(assistantObject);
+  paths['/api/v2/crawler-assistant/conversations/{id}/messages']!.get!.responses = responses({
+    type: 'array',
+    items: assistantObject,
+  });
+  Object.assign(paths['/api/v2/crawler-assistant/conversations/{id}/messages']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['content'],
+      properties: { content: { type: 'string', minLength: 1, maxLength: 8000 } },
+    }),
+    responses: responses(assistantObject, '202'),
+  });
+  Object.assign(paths['/api/v2/crawler-assistant/conversations/{id}/site-selection']!.post!, {
+    parameters: [idempotencyHeader(), ifMatchHeader()],
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['url'],
+      properties: { url: { type: 'string', format: 'uri' } },
+    }),
+    responses: responses(assistantObject, '202'),
+  });
+  appendParameters(
+    paths['/api/v2/crawler-assistant/conversations/{id}/draft/test']!.post!,
+    idempotencyHeader(),
+    ifMatchHeader(),
+  );
+  paths['/api/v2/crawler-assistant/conversations/{id}/draft/test']!.post!.responses =
+    responses(assistantObject);
+  appendParameters(
+    paths['/api/v2/crawler-assistant/conversations/{id}/commit']!.post!,
+    idempotencyHeader(),
+    ifMatchHeader(),
+  );
+  paths['/api/v2/crawler-assistant/conversations/{id}/commit']!.post!.responses = {
+    ...responses(assistantObject, '201'),
+    '200': jsonResponse(assistantObject),
+  };
+  appendParameters(
+    paths['/api/v2/crawler-assistant/turns/{id}/cancel']!.post!,
+    idempotencyHeader(),
+  );
+  paths['/api/v2/crawler-assistant/turns/{id}/cancel']!.post!.responses =
+    responses(assistantObject);
+  appendParameters(paths['/api/v2/crawler-assistant/turns/{id}/retry']!.post!, idempotencyHeader());
+  paths['/api/v2/crawler-assistant/turns/{id}/retry']!.post!.responses = responses(
+    assistantObject,
+    '202',
+  );
+  paths['/api/v2/ai/provider']!.get!.responses = responses(assistantObject);
+  Object.assign(paths['/api/v2/ai/provider']!.put!, {
+    parameters: [idempotencyHeader(), ifMatchHeader()],
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['providerId', 'model'],
+      properties: {
+        providerId: { type: 'string', minLength: 1, maxLength: 100 },
+        model: { type: 'string', minLength: 1, maxLength: 200 },
+      },
+    }),
+    responses: responses(assistantObject),
+  });
+  appendParameters(
+    paths['/api/v2/ai/provider/credential/prompt']!.post!,
+    idempotencyHeader(),
+    ifMatchHeader(),
+  );
+  paths['/api/v2/ai/provider/credential/prompt']!.post!.responses = responses(assistantObject);
+  appendParameters(
+    paths['/api/v2/ai/provider/credential']!.delete!,
+    idempotencyHeader(),
+    ifMatchHeader(),
+  );
+  paths['/api/v2/ai/provider/credential']!.delete!.responses = responses(assistantObject);
+  Object.assign(paths['/api/v2/ai/provider/test']!.post!, {
+    parameters: [idempotencyHeader()],
+    requestBody: body({
+      type: 'object',
+      additionalProperties: false,
+      required: ['providerId', 'model'],
+      properties: {
+        providerId: { type: 'string', minLength: 1, maxLength: 100 },
+        model: { type: 'string', minLength: 1, maxLength: 200 },
+      },
+    }),
+    responses: responses(assistantObject),
+  });
   paths['/api/v2/data/tasks/{id}/records']!.get!.security = [{ dataApiBearer: [] }];
   const publishedPaths: typeof paths = {};
-  const graph = resolveProductGraph('desktop-studio');
+  const graph = resolveProductGraph(profileId);
   for (const { descriptor } of graph.plugins) {
     for (const route of descriptor.routes ?? []) {
       const method = route.method.toLowerCase();
@@ -1072,13 +1880,41 @@ export function openApiDocument() {
         (candidate) => canonicalOpenApiPath(candidate) === canonicalOpenApiPath(route.path),
       );
       const operation = sourcePath ? paths[sourcePath]?.[method] : undefined;
+      const secured = route.requiredPermission !== null;
+      const workspaceSecurity =
+        profileId === 'headless-server' ? [{ workspaceCookie: [] }] : [{ sessionBearer: [] }];
+      const mutation = ['post', 'put', 'patch', 'delete'].includes(method);
+      const parameters = synchronizePathParameters(
+        Array.isArray(operation?.parameters) ? operation.parameters : [],
+        sourcePath,
+        route.path,
+      );
       publishedPaths[route.path] ??= {};
       publishedPaths[route.path]![method] = {
         ...(operation ?? { responses: { '200': { description: 'Success' } } }),
         operationId: route.operationId,
+        'x-required-permission': route.requiredPermission,
+        ...(route.path.startsWith('/api/v2/data/')
+          ? { security: [{ dataApiBearer: [] }] }
+          : { security: secured ? workspaceSecurity : [] }),
+        parameters,
+        ...(profileId === 'headless-server' && secured && mutation
+          ? {
+              parameters: [
+                ...parameters,
+                {
+                  name: 'X-CSRF-Token',
+                  in: 'header',
+                  required: true,
+                  schema: { type: 'string', minLength: 1 },
+                },
+              ],
+            }
+          : {}),
       };
     }
   }
+  assertOpenApiPathParameters(publishedPaths);
   return {
     openapi: '3.1.0',
     info: { title: 'ZhiYun Runtime API', version: '1.0.0' },
@@ -1089,6 +1925,14 @@ export function openApiDocument() {
         TaskUpdate: z.toJSONSchema(taskUpdateSchema),
         TaskDetail: z.toJSONSchema(taskDetailSchema),
         TaskListItem: z.toJSONSchema(taskListItemSchema),
+        TaskHealth: z.toJSONSchema(taskHealthSchema),
+        QualityPolicy: z.toJSONSchema(qualityPolicySchema),
+        QualityEvaluation: z.toJSONSchema(qualityEvaluationSchema),
+        TaskTemplate: z.toJSONSchema(taskTemplateSchema),
+        Schedule: z.toJSONSchema(scheduleSchema),
+        InspectionStepInput: z.toJSONSchema(inspectionStepInputSchema),
+        InspectionStepResult: z.toJSONSchema(inspectionStepResultSchema),
+        InspectionElementSelection: z.toJSONSchema(inspectionElementSelectionSchema),
         CrawlPlanDefinition: z.toJSONSchema(crawlPlanDefinitionSchema),
         CrawlRun: z.toJSONSchema(crawlRunSchema),
         RuleAnalysisResult: z.toJSONSchema(analysisResultSchema),
@@ -1130,11 +1974,15 @@ export function openApiDocument() {
         DomainEvent: z.toJSONSchema(domainEventSchema),
         RuntimeMetadata: z.toJSONSchema(runtimeMetadataSchema),
         RuntimeCapabilities: z.toJSONSchema(runtimeCapabilitiesSchema),
+        IdentityUser: identityUserOpenApiSchema(),
+        IdentityInvitation: identityInvitationOpenApiSchema(),
+        IdentityAuditEvent: identityAuditEventOpenApiSchema(),
         ProblemDetails: z.toJSONSchema(problemDetailsSchema),
       },
       securitySchemes: {
         sessionBearer: { type: 'http', scheme: 'bearer' },
         dataApiBearer: { type: 'http', scheme: 'bearer' },
+        workspaceCookie: { type: 'apiKey', in: 'cookie', name: 'zhiyun_session' },
       },
     },
   };
@@ -1142,4 +1990,73 @@ export function openApiDocument() {
 
 function canonicalOpenApiPath(path: string): string {
   return path.replaceAll(/\{[^}]+\}/g, '{}');
+}
+
+function openApiPathParameterNames(path: string | undefined): string[] {
+  return [...(path ?? '').matchAll(/\{([^}]+)\}/g)].map((match) => match[1]!);
+}
+
+function synchronizePathParameters(
+  parameters: unknown[],
+  sourcePath: string | undefined,
+  publishedPath: string,
+): unknown[] {
+  const sourceNames = openApiPathParameterNames(sourcePath);
+  const publishedNames = openApiPathParameterNames(publishedPath);
+  const pathParameters = parameters.filter(
+    (parameter): parameter is Record<string, unknown> =>
+      typeof parameter === 'object' &&
+      parameter !== null &&
+      (parameter as Record<string, unknown>).in === 'path',
+  );
+  const nonPathParameters = parameters.filter(
+    (parameter) =>
+      !(
+        typeof parameter === 'object' &&
+        parameter !== null &&
+        (parameter as Record<string, unknown>).in === 'path'
+      ),
+  );
+
+  return [
+    ...nonPathParameters,
+    ...publishedNames.map((name, index) => {
+      const sourceName = sourceNames[index];
+      const existing =
+        pathParameters.find((parameter) => parameter.name === name) ??
+        pathParameters.find((parameter) => parameter.name === sourceName);
+      return {
+        ...(existing ?? { schema: { type: 'string', minLength: 1 } }),
+        name,
+        in: 'path',
+        required: true,
+      };
+    }),
+  ];
+}
+
+export function assertOpenApiPathParameters(paths: Record<string, Record<string, unknown>>): void {
+  for (const [path, pathItem] of Object.entries(paths)) {
+    const expected = openApiPathParameterNames(path).sort();
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (typeof operation !== 'object' || operation === null) continue;
+      const parameters = Array.isArray((operation as Record<string, unknown>).parameters)
+        ? ((operation as Record<string, unknown>).parameters as unknown[])
+        : [];
+      const declared = parameters
+        .filter(
+          (parameter): parameter is Record<string, unknown> =>
+            typeof parameter === 'object' &&
+            parameter !== null &&
+            (parameter as Record<string, unknown>).in === 'path',
+        )
+        .map((parameter) => String(parameter.name))
+        .sort();
+      if (expected.join('\0') !== declared.join('\0')) {
+        throw new Error(
+          `OpenAPI ${method.toUpperCase()} ${path} declares path parameters [${declared.join(', ')}], expected [${expected.join(', ')}]`,
+        );
+      }
+    }
+  }
 }

@@ -28,20 +28,31 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-// Unpackaged Electron apps otherwise share the generic "Electron" lock namespace.
+const developmentUrl = process.env.ZHIYUN_DESKTOP_DEV_URL;
+
+// Keep development state and its single-instance lock away from an installed ZhiYun.
+// Otherwise a stale development host or a running packaged app can make a new
+// launcher exit after Vite has already selected a different port, leaving the old
+// window pointed at a dead Renderer URL.
 app.setName('ZhiYun');
+if (developmentUrl) app.setPath('userData', `${app.getPath('userData')} Development`);
 const singleInstance = app.requestSingleInstanceLock();
 console.info('[desktop] single instance lock', {
   acquired: singleInstance,
   userData: app.getPath('userData'),
 });
 if (!singleInstance) {
-  app.exit(0);
-  process.exit(0);
+  const exitCode = developmentUrl ? 73 : 0;
+  if (developmentUrl) {
+    console.error(
+      '[desktop] another development instance is already running; close it before restarting',
+    );
+  }
+  app.exit(exitCode);
+  process.exit(exitCode);
 }
 
 const moduleDirectory = fileURLToPath(new URL('.', import.meta.url));
-const developmentUrl = process.env.ZHIYUN_DESKTOP_DEV_URL;
 let mainWindow: BrowserWindow | undefined;
 let tray: Tray | undefined;
 let supervisor: RuntimeSupervisor | undefined;
@@ -189,8 +200,8 @@ async function captureLoginSession(target: string): Promise<unknown | null> {
 
 async function createMainWindow(): Promise<void> {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: 1600,
+    height: 1000,
     minWidth: 960,
     minHeight: 640,
     show: false,
@@ -211,6 +222,33 @@ async function createMainWindow(): Promise<void> {
       ? url.startsWith(developmentUrl)
       : url.startsWith('app://zhiyun');
     if (!allowed) event.preventDefault();
+  });
+  mainWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame || errorCode === -3) return;
+      console.error('[desktop] Renderer failed to load', {
+        errorCode,
+        errorDescription,
+        url: validatedURL,
+      });
+    },
+  );
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[desktop] Renderer process exited', details);
+  });
+  mainWindow.webContents.on('console-message', (details) => {
+    if (details.level !== 'error') return;
+    console.error('[desktop] Renderer console error', {
+      message: details.message,
+      source: details.sourceId,
+      line: details.lineNumber,
+    });
+  });
+  mainWindow.on('unresponsive', () => {
+    console.error('[desktop] Renderer became unresponsive', {
+      url: mainWindow?.webContents.getURL(),
+    });
   });
   mainWindow.on('close', (event) => {
     if (!quitting) {

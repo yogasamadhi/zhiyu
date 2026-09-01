@@ -111,6 +111,59 @@ describe('Webhook output integration', () => {
     expect(events).toEqual(['dataset.changed', 'dataset.changed', 'dataset.changed']);
     expect(sizes.every((size) => size <= 1024 * 1024)).toBe(true);
   });
+
+  it('accepts the events[] subscription shape while preserving legacy event behavior', async () => {
+    const events: string[] = [];
+    const server = createServer((request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      request.on('end', () => {
+        events.push(
+          String((JSON.parse(Buffer.concat(chunks).toString()) as { event: string }).event),
+        );
+        response.writeHead(204).end();
+      });
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Fixture did not listen');
+    const now = new Date().toISOString();
+    const destination = {
+      id: crypto.randomUUID(),
+      name: 'events fixture',
+      type: 'webhook' as const,
+      config: {
+        url: `http://127.0.0.1:${address.port}/delivery`,
+        events: ['dataset.changed' as const, 'run.failed' as const],
+      },
+      credentialRef: null,
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await new WebhookOutputAdapter().deliver({
+      destination,
+      taskId: crypto.randomUUID(),
+      runId: crypto.randomUUID(),
+      datasetSettings: { mode: 'snapshot', keyFields: [], detectRemoved: true },
+      datasetStats: { added: 1, updated: 0, removed: 0, unchanged: 0, current: 1 },
+      records: [{ sourceUrl: 'https://example.com', data: { id: 1 } }],
+      credential: null,
+    });
+    expect(events).toEqual(['dataset.changed']);
+
+    await expect(
+      new WebhookOutputAdapter().deliver({
+        destination: { ...destination, config: { ...destination.config, events: ['run.failed'] } },
+        taskId: crypto.randomUUID(),
+        runId: crypto.randomUUID(),
+        datasetSettings: { mode: 'snapshot', keyFields: [], detectRemoved: true },
+        records: [],
+        credential: null,
+      }),
+    ).rejects.toThrow('does not subscribe to successful run deliveries');
+  });
 });
 
 describe('PostgreSQL output integration', () => {

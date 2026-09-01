@@ -78,6 +78,21 @@ function defineOutputConformance(name: string, create: () => Promise<Fixture>): 
             migrationId: '001-initial',
             pluginVersion: '1.0.0',
           }),
+          expect.objectContaining({
+            pluginId: 'outputs',
+            migrationId: '003-event-notification-attempts',
+            pluginVersion: '1.2.0',
+          }),
+          expect.objectContaining({
+            pluginId: 'outputs',
+            migrationId: '004-delivery-metadata',
+            pluginVersion: '1.3.0',
+          }),
+          expect.objectContaining({
+            pluginId: 'outputs',
+            migrationId: '005-webhook-event-subscriptions',
+            pluginVersion: '1.4.0',
+          }),
         ]),
       );
     });
@@ -106,6 +121,46 @@ function defineOutputConformance(name: string, create: () => Promise<Fixture>): 
       expect(await fixture.repository.listTaskBindings(taskId)).toEqual([]);
     });
 
+    it('never persists inline destination credentials and strips unknown config fields', async () => {
+      await expect(
+        fixture.repository.createDestination({
+          name: 'Unsafe destination',
+          type: 'webhook',
+          config: {
+            url: 'https://example.com/hook',
+            nested: { secretAccessKey: 'must-never-be-persisted' },
+          } as never,
+          credentialRef: null,
+          enabled: true,
+        }),
+      ).rejects.toThrow(/must not contain credentials/);
+
+      const safe = await fixture.repository.createDestination({
+        name: 'Allowlisted destination',
+        type: 'webhook',
+        config: {
+          url: 'https://example.com/hook',
+          harmlessUnknown: 'must-be-stripped',
+        } as never,
+        credentialRef: null,
+        enabled: true,
+      });
+      expect(JSON.stringify(await fixture.repository.getDestination(safe.id))).not.toContain(
+        'must-be-stripped',
+      );
+      await expect(
+        fixture.repository.updateDestination(safe.id, {
+          config: {
+            url: 'https://example.com/hook',
+            nested: [{ private_key: 'must-never-be-persisted' }],
+          } as never,
+        }),
+      ).rejects.toThrow(/must not contain credentials/);
+      expect(JSON.stringify(await fixture.repository.getDestination(safe.id))).not.toContain(
+        'must-never-be-persisted',
+      );
+    });
+
     it('persists Delivery Attempt lifecycle and emits terminal durable events', async () => {
       const attempt = await fixture.repository.createDeliveryAttempt({
         destinationId: randomUUID(),
@@ -113,14 +168,63 @@ function defineOutputConformance(name: string, create: () => Promise<Fixture>): 
         runId: randomUUID(),
       });
       expect(attempt).toMatchObject({ status: 'pending', attempt: 1 });
+      expect(attempt).toMatchObject({
+        format: null,
+        artifactId: null,
+        finalLocation: null,
+        sha256: null,
+        deliveredRecordCount: null,
+      });
+      const artifactId = 'a'.repeat(64);
+      const sha256 = 'b'.repeat(64);
       const completed = await fixture.repository.updateDeliveryAttempt(attempt.id, {
         status: 'succeeded',
         responseStatus: 204,
+        format: 'jsonl',
+        artifactId,
+        finalLocation: 'fixture/run.jsonl',
+        sha256,
+        deliveredRecordCount: 42,
       });
-      expect(completed).toMatchObject({ status: 'succeeded', responseStatus: 204 });
+      expect(completed).toMatchObject({
+        status: 'succeeded',
+        responseStatus: 204,
+        format: 'jsonl',
+        artifactId,
+        finalLocation: 'fixture/run.jsonl',
+        sha256,
+        deliveredRecordCount: 42,
+      });
       expect(await fixture.repository.listDeliveryAttempts(attempt.runId)).toEqual([completed]);
       const events = await fixture.platform.listEvents(0, 1_000);
       expect(events.map(({ type }) => type)).toContain('outputs.delivery.succeeded');
+    });
+
+    it('persists Event Notification attempts separately and deduplicates by event', async () => {
+      const input = {
+        destinationId: randomUUID(),
+        eventId: randomUUID(),
+        type: 'run.failed' as const,
+        occurredAt: new Date().toISOString(),
+        taskId: randomUUID(),
+        runId: randomUUID(),
+        severity: 'error' as const,
+        payload: { errorCode: 'CRAWL_FAILED' },
+      };
+      const attempt = await fixture.repository.createEventNotificationAttempt(input);
+      const duplicate = await fixture.repository.createEventNotificationAttempt(input);
+      expect(duplicate.id).toBe(attempt.id);
+      expect(attempt).toMatchObject({ status: 'pending', attempt: 1, ...input });
+      const completed = await fixture.repository.updateEventNotificationAttempt(attempt.id, {
+        status: 'succeeded',
+        responseStatus: 202,
+      });
+      expect(await fixture.repository.getEventNotificationAttempt(attempt.id)).toEqual(completed);
+      expect(await fixture.repository.listEventNotificationAttempts(input.eventId)).toEqual([
+        completed,
+      ]);
+      const events = await fixture.platform.listEvents(0, 1_000);
+      expect(events.map(({ type }) => type)).toContain('outputs.event-notification.succeeded');
     });
 
     it('stores only API token hashes and revokes tokens idempotently', async () => {

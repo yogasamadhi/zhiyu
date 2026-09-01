@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/api': `http://127.0.0.1:${process.env.API_PORT ?? 45300}`,
       '/health': `http://127.0.0.1:${process.env.API_PORT ?? 45300}`,
+      '/ready': `http://127.0.0.1:${process.env.API_PORT ?? 45300}`,
     },
   },
 });

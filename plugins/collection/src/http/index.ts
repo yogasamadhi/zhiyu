@@ -5,88 +5,203 @@ import type { PlatformJobQueue, PlatformRepository } from '@zhiyun/platform-core
 import type { CredentialStore, HostCapabilities } from '@zhiyun/contracts';
 import {
   normalizeCrawlPlan,
+  inspectionStepInputSchema,
   ruleDefinitionInputSchema,
+  scheduleSchema,
   taskCreateSchema,
   taskUpdateSchema,
   type GeneratedBy,
   type CrawlPlanDefinition,
+  type InspectionElementSelection,
+  type InspectionStepInput,
+  type InspectionStepResult,
   type TaskCreate,
   type TaskCredentialBindings,
   type TaskUpdate,
 } from '@zhiyun/shared';
+import { previewSchedule } from '../application/index.js';
 import type { CollectionRepository, CollectionTaskDetail } from '../contracts/index.js';
 
 export const collectionRoutes = [
-  { operationId: 'listTasks', method: 'GET', path: '/api/v2/tasks' },
-  { operationId: 'createTask', method: 'POST', path: '/api/v2/tasks' },
-  { operationId: 'getTask', method: 'GET', path: '/api/v2/tasks/{taskId}' },
-  { operationId: 'updateTask', method: 'PUT', path: '/api/v2/tasks/{taskId}' },
-  { operationId: 'deleteTask', method: 'DELETE', path: '/api/v2/tasks/{taskId}' },
-  { operationId: 'listRules', method: 'GET', path: '/api/v2/tasks/{taskId}/rules' },
-  { operationId: 'testRule', method: 'POST', path: '/api/v2/tasks/{taskId}/rules/test' },
-  { operationId: 'createRule', method: 'POST', path: '/api/v2/tasks/{taskId}/rules' },
+  {
+    operationId: 'previewSchedule',
+    method: 'POST',
+    path: '/api/v2/schedules/preview',
+    requiredPermission: 'task.write',
+  },
+  {
+    operationId: 'previewInitialRule',
+    method: 'POST',
+    path: '/api/v2/rules/preview',
+    requiredPermission: 'task.write',
+  },
+  {
+    operationId: 'createTaskWithInitialRule',
+    method: 'POST',
+    path: '/api/v2/tasks/initialize',
+    requiredPermission: 'task.write',
+  },
+  {
+    operationId: 'listTasks',
+    method: 'GET',
+    path: '/api/v2/tasks',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'createTask',
+    method: 'POST',
+    path: '/api/v2/tasks',
+    requiredPermission: 'task.write',
+  },
+  {
+    operationId: 'getTask',
+    method: 'GET',
+    path: '/api/v2/tasks/{taskId}',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'updateTask',
+    method: 'PUT',
+    path: '/api/v2/tasks/{taskId}',
+    requiredPermission: 'task.write',
+  },
+  {
+    operationId: 'deleteTask',
+    method: 'DELETE',
+    path: '/api/v2/tasks/{taskId}',
+    requiredPermission: 'task.write',
+  },
+  {
+    operationId: 'listRules',
+    method: 'GET',
+    path: '/api/v2/tasks/{taskId}/rules',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'testRule',
+    method: 'POST',
+    path: '/api/v2/tasks/{taskId}/rules/test',
+    requiredPermission: 'task.write',
+  },
+  {
+    operationId: 'createRule',
+    method: 'POST',
+    path: '/api/v2/tasks/{taskId}/rules',
+    requiredPermission: 'task.write',
+  },
   {
     operationId: 'createRuleVersion',
     method: 'POST',
     path: '/api/v2/tasks/{taskId}/rules/{ruleId}/versions',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'diffRuleVersions',
     method: 'GET',
     path: '/api/v2/tasks/{taskId}/rules/{ruleId}/diff',
+    requiredPermission: 'workspace.read',
   },
   {
     operationId: 'rollbackRuleVersion',
     method: 'POST',
     path: '/api/v2/tasks/{taskId}/rules/{ruleId}/rollback',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'listRuleRepairProposals',
     method: 'GET',
     path: '/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals',
+    requiredPermission: 'workspace.read',
   },
   {
     operationId: 'startTaskLoginSession',
     method: 'POST',
     path: '/api/v2/tasks/{taskId}/browser-session/login',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'promptTaskCredential',
     method: 'POST',
     path: '/api/v2/tasks/{taskId}/credentials/{kind}',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'deleteTaskCredential',
     method: 'DELETE',
     path: '/api/v2/tasks/{taskId}/credentials/{kind}',
+    requiredPermission: 'task.write',
   },
-  { operationId: 'listRuns', method: 'GET', path: '/api/v2/tasks/{taskId}/runs' },
-  { operationId: 'createRun', method: 'POST', path: '/api/v2/tasks/{taskId}/runs' },
-  { operationId: 'getRun', method: 'GET', path: '/api/v2/runs/{runId}' },
-  { operationId: 'cancelRun', method: 'POST', path: '/api/v2/runs/{runId}/cancel' },
-  { operationId: 'retryRun', method: 'POST', path: '/api/v2/runs/{runId}/retry' },
-  { operationId: 'listRunLogs', method: 'GET', path: '/api/v2/runs/{runId}/logs' },
-  { operationId: 'listRunRequests', method: 'GET', path: '/api/v2/runs/{runId}/requests' },
-  { operationId: 'createInspectionSession', method: 'POST', path: '/api/v2/inspection-sessions' },
+  {
+    operationId: 'listRuns',
+    method: 'GET',
+    path: '/api/v2/tasks/{taskId}/runs',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'createRun',
+    method: 'POST',
+    path: '/api/v2/tasks/{taskId}/runs',
+    requiredPermission: 'run.execute',
+  },
+  {
+    operationId: 'getRun',
+    method: 'GET',
+    path: '/api/v2/runs/{runId}',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'cancelRun',
+    method: 'POST',
+    path: '/api/v2/runs/{runId}/cancel',
+    requiredPermission: 'run.execute',
+  },
+  {
+    operationId: 'retryRun',
+    method: 'POST',
+    path: '/api/v2/runs/{runId}/retry',
+    requiredPermission: 'run.execute',
+  },
+  {
+    operationId: 'listRunLogs',
+    method: 'GET',
+    path: '/api/v2/runs/{runId}/logs',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'listRunRequests',
+    method: 'GET',
+    path: '/api/v2/runs/{runId}/requests',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'createInspectionSession',
+    method: 'POST',
+    path: '/api/v2/inspection-sessions',
+    requiredPermission: 'task.write',
+  },
   {
     operationId: 'getInspectionScreenshot',
     method: 'GET',
     path: '/api/v2/inspection-sessions/{sessionId}/screenshot',
+    requiredPermission: 'workspace.read',
   },
   {
     operationId: 'interactWithInspection',
     method: 'POST',
     path: '/api/v2/inspection-sessions/{sessionId}/actions',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'selectInspectionElement',
     method: 'POST',
     path: '/api/v2/inspection-sessions/{sessionId}/select',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'closeInspectionSession',
     method: 'DELETE',
     path: '/api/v2/inspection-sessions/{sessionId}',
+    requiredPermission: 'task.write',
   },
 ] as const satisfies readonly RouteContribution[];
 
@@ -107,17 +222,8 @@ export interface CollectionInspectionPort {
     id: string,
     input: { type: 'click' | 'scroll' | 'refresh'; x?: number; y?: number; deltaY?: number },
   ): Promise<{ url: string }>;
-  select(
-    id: string,
-    x: number,
-    y: number,
-  ): Promise<{
-    selector: string;
-    tag: string;
-    text: string;
-    attributes: Record<string, string>;
-    box: { x: number; y: number; width: number; height: number };
-  } | null>;
+  step(id: string, input: InspectionStepInput): Promise<InspectionStepResult>;
+  select(id: string, x: number, y: number): Promise<InspectionElementSelection | null>;
   close(id: string): Promise<boolean>;
 }
 
@@ -143,6 +249,23 @@ export async function registerCollectionHttp(
   app: FastifyInstance,
   dependencies: CollectionHttpDependencies,
 ): Promise<void> {
+  app.post('/api/v2/schedules/preview', async (request, reply) =>
+    send(reply, async () => {
+      const parsed = scheduleSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new HttpProblem(400, 'VALIDATION_ERROR', 'Invalid schedule');
+      }
+      try {
+        return { nextRuns: previewSchedule(parsed.data, 5) };
+      } catch (error) {
+        throw new HttpProblem(
+          400,
+          'VALIDATION_ERROR',
+          error instanceof Error ? error.message : 'Invalid schedule',
+        );
+      }
+    }),
+  );
   app.get('/api/v2/tasks', async (request, reply) =>
     send(reply, async () => {
       const query = request.query as { cursor?: string; limit?: string };
@@ -174,6 +297,13 @@ export async function registerCollectionHttp(
   app.post('/api/v2/inspection-sessions/:sessionId/actions', async (request, reply) =>
     send(reply, async () => {
       const body = objectBody(request.body);
+      if ('stepIndex' in body || 'action' in body) {
+        const parsed = inspectionStepInputSchema.safeParse(body);
+        if (!parsed.success) {
+          throw new HttpProblem(400, 'VALIDATION_ERROR', 'Invalid browser action step');
+        }
+        return requireInspection(dependencies).step(pathId(request, 'sessionId'), parsed.data);
+      }
       if (body.type !== 'click' && body.type !== 'scroll' && body.type !== 'refresh') {
         throw new HttpProblem(400, 'VALIDATION_ERROR', 'Invalid inspection action');
       }
@@ -211,6 +341,109 @@ export async function registerCollectionHttp(
       if (!closed) throw new HttpProblem(404, 'NOT_FOUND', 'Inspection session was not found');
       reply.code(204);
       return undefined;
+    }),
+  );
+  app.post('/api/v2/rules/preview', async (request, reply) =>
+    send(reply, async () => {
+      if (!dependencies.previewRule) {
+        throw new HttpProblem(501, 'CAPABILITY_UNAVAILABLE', 'Rule preview is not configured');
+      }
+      const key = requireIdempotencyKey(request);
+      const input = initialRuleInput(request.body);
+      const previewInput = { task: input.task, definition: input.definition, limit: input.limit };
+      return idempotentMutation(
+        dependencies.platform,
+        'collection:preview-initial-rule',
+        key,
+        previewInput,
+        200,
+        async () => {
+          const { outputBindings: _outputBindings, ...task } = input.task;
+          void _outputBindings;
+          const timestamp = new Date().toISOString();
+          const result = await dependencies.previewRule?.(
+            {
+              ...task,
+              id: deterministicUuid(`initial-preview:${key}`),
+              status: 'draft',
+              origin: { kind: 'manual' },
+              revision: 0,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+              activeRule: null,
+            },
+            input.definition,
+            input.limit,
+          );
+          return {
+            ...(isObject(result) ? result : { result }),
+            previewKey: key,
+          };
+        },
+      );
+    }),
+  );
+  app.post('/api/v2/tasks/initialize', async (request, reply) =>
+    send(reply, async () => {
+      const body = objectBody(request.body);
+      const input = initialRuleInput(body);
+      const runAfterCreate = body.runAfterCreate === true;
+      const saveAsDraft = body.saveAsDraft === true;
+      if (saveAsDraft && runAfterCreate) {
+        throw new HttpProblem(
+          400,
+          'VALIDATION_ERROR',
+          'A draft cannot be run until its current rule passes preview',
+        );
+      }
+      const previewKey =
+        body.previewKey === undefined ? null : stringValue(body.previewKey, 'previewKey');
+      if (!saveAsDraft) {
+        if (!previewKey) {
+          throw new HttpProblem(
+            409,
+            'SUCCESSFUL_PREVIEW_REQUIRED',
+            'A successful preview is required before creating a ready task',
+          );
+        }
+        await verifyInitialRulePreview(dependencies.platform, previewKey, input);
+      }
+      const creationKey = requireIdempotencyKey(request);
+      const result = await idempotentMutation(
+        dependencies.platform,
+        'collection:create-task-with-initial-rule',
+        creationKey,
+        { ...input, previewKey, runAfterCreate, saveAsDraft },
+        201,
+        async () => {
+          const { outputBindings, ...collectionTask } = await protectTaskCredentials(
+            input.task,
+            dependencies,
+          );
+          const ids = {
+            taskId: deterministicUuid(`manual:${creationKey}:task`),
+            ruleId: deterministicUuid(`manual:${creationKey}:rule`),
+            versionId: deterministicUuid(`manual:${creationKey}:version`),
+          };
+          await dependencies.repository.createTaskWithInitialRule({
+            ...ids,
+            task: { ...collectionTask, outputBindings: [] },
+            ruleName: input.ruleName,
+            definition: input.definition,
+            generatedBy: 'human',
+            origin: { kind: 'manual' },
+            status: saveAsDraft ? 'draft' : 'ready',
+          });
+          await dependencies.bindings?.replace(ids.taskId, outputBindings);
+          const task = await dependencies.repository.getTask(ids.taskId);
+          if (!task) throw new Error('Initial task creation did not persist the task');
+          const run = runAfterCreate ? await dependencies.repository.createRun(ids.taskId) : null;
+          if (run) await enqueueRun(dependencies.jobs, run.id, ids.taskId);
+          return { task: await taskView(task, dependencies.bindings), run };
+        },
+      );
+      reply.code(201);
+      return result;
     }),
   );
   app.post('/api/v2/tasks', async (request, reply) =>
@@ -767,9 +1000,14 @@ function credentialKind(value: string): keyof typeof credentialBindingKey {
   throw new HttpProblem(400, 'VALIDATION_ERROR', 'Invalid credential kind');
 }
 
-async function protectTaskCredentials<T extends TaskCreate | TaskUpdate>(
+export type TaskCredentialProtectionDependencies = Pick<
+  CollectionHttpDependencies,
+  'credentialStore' | 'runtimeMode'
+>;
+
+export async function protectTaskCredentials<T extends TaskCreate | TaskUpdate>(
   input: T,
-  dependencies: CollectionHttpDependencies,
+  dependencies: TaskCredentialProtectionDependencies,
   currentBindings: TaskCredentialBindings = {},
 ): Promise<T> {
   const bindings: TaskCredentialBindings = { ...currentBindings, ...input.credentialBindings };
@@ -875,6 +1113,64 @@ function canonicalJson(value: unknown): string {
       .join(',')}}`;
   }
   return JSON.stringify(value);
+}
+
+function initialRuleInput(value: unknown): {
+  task: TaskCreate;
+  definition: CrawlPlanDefinition;
+  ruleName: string;
+  limit: number;
+} {
+  const body = objectBody(value);
+  const task = taskCreateSchema.parse(body.task);
+  const definition = normalizeCrawlPlan(body.definition);
+  const ruleName =
+    typeof body.ruleName === 'string' && body.ruleName.trim()
+      ? body.ruleName.trim().slice(0, 200)
+      : 'Default rule';
+  const limit = body.limit === undefined ? 10 : Number(body.limit);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 10) {
+    throw new HttpProblem(400, 'VALIDATION_ERROR', 'Preview limit must be between 1 and 10');
+  }
+  return { task, definition, ruleName, limit };
+}
+
+export async function verifyInitialRulePreview(
+  platform: PlatformRepository,
+  previewKey: string,
+  input: { task: TaskCreate; definition: CrawlPlanDefinition; limit: number },
+): Promise<void> {
+  const requestHash = createHash('sha256')
+    .update(canonicalJson({ task: input.task, definition: input.definition, limit: input.limit }))
+    .digest('hex');
+  const reservation = await platform.reserveIdempotency({
+    scope: 'collection:preview-initial-rule',
+    key: previewKey,
+    requestHash,
+    expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+  });
+  if (reservation.state !== 'completed') {
+    throw new HttpProblem(
+      409,
+      'SUCCESSFUL_PREVIEW_REQUIRED',
+      'The current task and rule must pass preview before they can be saved and run',
+    );
+  }
+}
+
+function deterministicUuid(value: string): string {
+  const bytes = createHash('sha256').update(value).digest().subarray(0, 16);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x50;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = bytes.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function stringValue(value: unknown, name: string): string {
+  if (typeof value !== 'string' || !value || value.length > 200) {
+    throw new HttpProblem(400, 'VALIDATION_ERROR', `${name} is required`);
+  }
+  return value;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

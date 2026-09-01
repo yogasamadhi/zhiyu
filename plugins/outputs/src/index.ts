@@ -25,19 +25,30 @@ export const outputsPlugin: PluginDescriptor = {
     { type: 'outputs.api-token.updated', durable: true },
     { type: 'outputs.delivery.succeeded', durable: true },
     { type: 'outputs.delivery.failed', durable: true },
+    { type: 'outputs.event-notification.succeeded', durable: true },
+    { type: 'outputs.event-notification.failed', durable: true },
   ],
   migrations: [
     {
       id: '001-initial',
       tables: ['output_destinations', 'task_output_bindings', 'delivery_attempts', 'api_tokens'],
     },
+    { id: '002-destination-types', tables: [] },
+    { id: '003-event-notification-attempts', tables: ['event_notification_attempts'] },
+    { id: '004-delivery-metadata', tables: [] },
+    { id: '005-webhook-event-subscriptions', tables: [] },
   ],
   uiContributions: outputsUiContributions,
-  backgroundHandlers: [{ type: 'outputs.delivery.execute', resourceClass: 'delivery' }],
+  backgroundHandlers: [
+    { type: 'outputs.delivery.execute', resourceClass: 'delivery' },
+    { type: 'outputs.event-notification.execute', resourceClass: 'delivery' },
+  ],
   activate() {},
 };
 
 export * from './application/index.js';
+export * from './application/attempt-replay.js';
+export * from './application/event-outbox.js';
 export * from './contracts/index.js';
 export * from './domain/index.js';
 export * from './http/index.js';

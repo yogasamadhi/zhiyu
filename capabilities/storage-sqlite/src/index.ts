@@ -560,6 +560,20 @@ export class SqlitePlatformRepository implements PlatformRepository {
     }
   }
 
+  async releaseIdempotency(input: {
+    scope: string;
+    key: string;
+    requestHash: string;
+  }): Promise<boolean> {
+    const result = this.sqlite
+      .prepare(
+        `DELETE FROM idempotency_keys
+         WHERE scope=? AND key=? AND request_hash=? AND response_status IS NULL`,
+      )
+      .run(input.scope, input.key, input.requestHash);
+    return result.changes === 1;
+  }
+
   async getRuntimeSetting<T = unknown>(key: string): Promise<T | null> {
     const row = this.sqlite.prepare('SELECT value FROM runtime_settings WHERE key=?').get(key) as
       { value: string } | undefined;

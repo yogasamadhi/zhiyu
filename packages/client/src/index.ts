@@ -2,6 +2,7 @@ import type {
   AnalysisResult as RuleAnalysisResult,
   ApiToken,
   ArtifactDescriptor,
+  BrowserAction,
   ConnectionState,
   CrawlPlanDefinition,
   CrawlRun,
@@ -12,6 +13,8 @@ import type {
   DeliveryAttempt,
   DomainEvent,
   GeneratedBy,
+  InspectionElementSelection,
+  InspectionStepResult,
   OutputDestination,
   ProblemDetails,
   RecordChange,
@@ -24,6 +27,12 @@ import type {
   RuntimeBootstrap,
   RuntimeCapabilities,
   RuntimeMetadata,
+  RealtimeEvent,
+  Schedule,
+  QualityEvaluation,
+  QualityPolicy,
+  TaskHealth,
+  TaskTemplate,
   TaskCreate,
   TaskDetail,
   TaskListItem,
@@ -86,6 +95,7 @@ export class ApiError extends Error {
 
 type ConnectionListener = (state: ConnectionState) => void;
 type DomainEventListener = (event: DomainEvent) => void;
+type RealtimeEventListener = (event: RealtimeEvent) => void;
 type RuntimeResetListener = () => void;
 
 export interface RuntimeGraph {
@@ -97,6 +107,7 @@ export interface RuntimeGraph {
     method: string;
     path: string;
     ownerPluginId: string;
+    requiredPermission: string | null;
   }>;
   uiContributions: Array<{
     id: string;
@@ -109,6 +120,93 @@ export interface DatasetPageResult {
   items: DatasetRecord[];
   nextCursor: string | null;
   stats: DatasetStats;
+}
+
+export interface CrawlerAssistantConversation {
+  id: string;
+  title: string;
+  status:
+    | 'active'
+    | 'awaiting_site_confirmation'
+    | 'draft_ready'
+    | 'testing'
+    | 'awaiting_confirmation'
+    | 'committing'
+    | 'committed'
+    | 'failed'
+    | 'archived';
+  latestDraftRevision: number;
+  committedTaskId: string | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string | null;
+}
+
+export interface CrawlerAssistantMessage {
+  id: string;
+  conversationId: string;
+  turnId: string | null;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  sequence: number;
+  createdAt: string;
+}
+
+export interface CrawlerAssistantDraft {
+  conversationId: string;
+  revision: number;
+  draft: {
+    name: string;
+    startUrl: string | null;
+    instruction: string;
+    schedule: Record<string, unknown>;
+    pagination: Record<string, unknown>;
+    browserEnabled: boolean;
+    datasetMode: 'snapshot' | 'upsert' | 'append';
+    keyFields: string[];
+    siteCandidates: Array<{
+      title: string;
+      url: string;
+      summary: string;
+      source: 'bing' | 'duckduckgo';
+    }>;
+    selectedSiteUrl: string | null;
+    loginRequired: boolean;
+    rule: CrawlPlanDefinition | null;
+    preview: Array<{ sourceUrl: string; data: Record<string, unknown> }>;
+    testMetadata: Record<string, unknown> | null;
+    confirmationPresentedAt: string | null;
+  };
+  createdAt: string;
+}
+
+export interface AiProviderSettingsView {
+  providerId: string | null;
+  baseUrl: string | null;
+  model: string | null;
+  catalog: AiProviderCatalogEntry[];
+  catalogUpdatedAt: string;
+  apiKeyConfigured: boolean;
+  testedAt: string | null;
+  revision: number;
+  updatedAt: string;
+  configured: boolean;
+  writable: boolean;
+  source: 'headless-environment' | 'desktop-persisted' | 'desktop-bootstrap' | 'mock';
+}
+
+export interface AiProviderCatalogEntry {
+  id: string;
+  name: string;
+  baseUrl: string;
+  documentationUrl: string;
+  defaultModel: string;
+  models: Array<{
+    id: string;
+    name: string;
+    status: 'stable' | 'preview';
+  }>;
 }
 
 export interface DatasetResource {
@@ -144,6 +242,83 @@ export interface DesktopDiagnostics {
   database: Record<string, unknown>;
 }
 
+export interface RuntimeReadiness {
+  status: 'ready' | 'not-ready';
+  checks: {
+    database: Record<string, unknown> & { status: string };
+    redis: Record<string, unknown> & { status: string };
+    queue: Record<string, unknown> & { status: string };
+    browser: Record<string, unknown> & { status: string };
+    analyticsWorker: Record<string, unknown> & { status: string };
+  };
+}
+
+export interface RuntimeSummary {
+  schedulingPaused: boolean;
+  startedAt: string;
+  uptimeSeconds: number;
+  queueBacklog: number;
+  jobsByState: Record<string, number>;
+  jobs: Array<{ id: string; type: string; state: string; updatedAt: string }>;
+  analyticsWorkerStatus: string;
+}
+
+export type IdentityRole = 'admin' | 'editor' | 'viewer';
+
+export type IdentityPermission =
+  | 'workspace.read'
+  | 'workspace.manage'
+  | 'task.write'
+  | 'run.execute'
+  | 'analysis.write'
+  | 'output.bind'
+  | 'output.manage'
+  | 'member.manage'
+  | 'audit.read';
+
+export interface IdentityUser {
+  id: string;
+  email: string;
+  displayName: string;
+  role: IdentityRole;
+  disabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdentityInvitation {
+  id: string;
+  email: string;
+  role: IdentityRole;
+  expiresAt: string;
+  createdBy: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface IdentityAuditEvent {
+  id: string;
+  actorUserId: string | null;
+  operationId: string;
+  resourceType: string;
+  resourceId: string | null;
+  result: 'succeeded' | 'failed' | 'denied';
+  traceId: string | null;
+  networkHash: string | null;
+  details: unknown;
+  occurredAt: string;
+}
+
+export interface AuthSession {
+  user: IdentityUser;
+  csrfToken: string;
+  idleExpiresAt: string;
+  absoluteExpiresAt: string;
+}
+
+export type ClientAuthenticationMode = 'runtime-token' | 'workspace-cookie';
+
 function search(parameters: Record<string, string | number | boolean | undefined>): string {
   const value = new URLSearchParams();
   for (const [key, item] of Object.entries(parameters)) {
@@ -163,6 +338,10 @@ function defaultBootstrap(): RuntimeBootstrap {
   };
 }
 
+function isMutation(method: string): boolean {
+  return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+}
+
 export class ZhiYunClient {
   private bootstrap: RuntimeBootstrap = defaultBootstrap();
   private token: string | undefined;
@@ -171,11 +350,15 @@ export class ZhiYunClient {
   private readonly etags = new Map<string, string>();
   private readonly connectionListeners = new Set<ConnectionListener>();
   private readonly domainListeners = new Set<DomainEventListener>();
+  private readonly realtimeListeners = new Set<RealtimeEventListener>();
   private readonly runtimeResetListeners = new Set<RuntimeResetListener>();
   private eventLoop: Promise<void> | undefined;
+  private realtimeLoop: Promise<void> | undefined;
   private eventCursor = 0;
   private mode: RuntimeMetadata['mode'] = 'headless';
   private adminToken: string | undefined;
+  private authenticationMode: ClientAuthenticationMode | undefined;
+  private csrfToken: string | undefined;
 
   constructor(private readonly bridge = globalThis.window?.zhiyunRuntime) {
     if (bridge) {
@@ -194,6 +377,12 @@ export class ZhiYunClient {
     return () => this.domainListeners.delete(listener);
   }
 
+  onRealtimeEvent(listener: RealtimeEventListener): () => void {
+    this.realtimeListeners.add(listener);
+    void this.startRealtimeEvents();
+    return () => this.realtimeListeners.delete(listener);
+  }
+
   onRuntimeReset(listener: RuntimeResetListener): () => void {
     this.runtimeResetListeners.add(listener);
     return () => this.runtimeResetListeners.delete(listener);
@@ -202,7 +391,13 @@ export class ZhiYunClient {
   setAdminToken(token: string): void {
     this.adminToken = token;
     this.token = undefined;
+    this.authenticationMode = undefined;
+    this.csrfToken = undefined;
     this.connectPromise = undefined;
+  }
+
+  getAuthenticationMode(): ClientAuthenticationMode | undefined {
+    return this.authenticationMode;
   }
 
   private emitConnection(state: ConnectionState): void {
@@ -226,24 +421,30 @@ export class ZhiYunClient {
     this.controller = new AbortController();
     this.bootstrap = bootstrap;
     this.token = undefined;
+    this.authenticationMode = undefined;
+    this.csrfToken = undefined;
     this.connectPromise = undefined;
     this.etags.clear();
     this.eventLoop = undefined;
+    this.realtimeLoop = undefined;
     this.eventCursor = 0;
     for (const listener of this.runtimeResetListeners) listener();
     this.emitConnection({ status: 'reconnecting', attempt: 1 });
     if (this.domainListeners.size > 0) void this.startDomainEvents();
+    if (this.realtimeListeners.size > 0) void this.startRealtimeEvents();
   }
 
   async connect(): Promise<void> {
-    if (this.token) return;
+    if (this.token || this.authenticationMode === 'workspace-cookie') return;
     if (this.connectPromise) return this.connectPromise;
     this.connectPromise = (async () => {
       this.emitConnection({ status: 'connecting' });
       if (this.bridge) this.bootstrap = await this.bridge.getBootstrap();
+      const sessionCredentials: RequestCredentials = this.bridge ? 'omit' : 'include';
       let response = await fetch(`${this.bootstrap.baseUrl}/api/v2/session`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
+        credentials: sessionCredentials,
         body: JSON.stringify(
           this.adminToken
             ? { adminToken: this.adminToken }
@@ -258,10 +459,20 @@ export class ZhiYunClient {
           response = await fetch(`${this.bootstrap.baseUrl}/api/v2/session`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
+            credentials: sessionCredentials,
             body: JSON.stringify({ adminToken: entered }),
             signal: this.controller.signal,
           });
         }
+      }
+      if (response.status === 410) {
+        const error = await this.toError(response);
+        if (error instanceof ApiError && error.problem.code === 'IDENTITY_AUTH_REQUIRED') {
+          this.authenticationMode = 'workspace-cookie';
+          this.token = undefined;
+          return;
+        }
+        throw error;
       }
       if (!response.ok) throw await this.toError(response);
       const result = (await response.json()) as {
@@ -273,6 +484,7 @@ export class ZhiYunClient {
         throw new Error('Runtime generation changed during session negotiation');
       }
       this.token = result.token;
+      this.authenticationMode = 'runtime-token';
       this.mode = result.runtime.mode;
       this.emitConnection({ status: 'connected', metadata: result.runtime });
     })().catch((error) => {
@@ -290,9 +502,14 @@ export class ZhiYunClient {
     await this.connect();
     const method = (init.method ?? 'GET').toUpperCase();
     const headers = new Headers(init.headers);
-    headers.set('authorization', `Bearer ${this.token!}`);
+    if (this.authenticationMode === 'runtime-token') {
+      headers.set('authorization', `Bearer ${this.token!}`);
+    } else {
+      headers.delete('authorization');
+      if (this.csrfToken && isMutation(method)) headers.set('x-csrf-token', this.csrfToken);
+    }
     if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
-    if (['POST', 'PUT', 'DELETE'].includes(method) && !headers.has('idempotency-key')) {
+    if (isMutation(method) && !headers.has('idempotency-key')) {
       headers.set('idempotency-key', crypto.randomUUID());
     }
     if (method === 'PUT' || method === 'DELETE') {
@@ -306,16 +523,129 @@ export class ZhiYunClient {
       ...init,
       method,
       headers,
+      credentials: this.requestCredentials(),
       cache: 'no-store',
       signal: init.signal
         ? AbortSignal.any([this.controller.signal, init.signal])
         : this.controller.signal,
     });
-    if (!response.ok) throw await this.toError(response);
+    if (!response.ok) {
+      this.clearWorkspaceSessionIfUnauthorized(response);
+      throw await this.toError(response);
+    }
     const etag = response.headers.get('etag');
     if (etag) this.etags.set(path.split('?')[0]!, etag);
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
+  }
+
+  getAuthStatus() {
+    return this.request<{ initialized: boolean }>('/api/v2/auth/status');
+  }
+
+  setupAuth(input: {
+    bootstrapToken: string;
+    email: string;
+    displayName: string;
+    password: string;
+  }) {
+    return this.request<IdentityUser>('/api/v2/auth/setup', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async login(input: { email: string; password: string }): Promise<AuthSession> {
+    const session = await this.request<AuthSession>('/api/v2/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    this.csrfToken = session.csrfToken;
+    return session;
+  }
+
+  async logout(): Promise<void> {
+    await this.request<void>('/api/v2/auth/logout', { method: 'POST' });
+    this.csrfToken = undefined;
+  }
+
+  async getCurrentUser() {
+    const session = await this.request<{
+      user: IdentityUser;
+      permissions: IdentityPermission[];
+      csrfToken: string;
+      idleExpiresAt: string;
+      absoluteExpiresAt: string;
+    }>('/api/v2/auth/me');
+    this.csrfToken = session.csrfToken;
+    return session;
+  }
+
+  async changePassword(input: { currentPassword: string; newPassword: string }): Promise<void> {
+    await this.request<void>('/api/v2/auth/password', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    // The server revokes every session only after the password has actually changed.
+    this.csrfToken = undefined;
+  }
+
+  resetPassword(input: { resetToken: string; newPassword: string }) {
+    return this.request<void>('/api/v2/auth/password', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  listMembers() {
+    return this.request<{ items: IdentityUser[] }>('/api/v2/members');
+  }
+
+  updateMember(
+    memberId: string,
+    input: { role?: IdentityRole; disabled?: boolean; displayName?: string },
+  ) {
+    return this.request<IdentityUser>(`/api/v2/members/${encodeURIComponent(memberId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  createMemberPasswordReset(memberId: string) {
+    return this.request<{ token: string; expiresAt: string }>(
+      `/api/v2/members/${encodeURIComponent(memberId)}/password-reset`,
+      { method: 'POST' },
+    );
+  }
+
+  listInvitations() {
+    return this.request<{ items: IdentityInvitation[] }>('/api/v2/invitations');
+  }
+
+  createInvitation(input: { email: string; role: IdentityRole }) {
+    return this.request<{ invitation: IdentityInvitation; token: string }>('/api/v2/invitations', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  revokeInvitation(invitationId: string) {
+    return this.request<void>(`/api/v2/invitations/${encodeURIComponent(invitationId)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  acceptInvitation(input: { token: string; displayName: string; password: string }) {
+    return this.request<IdentityUser>('/api/v2/invitations/accept', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  listAuditEvents(limit = 100, cursor?: string) {
+    return this.request<{ items: IdentityAuditEvent[]; nextCursor: string | null }>(
+      `/api/v2/audit-events${search({ limit, cursor })}`,
+    );
   }
 
   listTasks(limit = 100, cursor?: string) {
@@ -326,6 +656,38 @@ export class ZhiYunClient {
 
   createTask(input: TaskCreate) {
     return this.request<TaskDetail>('/api/v2/tasks', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  previewInitialRule(input: {
+    task: TaskCreate;
+    definition: CrawlPlanDefinition;
+    ruleName?: string;
+    limit?: number;
+  }) {
+    const previewKey = crypto.randomUUID();
+    return this.request<{
+      records: Array<{ data: Record<string, unknown>; sourceUrl: string }>;
+      previewKey: string;
+    }>('/api/v2/rules/preview', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': previewKey },
+      body: JSON.stringify(input),
+    });
+  }
+
+  createTaskWithInitialRule(input: {
+    task: TaskCreate;
+    definition: CrawlPlanDefinition;
+    previewKey?: string;
+    ruleName?: string;
+    limit?: number;
+    runAfterCreate?: boolean;
+    saveAsDraft?: boolean;
+  }) {
+    return this.request<{ task: TaskDetail; run: CrawlRun | null }>('/api/v2/tasks/initialize', {
       method: 'POST',
       body: JSON.stringify(input),
     });
@@ -344,6 +706,69 @@ export class ZhiYunClient {
 
   deleteTask(id: string) {
     return this.request<void>(`/api/v2/tasks/${id}`, { method: 'DELETE' });
+  }
+
+  previewSchedule(schedule: Schedule) {
+    return this.request<{ nextRuns: string[] }>('/api/v2/schedules/preview', {
+      method: 'POST',
+      body: JSON.stringify(schedule),
+    });
+  }
+
+  getTaskQualityPolicy(taskId: string) {
+    return this.request<QualityPolicy>(`/api/v2/tasks/${taskId}/quality-policy`);
+  }
+
+  updateTaskQualityPolicy(taskId: string, policy: QualityPolicy) {
+    return this.request<QualityPolicy>(`/api/v2/tasks/${taskId}/quality-policy`, {
+      method: 'PUT',
+      body: JSON.stringify(policy),
+    });
+  }
+
+  getTaskHealth(taskId: string) {
+    return this.request<TaskHealth>(`/api/v2/tasks/${taskId}/health`);
+  }
+
+  listTaskHealth(taskIds: string[]) {
+    return this.request<TaskHealth[]>(
+      `/api/v2/task-health${search({ taskIds: taskIds.join(',') })}`,
+    );
+  }
+
+  listTaskQualityEvaluations(taskId: string, limit = 50) {
+    return this.request<QualityEvaluation[]>(
+      `/api/v2/tasks/${taskId}/quality-evaluations${search({ limit })}`,
+    );
+  }
+
+  listTaskTemplates() {
+    return this.request<TaskTemplate[]>('/api/v2/task-templates');
+  }
+
+  getTaskTemplate(templateId: string) {
+    return this.request<TaskTemplate>(`/api/v2/task-templates/${encodeURIComponent(templateId)}`);
+  }
+
+  instantiateTaskTemplate(
+    templateId: string,
+    input: {
+      name?: string;
+      startUrl?: string;
+      instruction?: string;
+      parameters: Record<string, string>;
+      schedule?: Schedule;
+      task?: TaskCreate;
+      definition?: CrawlPlanDefinition;
+      previewKey?: string;
+      limit?: number;
+      saveAsDraft?: boolean;
+    },
+  ) {
+    return this.request<TaskDetail>(
+      `/api/v2/task-templates/${encodeURIComponent(templateId)}/instantiate`,
+      { method: 'POST', body: JSON.stringify(input) },
+    );
   }
 
   getRuntimeMetadata() {
@@ -433,6 +858,147 @@ export class ZhiYunClient {
     return this.request<RuleAnalysisResult>(`/api/v2/tasks/${id}/rule-analysis`, {
       method: 'POST',
       body: JSON.stringify(input),
+    });
+  }
+
+  analyzeDraftTask(task: TaskCreate, input: { useAi: boolean; forceBrowser: boolean }) {
+    return this.request<RuleAnalysisResult>('/api/v2/rules/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ task, ...input }),
+    });
+  }
+
+  runDraftAiExtractDemo(task: TaskCreate, definition: CrawlPlanDefinition) {
+    return this.request<{
+      records: Array<Record<string, unknown>>;
+      sourceUrl: string;
+      persisted: false;
+    }>('/api/v2/rules/ai-extract', {
+      method: 'POST',
+      body: JSON.stringify({ task, definition }),
+    });
+  }
+
+  listCrawlerAssistantConversations(limit = 50, cursor?: string) {
+    return this.request<{
+      items: CrawlerAssistantConversation[];
+      nextCursor: string | null;
+    }>(`/api/v2/crawler-assistant/conversations${search({ limit, cursor })}`);
+  }
+
+  createCrawlerAssistantConversation(title?: string) {
+    return this.request<{
+      conversation: CrawlerAssistantConversation;
+      draft: CrawlerAssistantDraft;
+    }>('/api/v2/crawler-assistant/conversations', {
+      method: 'POST',
+      body: JSON.stringify(title ? { title } : {}),
+    });
+  }
+
+  getCrawlerAssistantConversation(id: string) {
+    return this.request<{
+      conversation: CrawlerAssistantConversation;
+      messages: CrawlerAssistantMessage[];
+      draft: CrawlerAssistantDraft | null;
+      providerConfigured: boolean;
+    }>(`/api/v2/crawler-assistant/conversations/${encodeURIComponent(id)}`);
+  }
+
+  archiveCrawlerAssistantConversation(id: string) {
+    return this.request<CrawlerAssistantConversation>(
+      `/api/v2/crawler-assistant/conversations/${encodeURIComponent(id)}?archive=true`,
+      { method: 'DELETE' },
+    );
+  }
+
+  deleteCrawlerAssistantConversation(id: string) {
+    return this.request<{ deleted: boolean }>(
+      `/api/v2/crawler-assistant/conversations/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  postCrawlerAssistantMessage(id: string, content: string) {
+    return this.request<{ message: CrawlerAssistantMessage; turn: { id: string; status: string } }>(
+      `/api/v2/crawler-assistant/conversations/${encodeURIComponent(id)}/messages`,
+      { method: 'POST', body: JSON.stringify({ content }) },
+    );
+  }
+
+  selectCrawlerAssistantSite(id: string, url: string, revision: number) {
+    return this.request<{ draft: CrawlerAssistantDraft; turn: { id: string; status: string } }>(
+      `/api/v2/crawler-assistant/conversations/${encodeURIComponent(id)}/site-selection`,
+      {
+        method: 'POST',
+        headers: { 'if-match': `"${revision}"` },
+        body: JSON.stringify({ url }),
+      },
+    );
+  }
+
+  testCrawlerAssistantDraft(id: string, revision: number) {
+    return this.request<CrawlerAssistantDraft>(
+      `/api/v2/crawler-assistant/conversations/${encodeURIComponent(id)}/draft/test`,
+      {
+        method: 'POST',
+        headers: { 'if-match': `"${revision}"` },
+      },
+    );
+  }
+
+  commitCrawlerAssistantDraft(id: string, revision: number) {
+    return this.request<{ taskId: string; ruleId?: string; versionId?: string; replayed: boolean }>(
+      `/api/v2/crawler-assistant/conversations/${encodeURIComponent(id)}/commit`,
+      { method: 'POST', headers: { 'if-match': `"${revision}"` } },
+    );
+  }
+
+  cancelCrawlerAssistantTurn(id: string) {
+    return this.request(`/api/v2/crawler-assistant/turns/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  retryCrawlerAssistantTurn(id: string) {
+    return this.request(`/api/v2/crawler-assistant/turns/${encodeURIComponent(id)}/retry`, {
+      method: 'POST',
+    });
+  }
+
+  getAiProviderSettings() {
+    return this.request<AiProviderSettingsView>('/api/v2/ai/provider');
+  }
+
+  promptAiProviderCredential(revision: number) {
+    return this.request<{ canceled: boolean; apiKeyConfigured?: boolean; revision?: number }>(
+      '/api/v2/ai/provider/credential/prompt',
+      { method: 'POST', headers: { 'if-match': `"${revision}"` } },
+    );
+  }
+
+  testAiProvider(input: { providerId: string; model: string }) {
+    return this.request<{
+      ok: true;
+      providerId: string;
+      baseUrl: string;
+      model: string;
+      testedAt: string;
+    }>('/api/v2/ai/provider/test', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  updateAiProvider(input: { providerId: string; model: string }, revision: number) {
+    return this.request<AiProviderSettingsView>('/api/v2/ai/provider', {
+      method: 'PUT',
+      headers: { 'if-match': `"${revision}"` },
+      body: JSON.stringify(input),
+    });
+  }
+
+  deleteAiProviderCredential(revision: number) {
+    return this.request<AiProviderSettingsView>('/api/v2/ai/provider/credential', {
+      method: 'DELETE',
+      headers: { 'if-match': `"${revision}"` },
     });
   }
 
@@ -929,18 +1495,40 @@ export class ZhiYunClient {
   }
 
   createInspectionSession(taskId: string) {
-    return this.request<{ id: string }>('/api/v2/inspection-sessions', {
+    return this.request<{ id: string; url: string; expiresAt: string }>(
+      '/api/v2/inspection-sessions',
+      {
+        method: 'POST',
+        body: JSON.stringify({ taskId }),
+      },
+    );
+  }
+
+  interactWithInspection(
+    id: string,
+    action: { type: 'click' | 'scroll' | 'refresh'; x?: number; y?: number; deltaY?: number },
+  ) {
+    return this.request<{ url: string }>(`/api/v2/inspection-sessions/${id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ taskId }),
+      body: JSON.stringify(action),
+    });
+  }
+
+  executeInspectionStep(id: string, stepIndex: number, action: BrowserAction) {
+    return this.request<InspectionStepResult>(`/api/v2/inspection-sessions/${id}/actions`, {
+      method: 'POST',
+      body: JSON.stringify({ stepIndex, action }),
     });
   }
 
   getInspectionScreenshot(id: string) {
-    return this.request<{ image: string }>(`/api/v2/inspection-sessions/${id}/screenshot`);
+    return this.request<{ url: string; image: string; width: number; height: number }>(
+      `/api/v2/inspection-sessions/${id}/screenshot`,
+    );
   }
 
   selectInspectionElement(id: string, point: { x: number; y: number }) {
-    return this.request<{ selector: string }>(`/api/v2/inspection-sessions/${id}/select`, {
+    return this.request<InspectionElementSelection>(`/api/v2/inspection-sessions/${id}/select`, {
       method: 'POST',
       body: JSON.stringify(point),
     });
@@ -952,6 +1540,14 @@ export class ZhiYunClient {
 
   getDesktopDiagnostics() {
     return this.request<DesktopDiagnostics>('/api/v2/desktop/diagnostics');
+  }
+
+  getReadiness() {
+    return this.request<RuntimeReadiness>('/ready');
+  }
+
+  getRuntimeSummary() {
+    return this.request<RuntimeSummary>('/api/v2/runtime/summary');
   }
 
   async exportRun(
@@ -1007,14 +1603,19 @@ export class ZhiYunClient {
   }
 
   private async downloadArtifact(artifact: ArtifactDescriptor): Promise<void> {
+    await this.connect();
     const response = await fetch(
       `${this.bootstrap.baseUrl}/api/v2/artifacts/${artifact.id}/content`,
       {
-        headers: { authorization: `Bearer ${this.token!}` },
+        headers: this.authenticationHeaders(),
+        credentials: this.requestCredentials(),
         signal: this.controller.signal,
       },
     );
-    if (!response.ok) throw await this.toError(response);
+    if (!response.ok) {
+      this.clearWorkspaceSessionIfUnauthorized(response);
+      throw await this.toError(response);
+    }
     const url = URL.createObjectURL(await response.blob());
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -1029,6 +1630,24 @@ export class ZhiYunClient {
     return new Error(`HTTP ${response.status}`);
   }
 
+  private authenticationHeaders(): Headers {
+    const headers = new Headers();
+    if (this.authenticationMode === 'runtime-token') {
+      headers.set('authorization', `Bearer ${this.token!}`);
+    }
+    return headers;
+  }
+
+  private requestCredentials(): RequestCredentials {
+    return this.authenticationMode === 'workspace-cookie' ? 'include' : 'omit';
+  }
+
+  private clearWorkspaceSessionIfUnauthorized(response: Response): void {
+    if (response.status === 401 && this.authenticationMode === 'workspace-cookie') {
+      this.csrfToken = undefined;
+    }
+  }
+
   private async startDomainEvents(): Promise<void> {
     if (this.eventLoop) return this.eventLoop;
     this.eventLoop = (async () => {
@@ -1039,11 +1658,15 @@ export class ZhiYunClient {
           const response = await fetch(
             `${this.bootstrap.baseUrl}/api/v2/events/domain?after=${this.eventCursor}`,
             {
-              headers: { authorization: `Bearer ${this.token!}` },
+              headers: this.authenticationHeaders(),
+              credentials: this.requestCredentials(),
               signal: this.controller.signal,
             },
           );
-          if (!response.ok || !response.body) throw await this.toError(response);
+          if (!response.ok || !response.body) {
+            this.clearWorkspaceSessionIfUnauthorized(response);
+            throw await this.toError(response);
+          }
           attempt = 0;
           const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
           let buffer = '';
@@ -1077,6 +1700,55 @@ export class ZhiYunClient {
       this.eventLoop = undefined;
     })();
     return this.eventLoop;
+  }
+
+  private async startRealtimeEvents(): Promise<void> {
+    if (this.realtimeLoop) return this.realtimeLoop;
+    this.realtimeLoop = (async () => {
+      let attempt = 0;
+      while (this.realtimeListeners.size > 0 && !this.controller.signal.aborted) {
+        try {
+          await this.connect();
+          const response = await fetch(`${this.bootstrap.baseUrl}/api/v2/events/realtime`, {
+            headers: this.authenticationHeaders(),
+            credentials: this.requestCredentials(),
+            signal: this.controller.signal,
+          });
+          if (!response.ok || !response.body) {
+            this.clearWorkspaceSessionIfUnauthorized(response);
+            throw await this.toError(response);
+          }
+          attempt = 0;
+          const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+          let buffer = '';
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += value;
+            let boundary = buffer.indexOf('\n\n');
+            while (boundary >= 0) {
+              const frame = buffer.slice(0, boundary);
+              buffer = buffer.slice(boundary + 2);
+              const data = frame
+                .split('\n')
+                .find((line) => line.startsWith('data: '))
+                ?.slice(6);
+              if (data) {
+                const event = JSON.parse(data) as RealtimeEvent;
+                for (const listener of this.realtimeListeners) listener(event);
+              }
+              boundary = buffer.indexOf('\n\n');
+            }
+          }
+        } catch {
+          if (this.controller.signal.aborted) break;
+          attempt += 1;
+          await new Promise((resolve) => setTimeout(resolve, Math.min(8_000, 500 * 2 ** attempt)));
+        }
+      }
+      this.realtimeLoop = undefined;
+    })();
+    return this.realtimeLoop;
   }
 }
 

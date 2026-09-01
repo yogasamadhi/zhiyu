@@ -8,15 +8,19 @@ import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
 import { AesCredentialStore } from '@zhiyun/platform';
 import { JobHandlerRegistry } from '@zhiyun/platform-core';
 import { PostgresAnalysisRepository } from '@zhiyun/plugin-analytics';
+import { PostgresAiConversationRepository } from '@zhiyun/plugin-ai-assistance';
 import { PostgresCollectionRepository } from '@zhiyun/plugin-collection';
 import { PostgresCorpusRepository } from '@zhiyun/plugin-corpus';
 import { PostgresDatasetRepository } from '@zhiyun/plugin-datasets';
+import { PostgresIdentityRepository } from '@zhiyun/plugin-identity';
 import { PostgresOutputRepository } from '@zhiyun/plugin-outputs';
+import { PostgresMonitoringRepository } from '@zhiyun/plugin-monitoring';
 import { PostgresPreferencesRepository } from '@zhiyun/plugin-preferences';
 import { resolveProductGraph } from '@zhiyun/product-profiles';
 import { RedisPlatformJobQueue, resetLegacyRedis } from '@zhiyun/queue-redis-v1';
 import { buildLevel2Runtime, openApiDocument, type Level2Runtime } from '@zhiyun/runtime';
 import { openPostgresPlatformRepository } from '@zhiyun/storage-postgres-v1';
+import { registerStaticWeb } from './static-web.js';
 
 function analyticsWorkerLaunch(): { command: string; args: string[] } {
   if (process.env.ZHIYUN_ANALYTICS_WORKER_PATH) {
@@ -42,7 +46,9 @@ function analyticsWorkerLaunch(): { command: string; args: string[] } {
 
 export async function buildApp() {
   const config = getConfig();
-  const dataDirectory = join(process.cwd(), '.data', 'headless');
+  const dataDirectory = resolve(config.ZHIYUN_DATA_DIR);
+  const outputDirectory = resolve(config.ZHIYUN_OUTPUT_ROOT ?? join(dataDirectory, 'outputs'));
+  process.env.ZHIYUN_OUTPUT_ROOT = outputDirectory;
   const runtimeHolder: { current?: Level2Runtime } = {};
   const workerSupervisor = new AnalyticsWorkerSupervisor({
     ...analyticsWorkerLaunch(),
@@ -76,6 +82,20 @@ export async function buildApp() {
   });
   const profileId = config.NODE_ENV === 'test' ? 'test' : 'headless-server';
   const graph = resolveProductGraph(profileId);
+  const identityEnabled = graph.plugins.some(({ descriptor }) => descriptor.id === 'identity');
+  const bootstrapToken =
+    config.ZHIYUN_BOOTSTRAP_TOKEN ??
+    config.ZHIYUN_ADMIN_TOKEN ??
+    (config.NODE_ENV === 'production'
+      ? undefined
+      : 'headless-development-bootstrap-token-change-me');
+  const identityIdentifierPepper = config.ZHIYUN_CREDENTIAL_KEY ?? bootstrapToken;
+  if (identityEnabled && !identityIdentifierPepper) {
+    throw new Error('Identity requires ZHIYUN_CREDENTIAL_KEY or a bootstrap token');
+  }
+  const identityRepository = identityEnabled
+    ? new PostgresIdentityRepository(config.DATABASE_URL)
+    : undefined;
   const platform = await openPostgresPlatformRepository({
     connectionString: config.DATABASE_URL,
     graphRevision: graph.revision,
@@ -86,9 +106,11 @@ export async function buildApp() {
     datasets: new PostgresDatasetRepository(config.DATABASE_URL),
     collection: new PostgresCollectionRepository(config.DATABASE_URL),
     outputs: new PostgresOutputRepository(config.DATABASE_URL),
+    monitoring: new PostgresMonitoringRepository(config.DATABASE_URL),
     preferences: new PostgresPreferencesRepository(config.DATABASE_URL),
     analytics: new PostgresAnalysisRepository(config.DATABASE_URL),
     corpus: new PostgresCorpusRepository(config.DATABASE_URL),
+    aiAssistance: new PostgresAiConversationRepository(config.DATABASE_URL),
   };
   const handlers = new JobHandlerRegistry();
   const jobs = new RedisPlatformJobQueue(platform, config.REDIS_URL, handlers, {
@@ -141,7 +163,8 @@ export async function buildApp() {
       credentialStore: credentials,
       artifactStore: new LocalArtifactStore(dataDirectory),
       ...(workerConnection ? { analyticsWorker: new AnalyticsWorkerClient(workerConnection) } : {}),
-      openApiDocument: openApiDocument(),
+      openApiDocument: openApiDocument(profileId),
+      readiness: () => jobs.readiness(),
       host: {
         metadata,
         capabilities: {
@@ -154,15 +177,37 @@ export async function buildApp() {
           tray: false,
         },
       },
+      ...(identityRepository
+        ? {
+            identity: {
+              repository: identityRepository,
+              options: {
+                ...(bootstrapToken ? { bootstrapToken } : {}),
+                identifierPepper: identityIdentifierPepper!,
+                ...(config.ZHIYUN_ADMIN_TOKEN
+                  ? { legacyAdminToken: config.ZHIYUN_ADMIN_TOKEN }
+                  : {}),
+              },
+              secureCookies:
+                config.NODE_ENV === 'production' ||
+                Boolean(config.ZHIYUN_PUBLIC_URL?.startsWith('https://')),
+            },
+          }
+        : {}),
     },
     {
       sessionNonce: config.ZHIYUN_SESSION_NONCE,
       reusableSessionNonce: true,
-      ...(config.ZHIYUN_ADMIN_TOKEN ? { adminToken: config.ZHIYUN_ADMIN_TOKEN } : {}),
+      ...(!identityEnabled && config.ZHIYUN_ADMIN_TOKEN
+        ? { adminToken: config.ZHIYUN_ADMIN_TOKEN }
+        : {}),
       trustProxy: config.ZHIYUN_TRUST_PROXY,
       allowedOrigins: [
         `http://localhost:${config.WEB_PORT}`,
         `http://127.0.0.1:${config.WEB_PORT}`,
+        `http://localhost:${config.API_PORT}`,
+        `http://127.0.0.1:${config.API_PORT}`,
+        ...(config.ZHIYUN_PUBLIC_URL ? [new URL(config.ZHIYUN_PUBLIC_URL).origin] : []),
         ...(config.ZHIYUN_ALLOWED_ORIGINS?.split(',')
           .map((origin) => origin.trim())
           .filter(Boolean) ?? []),
@@ -173,5 +218,6 @@ export async function buildApp() {
   );
   runtimeHolder.current = runtime;
   runtime.app.addHook('onClose', async () => workerSupervisor.stop());
+  await registerStaticWeb(runtime.app);
   return runtime.app;
 }

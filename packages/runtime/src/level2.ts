@@ -23,7 +23,18 @@ import {
   preferenceContentFromResolved,
   sourceCatalogEntry,
 } from '@zhiyun/preferences';
-import { AiAssistanceService, registerAiAssistanceHttp } from '@zhiyun/plugin-ai-assistance';
+import { resolveProductGraph } from '@zhiyun/product-profiles';
+import {
+  AiAssistanceService,
+  AiProviderSettingsService,
+  AnonymousBrowserWebSearch,
+  CrawlerAssistantService,
+  MutableAiProvider,
+  PiAgentRuntime,
+  registerAiAssistanceHttp,
+  type AiConversationRepository,
+  type CollectionForAiPort,
+} from '@zhiyun/plugin-ai-assistance';
 import {
   AnalysisJobService,
   AnalysisRecipeService,
@@ -57,22 +68,48 @@ import {
   type SnapshotWorkerClient,
 } from '@zhiyun/plugin-datasets';
 import {
+  IdentityError,
+  IdentityService,
+  registerIdentityHttp,
+  rolePermissions,
+  type IdentityPrincipal,
+  type IdentityRepository,
+  type IdentityServiceOptions,
+} from '@zhiyun/plugin-identity';
+import {
+  OutputAttemptReplay,
+  OutputEventNotificationOutbox,
   OutputsService,
+  PlatformOutputArtifactStore,
+  createEventNotificationJobHandler,
   createOutputDeliveryJobHandler,
+  destinationReceivesRunData,
+  enqueueOutputEventNotifications,
   enqueueOutputDelivery,
   registerOutputsHttp,
   type OutputRepository,
 } from '@zhiyun/plugin-outputs';
+import {
+  MonitoringEvaluationOutbox,
+  MonitoringService,
+  createMonitoringEvaluationJobHandler,
+  enqueueMonitoringEvaluation,
+  registerMonitoringHttp,
+  type MonitoringRepository,
+} from '@zhiyun/plugin-monitoring';
 import {
   PreferencesHttpError,
   PreferencesService,
   registerPreferencesHttp,
   type PreferencesRepository,
 } from '@zhiyun/plugin-preferences';
+import { registerTemplatesHttp } from '@zhiyun/plugin-templates';
 import {
   buildRuntimeGateway,
+  RealtimeEventHub,
   type RuntimeGateway,
   type RuntimeGatewayOptions,
+  type RuntimeReadinessProbe,
 } from '@zhiyun/runtime-gateway';
 import { InspectionManager } from './inspection.js';
 
@@ -84,6 +121,8 @@ export interface Level2RuntimeRepositories {
   preferences: PreferencesRepository;
   analytics: AnalysisRepository;
   corpus: CorpusRepository;
+  aiAssistance: AiConversationRepository;
+  monitoring: MonitoringRepository;
 }
 
 export interface Level2RuntimeDependencies {
@@ -97,6 +136,12 @@ export interface Level2RuntimeDependencies {
   analyticsWorker?: AnalyticsWorkerClient;
   host: HostCapabilities;
   openApiDocument: unknown;
+  readiness?(): Promise<RuntimeReadinessProbe>;
+  identity?: {
+    repository: IdentityRepository;
+    options: IdentityServiceOptions;
+    secureCookies?: boolean;
+  };
 }
 
 export type Level2RuntimeOptions = RuntimeGatewayOptions;
@@ -147,11 +192,52 @@ class MutableAnalyticsWorker
   }
 }
 
+class AiConversationRetention {
+  private timer: ReturnType<typeof setInterval> | undefined;
+
+  constructor(private readonly repository: AiConversationRepository) {}
+
+  async start(): Promise<void> {
+    await this.cleanup();
+    this.timer = setInterval(() => void this.cleanup(), 24 * 60 * 60_000);
+    this.timer.unref?.();
+  }
+
+  async close(): Promise<void> {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = undefined;
+  }
+
+  private async cleanup(): Promise<void> {
+    await this.repository.cleanupInactive(
+      new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString(),
+    );
+  }
+}
+
 export async function buildLevel2Runtime(
   dependencies: Level2RuntimeDependencies,
   options: Level2RuntimeOptions,
 ): Promise<Level2Runtime> {
   const repositories = dependencies.repositories;
+  const productGraph = resolveProductGraph(options.profileId);
+  const aiEnabled = productGraph.plugins.some(
+    ({ descriptor }) => descriptor.id === 'ai-assistance',
+  );
+  const identityEnabled = productGraph.plugins.some(
+    ({ descriptor }) => descriptor.id === 'identity',
+  );
+  if (identityEnabled !== Boolean(dependencies.identity)) {
+    throw new Error(
+      identityEnabled
+        ? 'Headless Identity is enabled but its PostgreSQL repository and configuration are missing'
+        : 'Identity dependencies may only be supplied to the Headless Identity profile',
+    );
+  }
+  const identity = dependencies.identity
+    ? new IdentityService(dependencies.identity.repository, dependencies.identity.options)
+    : undefined;
+  const realtime = new RealtimeEventHub();
   const dataApiRateLimits = new Map<string, { window: number; count: number }>();
   const trendInstallations = new Map<string, Promise<{ taskId: string | null }>>();
   const worker = new MutableAnalyticsWorker(dependencies.analyticsWorker);
@@ -171,6 +257,50 @@ export async function buildLevel2Runtime(
     dependencies.jobs,
   );
   const outputsService = new OutputsService(repositories.outputs);
+  const monitoring = new MonitoringService(repositories.monitoring, {
+    async issue(evaluation, notification) {
+      await enqueueOutputEventNotifications(
+        { repository: repositories.outputs, jobs: dependencies.jobs },
+        {
+          eventId: notification.eventId,
+          type: 'quality.issue.detected',
+          occurredAt: notification.occurredAt,
+          taskId: evaluation.taskId,
+          runId: evaluation.runId,
+          severity: notification.severity,
+          payload: notification.payload,
+        },
+      );
+      const qualityIssues = evaluation.issues.filter((issue) => issue.kind !== 'run-failed');
+      if (qualityIssues.length > 0) {
+        await dependencies.host.notify?.(
+          '织云任务需要关注',
+          qualityIssues
+            .map((issue) => issue.message)
+            .slice(0, 3)
+            .join('；'),
+        );
+      }
+    },
+    async recovered(evaluation, notification) {
+      await enqueueOutputEventNotifications(
+        { repository: repositories.outputs, jobs: dependencies.jobs },
+        {
+          eventId: notification.eventId,
+          type: 'quality.recovered',
+          occurredAt: notification.occurredAt,
+          taskId: evaluation.taskId,
+          runId: evaluation.runId,
+          severity: 'info',
+          payload: notification.payload,
+        },
+      );
+      await dependencies.host.notify?.(
+        '织云任务已恢复',
+        `任务 ${evaluation.taskId} 的运行 ${evaluation.runId} 已恢复健康`,
+      );
+    },
+  });
   const preferencesService = new PreferencesService(repositories.preferences);
   const analyticsCatalog = new AnalyticsCatalog(() => (worker.available() ? worker : undefined));
   const analysisRecipes = new AnalysisRecipeService(repositories.analytics, analyticsCatalog);
@@ -190,43 +320,77 @@ export async function buildLevel2Runtime(
     () => worker.available(),
     dependencies.jobs,
   );
-  const aiAssistance = new AiAssistanceService(
-    {
-      async getTask(id) {
-        const task = await repositories.collection.getTask(id);
-        if (!task) return null;
-        const settings = await resolveCollectionTaskSettings(
-          task.requestSettings,
-          task.browserSettings,
-          task.credentialBindings,
-          dependencies.credentialStore,
-        );
-        return { ...task, ...settings };
-      },
-      getRun: (id) => repositories.collection.getRun(id),
-      async getRule(taskId, ruleId) {
-        const rule = (await repositories.collection.listRules(taskId)).find(
-          (candidate) => candidate.id === ruleId,
-        );
-        return rule ?? null;
-      },
-      async getActiveRule(taskId) {
-        const active = await repositories.collection.getActiveRule(taskId);
-        return active
-          ? { activeVersionId: active.rule.activeVersionId, versions: [active.version] }
-          : null;
-      },
-      createRuleVersion: (taskId, ruleId, definition) =>
-        repositories.collection.createRuleVersion(taskId, ruleId, definition, 'ai'),
-      createRepairProposal: (input) => repositories.collection.createRuleRepairProposal(input),
-      listRepairProposals: (ruleId) => repositories.collection.listRuleRepairProposals(ruleId),
-      markRepairProposalTested: (id) => repositories.collection.markRuleRepairProposalTested(id),
-      updateRepairProposal: (id, status) =>
-        repositories.collection.updateRuleRepairProposal(id, status),
+  const mutableAi = new MutableAiProvider(dependencies.ai);
+  const collectionForAi: CollectionForAiPort = {
+    async getTask(id) {
+      const task = await repositories.collection.getTask(id);
+      if (!task) return null;
+      const settings = await resolveCollectionTaskSettings(
+        task.requestSettings,
+        task.browserSettings,
+        task.credentialBindings,
+        dependencies.credentialStore,
+      );
+      return { ...task, ...settings };
     },
-    dependencies.ai,
-    dependencies.crawler,
-  );
+    getRun: (id) => repositories.collection.getRun(id),
+    async getRule(taskId, ruleId) {
+      const rule = (await repositories.collection.listRules(taskId)).find(
+        (candidate) => candidate.id === ruleId,
+      );
+      return rule ?? null;
+    },
+    async getActiveRule(taskId) {
+      const active = await repositories.collection.getActiveRule(taskId);
+      return active
+        ? { activeVersionId: active.rule.activeVersionId, versions: [active.version] }
+        : null;
+    },
+    createRuleVersion: (taskId, ruleId, definition) =>
+      repositories.collection.createRuleVersion(taskId, ruleId, definition, 'ai'),
+    createRepairProposal: (input) => repositories.collection.createRuleRepairProposal(input),
+    listRepairProposals: (ruleId) => repositories.collection.listRuleRepairProposals(ruleId),
+    markRepairProposalTested: (id) => repositories.collection.markRuleRepairProposalTested(id),
+    updateRepairProposal: (id, status) =>
+      repositories.collection.updateRuleRepairProposal(id, status),
+    createTaskWithInitialRule: (input) => repositories.collection.createTaskWithInitialRule(input),
+  };
+  const aiAssistance = new AiAssistanceService(collectionForAi, mutableAi, dependencies.crawler);
+  const crawlerAssistant = new CrawlerAssistantService({
+    repository: repositories.aiAssistance,
+    collection: collectionForAi,
+    agent: new PiAgentRuntime(() => mutableAi.current()),
+    provider: () => mutableAi.current(),
+    providerConfigured: () => mutableAi.configured(),
+    crawler: dependencies.crawler,
+    search: new AnonymousBrowserWebSearch(),
+    jobs: dependencies.jobs,
+    realtime: { publish: (type, payload) => realtime.publish(type, payload) },
+  });
+  const providerSettings = new AiProviderSettingsService({
+    repository: repositories.aiAssistance,
+    provider: mutableAi,
+    credentials: dependencies.credentialStore,
+    mode: dependencies.host.metadata.mode,
+    headlessConfigured:
+      dependencies.host.metadata.mode === 'headless' && dependencies.ai.name !== 'mock',
+    onUsage: async (usage) => {
+      await repositories.platform
+        .appendEvent({
+          type: 'ai.request.completed',
+          producerPluginId: 'ai-assistance',
+          aggregateType: usage.taskId ? 'task' : 'runtime',
+          aggregateId: usage.taskId ?? dependencies.host.metadata.runtimeId,
+          payload: { ...usage },
+        })
+        .catch(() => undefined);
+    },
+    ...(dependencies.host.promptCredential
+      ? {
+          promptCredential: () => dependencies.host.promptCredential!('ai-api-key'),
+        }
+      : {}),
+  });
 
   dependencies.handlers.register({
     type: 'collection.crawl.execute',
@@ -238,6 +402,72 @@ export async function buildLevel2Runtime(
       crawler: dependencies.crawler,
       credentialStore: dependencies.credentialStore,
       async afterSucceeded({ task, run }) {
+        await enqueueMonitoringEvaluation(dependencies.jobs, {
+          taskId: task.id,
+          runId: run.id,
+          outcome: 'succeeded',
+        }).catch(async (error) => {
+          await repositories.collection
+            .appendRunLog({
+              runId: run.id,
+              level: 'warn',
+              phase: 'monitoring',
+              message: `Quality evaluation could not be queued: ${error instanceof Error ? error.message : String(error)}`,
+              url: null,
+              errorCode: 'MONITORING_ERROR',
+              metadata: {},
+            })
+            .catch(() => undefined);
+        });
+        const succeededEvent = await repositories.platform.appendEvent({
+          type: 'run.succeeded',
+          producerPluginId: 'collection',
+          aggregateType: 'run',
+          aggregateId: run.id,
+          payload: {
+            taskId: task.id,
+            runId: run.id,
+            recordCount: run.recordCount,
+            datasetStats: run.datasetStats,
+          },
+        });
+        await enqueueOutputEventNotifications(
+          { repository: repositories.outputs, jobs: dependencies.jobs },
+          {
+            eventId: succeededEvent.id,
+            type: 'run.succeeded',
+            occurredAt: succeededEvent.occurredAt,
+            taskId: task.id,
+            runId: run.id,
+            severity: 'info',
+            payload: succeededEvent.payload,
+          },
+        ).catch(() => undefined);
+        if (run.datasetStats.added + run.datasetStats.updated + run.datasetStats.removed > 0) {
+          const changedEvent = await repositories.platform.appendEvent({
+            type: 'dataset.changed',
+            producerPluginId: 'datasets',
+            aggregateType: 'run',
+            aggregateId: run.id,
+            payload: {
+              taskId: task.id,
+              runId: run.id,
+              changes: run.datasetStats,
+            },
+          });
+          await enqueueOutputEventNotifications(
+            { repository: repositories.outputs, jobs: dependencies.jobs },
+            {
+              eventId: changedEvent.id,
+              type: 'dataset.changed',
+              occurredAt: changedEvent.occurredAt,
+              taskId: task.id,
+              runId: run.id,
+              severity: 'info',
+              payload: changedEvent.payload,
+            },
+          ).catch(() => undefined);
+        }
         const existing = new Map(
           (await repositories.outputs.listDeliveryAttempts(run.id)).map((attempt) => [
             attempt.destinationId,
@@ -245,6 +475,8 @@ export async function buildLevel2Runtime(
           ]),
         );
         for (const destinationId of await repositories.outputs.listTaskBindings(task.id)) {
+          const destination = await repositories.outputs.getDestination(destinationId);
+          if (!destinationReceivesRunData(destination)) continue;
           const attempt =
             existing.get(destinationId) ??
             (await repositories.outputs.createDeliveryAttempt({
@@ -257,8 +489,55 @@ export async function buildLevel2Runtime(
           }
         }
       },
+      async afterFailed({ task, run }) {
+        const failedEvent = await repositories.platform.appendEvent({
+          type: 'run.failed',
+          producerPluginId: 'collection',
+          aggregateType: 'run',
+          aggregateId: run.id,
+          payload: { taskId: task.id, runId: run.id, error: run.error },
+        });
+        await enqueueOutputEventNotifications(
+          { repository: repositories.outputs, jobs: dependencies.jobs },
+          {
+            eventId: failedEvent.id,
+            type: 'run.failed',
+            occurredAt: failedEvent.occurredAt,
+            taskId: task.id,
+            runId: run.id,
+            severity: 'error',
+            payload: failedEvent.payload,
+          },
+        ).catch(() => undefined);
+        await enqueueMonitoringEvaluation(dependencies.jobs, {
+          taskId: task.id,
+          runId: run.id,
+          outcome: 'failed',
+        }).catch(() => undefined);
+        await dependencies.host
+          .notify?.('织云任务运行失败', run.error ?? `任务 ${task.name} 运行失败`)
+          .catch(() => undefined);
+      },
     }),
   });
+  dependencies.handlers.register({
+    type: 'monitoring.quality.evaluate',
+    ownerPluginId: 'monitoring',
+    resourceClass: 'io',
+    handler: createMonitoringEvaluationJobHandler({
+      service: monitoring,
+      collection: repositories.collection,
+      datasets: repositories.datasets,
+    }),
+  });
+  if (aiEnabled) {
+    dependencies.handlers.register({
+      type: 'ai.conversation.turn',
+      ownerPluginId: 'ai-assistance',
+      resourceClass: 'browser-heavy',
+      handler: crawlerAssistant.createTurnJobHandler(),
+    });
+  }
 
   const installTrendSource = (key: string): Promise<{ taskId: string | null }> => {
     const active = trendInstallations.get(key);
@@ -300,9 +579,19 @@ export async function buildLevel2Runtime(
   const runTrendSource = async (key: string): Promise<Record<string, unknown>> => {
     const entry = sourceCatalogEntry(key);
     if (!entry?.supported) return { key, status: 'skipped', reason: 'unsupported' };
-    const binding = await repositories.preferences.getTrendSourceBinding(key);
-    if (!binding?.taskId) return { key, status: 'skipped', reason: 'not-installed' };
-    if (!binding.enabled) return { key, status: 'skipped', reason: 'disabled' };
+    let binding = await repositories.preferences.getTrendSourceBinding(key);
+    if (binding && !binding.enabled) return { key, status: 'skipped', reason: 'disabled' };
+    if (!binding?.taskId) {
+      const installed = await installTrendSource(key);
+      binding = await repositories.preferences.upsertTrendSourceBinding({
+        key,
+        platform: entry.platform,
+        taskId: installed.taskId,
+        enabled: binding?.enabled ?? true,
+        autoRefresh: binding?.autoRefresh ?? true,
+      });
+    }
+    if (!binding.taskId) return { key, status: 'skipped', reason: 'not-installed' };
     const active = (await repositories.collection.listRuns(binding.taskId)).find((run) =>
       ['queued', 'running', 'persisting'].includes(run.status),
     );
@@ -328,6 +617,18 @@ export async function buildLevel2Runtime(
       repository: repositories.outputs,
       tasks: repositories.collection,
       datasets: repositories.datasets,
+      credentials: dependencies.credentialStore,
+      artifacts: new PlatformOutputArtifactStore(dependencies.artifactStore, {
+        parquetWorker: worker,
+      }),
+    }),
+  });
+  dependencies.handlers.register({
+    type: 'outputs.event-notification.execute',
+    ownerPluginId: 'outputs',
+    resourceClass: 'delivery',
+    handler: createEventNotificationJobHandler({
+      repository: repositories.outputs,
       credentials: dependencies.credentialStore,
     }),
   });
@@ -357,6 +658,13 @@ export async function buildLevel2Runtime(
   });
 
   const registerPluginHttp = async (app: FastifyInstance) => {
+    if (identity && dependencies.identity) {
+      await registerIdentityHttp(app, identity, {
+        ...(dependencies.identity.secureCookies === undefined
+          ? {}
+          : { secureCookies: dependencies.identity.secureCookies }),
+      });
+    }
     await registerDatasetsHttp(app, {
       repository: repositories.datasets,
       snapshots: snapshotService,
@@ -380,6 +688,7 @@ export async function buildLevel2Runtime(
             await preferencesService.clearCollectionTaskReference(taskId);
           },
         },
+        { clearTask: (taskId) => repositories.monitoring.deleteTask(taskId) },
       ],
       credentialStore: dependencies.credentialStore,
       runtimeMode: dependencies.host.metadata.mode,
@@ -406,6 +715,7 @@ export async function buildLevel2Runtime(
         },
         screenshot: (id) => inspections.screenshot(id),
         action: (id, input) => inspections.action(id, input),
+        step: (id, input) => inspections.step(id, input),
         select: (id, x, y) => inspections.select(id, x, y),
         close: (id) => inspections.close(id),
       },
@@ -434,6 +744,24 @@ export async function buildLevel2Runtime(
       ...(dependencies.host.promptCredential
         ? { promptCredential: (kind) => dependencies.host.promptCredential!(kind) }
         : {}),
+      ...(dependencies.host.selectOutputDirectory
+        ? {
+            selectOutputDirectory: () => dependencies.host.selectOutputDirectory!(),
+          }
+        : {}),
+    });
+    await registerMonitoringHttp(app, {
+      repository: repositories.monitoring,
+      tasks: repositories.collection,
+    });
+    await registerTemplatesHttp(app, {
+      collection: repositories.collection,
+      platform: repositories.platform,
+      credentialProtection: {
+        credentialStore: dependencies.credentialStore,
+        runtimeMode: dependencies.host.metadata.mode,
+      },
+      quality: repositories.monitoring,
     });
     await registerPreferencesHttp(app, {
       repository: repositories.preferences,
@@ -474,7 +802,7 @@ export async function buildLevel2Runtime(
           );
         }
         const result = await dependencies.crawler.crawl({
-          url: input.url,
+          url: resolver.crawlUrl ?? input.url,
           plan: resolver.plan,
           requestSettings: {
             headers: {},
@@ -533,10 +861,14 @@ export async function buildLevel2Runtime(
       builds: corpusBuilds,
       platform: repositories.platform,
     });
-    await registerAiAssistanceHttp(app, {
-      service: aiAssistance,
-      platform: repositories.platform,
-    });
+    if (aiEnabled) {
+      await registerAiAssistanceHttp(app, {
+        service: aiAssistance,
+        platform: repositories.platform,
+        crawlerAssistant,
+        providerSettings,
+      });
+    }
   };
 
   const gateway = await buildRuntimeGateway(
@@ -544,30 +876,48 @@ export async function buildLevel2Runtime(
       platform: repositories.platform,
       artifactStore: dependencies.artifactStore,
       jobs: dependencies.jobs,
+      realtime,
+      ...(aiEnabled
+        ? {
+            beforeJobsStart: () =>
+              repositories.aiAssistance.failInterruptedTurns().then(() => undefined),
+          }
+        : {}),
       migrations: [
         { pluginId: 'platform', migrate: async () => undefined, close: async () => undefined },
-        repositories.datasets,
-        repositories.collection,
-        repositories.outputs,
-        repositories.preferences,
-        repositories.analytics,
-        repositories.corpus,
-      ].map((repository, index) => ({
-        pluginId:
-          index === 0
-            ? 'platform'
-            : ['datasets', 'collection', 'outputs', 'preferences', 'analytics', 'corpus'][
-                index - 1
-              ]!,
-        migrate: () => repository.migrate(),
-        close: () => repository.close(),
-      })),
+        migration('datasets', repositories.datasets),
+        migration('collection', repositories.collection),
+        migration('outputs', repositories.outputs),
+        migration('monitoring', repositories.monitoring),
+        migration('preferences', repositories.preferences),
+        migration('analytics', repositories.analytics),
+        migration('corpus', repositories.corpus),
+        ...(aiEnabled ? [migration('ai-assistance', repositories.aiAssistance)] : []),
+        ...(dependencies.identity ? [migration('identity', dependencies.identity.repository)] : []),
+      ],
       registerPluginHttp,
       metadata: dependencies.host.metadata,
       capabilities: dependencies.host.capabilities,
       openApiDocument: dependencies.openApiDocument,
+      ...(dependencies.readiness ? { readiness: dependencies.readiness } : {}),
       effects: [
+        new MonitoringEvaluationOutbox(repositories.platform, dependencies.jobs),
+        new OutputEventNotificationOutbox(
+          repositories.platform,
+          repositories.outputs,
+          dependencies.jobs,
+        ),
+        new OutputAttemptReplay(repositories.outputs, dependencies.jobs),
         collectionScheduler,
+        ...(aiEnabled
+          ? [
+              {
+                start: () => providerSettings.initialize(),
+                close: async () => undefined,
+              },
+              new AiConversationRetention(repositories.aiAssistance),
+            ]
+          : []),
         { start: () => undefined, close: () => inspections.closeAll() },
       ],
       ...(dependencies.host.saveArtifact
@@ -616,6 +966,83 @@ export async function buildLevel2Runtime(
         dataApiRateLimits.set(stored.id, counter);
         return { ok: true as const, principal: { tokenId: stored.id, taskIds: stored.taskIds } };
       },
+      ...(identity
+        ? {
+            workspaceAuthorization: {
+              async authenticate(input: {
+                sessionToken: string | undefined;
+                csrfToken: string | undefined;
+                mutation: boolean;
+              }) {
+                let principal: IdentityPrincipal;
+                try {
+                  principal = await identity.authenticate(input.sessionToken ?? '');
+                } catch (error) {
+                  if (error instanceof IdentityError && [401, 403].includes(error.status)) {
+                    return {
+                      ok: false as const,
+                      status: error.status as 401 | 403,
+                      code: error.code,
+                      detail: error.message,
+                    };
+                  }
+                  throw error;
+                }
+                const gatewayPrincipal = {
+                  userId: principal.user.id,
+                  email: principal.user.email,
+                  role: principal.user.role,
+                };
+                if (input.mutation) {
+                  try {
+                    identity.verifyCsrf(principal, input.csrfToken);
+                  } catch (error) {
+                    if (error instanceof IdentityError && error.status === 403) {
+                      return {
+                        ok: false as const,
+                        status: 403 as const,
+                        code: error.code,
+                        detail: error.message,
+                        principal: gatewayPrincipal,
+                      };
+                    }
+                    throw error;
+                  }
+                }
+                return {
+                  ok: true as const,
+                  principal: gatewayPrincipal,
+                  permissions: rolePermissions[principal.user.role],
+                };
+              },
+              audit(input: {
+                principal: Record<string, unknown>;
+                operationId: string;
+                resourceType: string;
+                resourceId: string | null;
+                result: 'succeeded' | 'failed' | 'denied';
+                statusCode: number;
+                traceId: string;
+                network: string;
+              }) {
+                const actorUserId = input.principal.userId;
+                if (typeof actorUserId !== 'string' || !actorUserId) {
+                  throw new Error('Authenticated workspace principal has no user ID');
+                }
+                return identity.recordOperation({
+                  actorUserId,
+                  operationId: input.operationId,
+                  resourceType: input.resourceType,
+                  resourceId: input.resourceId,
+                  result: input.result,
+                  statusCode: input.statusCode,
+                  traceId: input.traceId,
+                  network: input.network,
+                });
+              },
+            },
+          }
+        : {}),
     },
     options,
   );
@@ -632,4 +1059,15 @@ function artifactFormat(filename: string): 'csv' | 'json' | 'xlsx' {
   if (filename.toLowerCase().endsWith('.csv')) return 'csv';
   if (filename.toLowerCase().endsWith('.xlsx')) return 'xlsx';
   return 'json';
+}
+
+function migration(
+  pluginId: string,
+  repository: { migrate(): Promise<void>; close(): Promise<void> },
+) {
+  return {
+    pluginId,
+    migrate: () => repository.migrate(),
+    close: () => repository.close(),
+  };
 }

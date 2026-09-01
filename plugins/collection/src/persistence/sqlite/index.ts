@@ -18,10 +18,16 @@ import type {
   RuleVersionRecord,
   RunCompletionInput,
 } from '../../contracts/index.js';
-import { collectionSqliteMigration001 } from '../../migrations/sqlite/index.js';
+import {
+  collectionSqliteMigration001,
+  collectionSqliteMigration002,
+} from '../../migrations/sqlite/index.js';
 
 type SqlRow = Record<string, unknown>;
-const MIGRATION_ID = '001-initial';
+const MIGRATIONS = [
+  { id: '001-initial', sql: collectionSqliteMigration001, version: '1.0.0' },
+  { id: '002-task-origin', sql: collectionSqliteMigration002, version: '1.1.0' },
+] as const;
 
 export class SqliteCollectionRepository implements CollectionRepository {
   private readonly sqlite: Database.Database;
@@ -34,27 +40,35 @@ export class SqliteCollectionRepository implements CollectionRepository {
   }
 
   async migrate(): Promise<void> {
-    const checksum = sha256(collectionSqliteMigration001);
-    const existing = this.sqlite
-      .prepare('SELECT checksum FROM plugin_migrations WHERE plugin_id=? AND migration_id=?')
-      .get('collection', MIGRATION_ID) as SqlRow | undefined;
-    if (existing) {
-      if (existing.checksum !== checksum) {
-        throw new Error('Migration checksum mismatch for collection:001-initial');
+    for (const migration of MIGRATIONS) {
+      const checksum = sha256(migration.sql);
+      const existing = this.sqlite
+        .prepare('SELECT checksum FROM plugin_migrations WHERE plugin_id=? AND migration_id=?')
+        .get('collection', migration.id) as SqlRow | undefined;
+      if (existing) {
+        if (existing.checksum !== checksum) {
+          throw new Error(`Migration checksum mismatch for collection:${migration.id}`);
+        }
+        continue;
       }
-      return;
+      const started = performance.now();
+      this.sqlite.transaction(() => {
+        this.sqlite.exec(migration.sql);
+        this.sqlite
+          .prepare(
+            `INSERT INTO plugin_migrations(
+               plugin_id,migration_id,plugin_version,checksum,executed_at,duration_ms,result
+             ) VALUES ('collection',?,?,?,?,?,'succeeded')`,
+          )
+          .run(
+            migration.id,
+            migration.version,
+            checksum,
+            now(),
+            Math.max(0, Math.round(performance.now() - started)),
+          );
+      })();
     }
-    const started = performance.now();
-    this.sqlite.transaction(() => {
-      this.sqlite.exec(collectionSqliteMigration001);
-      this.sqlite
-        .prepare(
-          `INSERT INTO plugin_migrations(
-             plugin_id,migration_id,plugin_version,checksum,executed_at,duration_ms,result
-           ) VALUES ('collection',?,'1.0.0',?,?,?,'succeeded')`,
-        )
-        .run(MIGRATION_ID, checksum, now(), Math.max(0, Math.round(performance.now() - started)));
-    })();
   }
 
   async close(): Promise<void> {
@@ -70,8 +84,8 @@ export class SqliteCollectionRepository implements CollectionRepository {
           `INSERT INTO tasks(
              id,name,start_url,instruction,status,schedule,request_settings,browser_settings,
              pagination,output_settings,credential_bindings,dataset_settings,retention_policy,
-             network_policy,revision,created_at,updated_at
-           ) VALUES (?,?,?,?,'draft',?,?,?,?,?,?,?,?,?,1,?,?)`,
+             network_policy,origin,revision,created_at,updated_at
+           ) VALUES (?,?,?,?,'draft',?,?,?,?,?,?,?,?,?,?,1,?,?)`,
         )
         .run(
           id,
@@ -87,12 +101,96 @@ export class SqliteCollectionRepository implements CollectionRepository {
           json(input.datasetSettings),
           json(input.retentionPolicy),
           json(input.networkPolicy),
+          json({ kind: 'manual' }),
           timestamp,
           timestamp,
         );
       syncSchedule(this.sqlite, id, input.schedule, timestamp);
       appendEvent(this.sqlite, 'collection.task.created', 'task', id, { revision: 1 });
       return taskRow(this.sqlite.prepare('SELECT * FROM tasks WHERE id=?').get(id) as SqlRow);
+    })();
+  }
+
+  async createTaskWithInitialRule(
+    input: Parameters<CollectionRepository['createTaskWithInitialRule']>[0],
+  ): Promise<{ taskId: string; ruleId: string; versionId: string }> {
+    return this.sqlite.transaction(() => {
+      const existing = this.sqlite.prepare('SELECT id FROM tasks WHERE id=?').get(input.taskId) as
+        SqlRow | undefined;
+      if (existing) {
+        const rule = this.sqlite
+          .prepare('SELECT id,active_version_id FROM rules WHERE id=? AND task_id=?')
+          .get(input.ruleId, input.taskId) as SqlRow | undefined;
+        const version = this.sqlite
+          .prepare('SELECT id FROM rule_versions WHERE id=? AND rule_id=?')
+          .get(input.versionId, input.ruleId) as SqlRow | undefined;
+        if (!rule || rule.active_version_id !== input.versionId || !version) {
+          throw new Error('Deterministic AI Task identifiers conflict with existing data');
+        }
+        return {
+          taskId: input.taskId,
+          ruleId: input.ruleId,
+          versionId: input.versionId,
+        };
+      }
+      const timestamp = now();
+      const task = input.task;
+      this.sqlite
+        .prepare(
+          `INSERT INTO tasks(
+             id,name,start_url,instruction,status,schedule,request_settings,browser_settings,
+             pagination,output_settings,credential_bindings,dataset_settings,retention_policy,
+             network_policy,origin,revision,created_at,updated_at
+           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)`,
+        )
+        .run(
+          input.taskId,
+          task.name,
+          task.startUrl,
+          task.instruction,
+          input.status ?? 'ready',
+          json(task.schedule),
+          json(task.requestSettings),
+          json(task.browserSettings),
+          json(task.pagination),
+          json(task.outputSettings),
+          json(task.credentialBindings),
+          json(task.datasetSettings),
+          json(task.retentionPolicy),
+          json(task.networkPolicy),
+          json(input.origin ?? { kind: 'ai' }),
+          timestamp,
+          timestamp,
+        );
+      syncSchedule(this.sqlite, input.taskId, task.schedule, timestamp);
+      this.sqlite
+        .prepare(
+          `INSERT INTO rules(id,task_id,name,active_version_id,created_at,updated_at)
+           VALUES (?,?,?,?,?,?)`,
+        )
+        .run(input.ruleId, input.taskId, input.ruleName, input.versionId, timestamp, timestamp);
+      this.sqlite
+        .prepare(
+          `INSERT INTO rule_versions(id,rule_id,version,definition,generated_by,created_at)
+           VALUES (?,?,1,?,?,?)`,
+        )
+        .run(
+          input.versionId,
+          input.ruleId,
+          json(normalizeCrawlPlan(input.definition)),
+          input.generatedBy ?? 'ai',
+          timestamp,
+        );
+      appendEvent(this.sqlite, 'collection.task.created', 'task', input.taskId, {
+        revision: 1,
+        generatedBy: input.generatedBy ?? 'ai',
+      });
+      appendEvent(this.sqlite, 'collection.rule.created', 'rule', input.ruleId, {
+        taskId: input.taskId,
+        version: 1,
+        generatedBy: input.generatedBy ?? 'ai',
+      });
+      return { taskId: input.taskId, ruleId: input.ruleId, versionId: input.versionId };
     })();
   }
 
@@ -305,16 +403,17 @@ export class SqliteCollectionRepository implements CollectionRepository {
     return row ? runRow(row) : null;
   }
 
-  async startRun(runId: string, taskId: string): Promise<boolean> {
+  async startRun(runId: string, taskId: string, allowRecovery = false): Promise<boolean> {
     return this.sqlite.transaction(() => {
       const timestamp = now();
       const result = this.sqlite
         .prepare(
           `UPDATE runs SET status='running',started_at=?,finished_at=NULL,phase='starting',
              progress=0.02,error=NULL,error_code=NULL
-           WHERE id=? AND task_id=? AND status IN ('queued','failed')`,
+           WHERE id=? AND task_id=?
+             AND (status IN ('queued','failed') OR (?=1 AND status='running'))`,
         )
-        .run(timestamp, runId, taskId);
+        .run(timestamp, runId, taskId, allowRecovery ? 1 : 0);
       if (result.changes !== 1) return false;
       this.sqlite
         .prepare("UPDATE tasks SET status='running',updated_at=? WHERE id=?")
@@ -388,6 +487,7 @@ export class SqliteCollectionRepository implements CollectionRepository {
     taskId: string,
     error: string,
     code: string,
+    finalFailure = false,
   ): Promise<CrawlRun | null> {
     return this.sqlite.transaction(() => {
       const timestamp = now();
@@ -402,7 +502,11 @@ export class SqliteCollectionRepository implements CollectionRepository {
       this.sqlite
         .prepare("UPDATE tasks SET status='failed',updated_at=? WHERE id=?")
         .run(timestamp, taskId);
-      appendEvent(this.sqlite, 'collection.run.failed', 'run', runId, { taskId, code });
+      appendEvent(this.sqlite, 'collection.run.failed', 'run', runId, {
+        taskId,
+        code,
+        finalFailure,
+      });
       return runRow(this.sqlite.prepare('SELECT * FROM runs WHERE id=?').get(runId) as SqlRow);
     })();
   }
@@ -637,6 +741,7 @@ function taskRow(row: SqlRow): CollectionTask {
     datasetSettings: JSON.parse(String(row.dataset_settings)) as CollectionTask['datasetSettings'],
     retentionPolicy: JSON.parse(String(row.retention_policy)) as CollectionTask['retentionPolicy'],
     networkPolicy: JSON.parse(String(row.network_policy)) as CollectionTask['networkPolicy'],
+    origin: JSON.parse(String(row.origin ?? '{"kind":"manual"}')) as CollectionTask['origin'],
     revision: Number(row.revision),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),

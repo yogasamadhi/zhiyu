@@ -1,27 +1,51 @@
 import { useEffect, useState } from 'react';
-import type { ApiToken, DeliveryAttempt, OutputDestination, TaskListItem } from '@zhiyun/contracts';
+import type {
+  ApiToken,
+  DeliveryAttempt,
+  OutputDestination,
+  TaskListItem,
+  WebhookEventType,
+} from '@zhiyun/contracts';
 import { runtimeClient } from '@zhiyun/client';
+import { useWorkspaceAuth } from '../auth.js';
 import { Badge, Button, Card, ErrorNotice, Input } from '../components/ui.js';
+import { resolveDevelopmentFixture } from '../development-demo.js';
+import {
+  buildOutputDestinationInput,
+  defaultOutputDestinationDraft,
+  outputDestinationSummary,
+  type OutputDestinationDraft,
+} from '../output-destination-form.js';
+
+const webhookEventOptions: Array<{ value: WebhookEventType; label: string }> = [
+  { value: 'run.succeeded', label: 'Run succeeded' },
+  { value: 'run.failed', label: 'Run failed' },
+  { value: 'dataset.changed', label: 'Dataset changed' },
+  { value: 'quality.issue.detected', label: 'Quality issue detected' },
+  { value: 'quality.recovered', label: 'Quality recovered' },
+];
 
 export function OutputsPage() {
+  const auth = useWorkspaceAuth();
   const desktop = typeof window !== 'undefined' && Boolean(window.zhiyunRuntime);
+  const canManage = !auth.identityEnabled || auth.permissions.includes('output.manage');
   const [destinations, setDestinations] = useState<OutputDestination[]>([]);
   const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
   const [tokens, setTokens] = useState<ApiToken[]>([]);
   const [tasks, setTasks] = useState<TaskListItem[]>([]);
-  const [name, setName] = useState('Webhook');
-  const [type, setType] = useState<'webhook' | 'postgres'>('webhook');
-  const [target, setTarget] = useState('http://127.0.0.1:45100/webhook');
-  const [secret, setSecret] = useState('');
-  const [webhookEvent, setWebhookEvent] = useState<'run.succeeded' | 'dataset.changed'>(
-    'run.succeeded',
-  );
+  const [draft, setDraft] = useState<OutputDestinationDraft>(defaultOutputDestinationDraft);
   const [issuedToken, setIssuedToken] = useState('');
   const [tokenTaskIds, setTokenTaskIds] = useState<string[]>([]);
   const [tokenRateLimit, setTokenRateLimit] = useState(60);
   const [tokenExpiryDays, setTokenExpiryDays] = useState(30);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const developmentFixtureUrl = resolveDevelopmentFixture(
+    import.meta.env.DEV,
+    import.meta.env.VITE_FIXTURE_URL,
+  );
+  const patchDraft = (patch: Partial<OutputDestinationDraft>) =>
+    setDraft((current) => ({ ...current, ...patch }));
 
   const load = async () => {
     try {
@@ -40,29 +64,43 @@ export function OutputsPage() {
     }
   };
 
-  useEffect(() => void load(), []);
+  useEffect(() => {
+    if (canManage) void load();
+  }, [canManage]);
+
+  if (!canManage) {
+    return (
+      <Card>
+        <span className="badge badge-danger">权限不足</span>
+        <h1>输出目的地管理仅限管理员</h1>
+        <p>编辑者可以在任务中绑定管理员已创建的目的地，但不能创建外部投递通道或 Data API Token。</p>
+      </Card>
+    );
+  }
 
   const createDestination = async () => {
     try {
-      const created = await runtimeClient.createOutputDestination({
-        name,
-        type,
-        config:
-          type === 'webhook'
-            ? { url: target, event: webhookEvent }
-            : { schema: 'public', table: 'zhiyun_records' },
-        ...(!desktop
-          ? {
-              credential: type === 'webhook' ? { secret } : { connectionString: target },
-            }
-          : {}),
-        enabled: true,
+      const created = await runtimeClient.createOutputDestination(
+        buildOutputDestinationInput(draft, desktop),
+      );
+      patchDraft({
+        secret: '',
+        serviceAccountJson: '',
+        secretAccessKey: '',
+        sessionToken: '',
+        ...(draft.type === 'postgres' || draft.type === 'local-directory' ? { target: '' } : {}),
       });
-      setSecret('');
-      if (type === 'postgres') setTarget('');
       if (desktop) {
         const prompted = await runtimeClient.promptOutputCredential(created.id);
-        setNotice(prompted.canceled ? '输出已创建，凭据尚未设置' : '输出与凭据已安全保存');
+        setNotice(
+          prompted.canceled
+            ? created.type === 'local-directory'
+              ? '输出已创建，尚未选择目录'
+              : '输出已创建，凭据尚未设置'
+            : created.type === 'local-directory'
+              ? '输出与目录授权已安全保存'
+              : '输出与凭据已安全保存',
+        );
       }
       await load();
     } catch (reason) {
@@ -164,52 +202,32 @@ export function OutputsPage() {
         <div className="form-grid">
           <label>
             <span>名称</span>
-            <Input value={name} onChange={(event) => setName(event.target.value)} />
+            <Input
+              value={draft.name}
+              onChange={(event) => patchDraft({ name: event.target.value })}
+            />
           </label>
           <label>
             <span>类型</span>
-            <select value={type} onChange={(event) => setType(event.target.value as typeof type)}>
+            <select
+              value={draft.type}
+              onChange={(event) =>
+                patchDraft({ type: event.target.value as OutputDestinationDraft['type'] })
+              }
+            >
               <option value="webhook">Webhook</option>
               <option value="postgres">PostgreSQL</option>
+              <option value="local-directory">本地目录</option>
+              <option value="google-sheets">Google Sheets</option>
+              <option value="s3">S3 / 兼容对象存储</option>
             </select>
           </label>
-          {(type === 'webhook' || !desktop) && (
-            <label className="full">
-              <span>{type === 'webhook' ? 'Webhook URL' : 'Connection string'}</span>
-              <Input
-                type={type === 'postgres' ? 'password' : 'url'}
-                value={target}
-                onChange={(event) => setTarget(event.target.value)}
-              />
-            </label>
-          )}
-          {type === 'postgres' && desktop && (
-            <div className="full notice">保存后将在 Host 安全窗口输入 Connection string。</div>
-          )}
-          {type === 'webhook' && !desktop && (
-            <label className="full">
-              <span>HMAC Secret</span>
-              <Input
-                type="password"
-                value={secret}
-                onChange={(event) => setSecret(event.target.value)}
-              />
-            </label>
-          )}
-          {type === 'webhook' && (
-            <label>
-              <span>事件</span>
-              <select
-                value={webhookEvent}
-                onChange={(event) =>
-                  setWebhookEvent(event.target.value as 'run.succeeded' | 'dataset.changed')
-                }
-              >
-                <option value="run.succeeded">Run succeeded</option>
-                <option value="dataset.changed">Dataset changed</option>
-              </select>
-            </label>
-          )}
+          <DestinationFormFields
+            draft={draft}
+            desktop={desktop}
+            developmentFixtureUrl={developmentFixtureUrl}
+            onChange={patchDraft}
+          />
         </div>
         <Button onClick={() => void createDestination()}>保存输出</Button>
       </Card>
@@ -220,12 +238,7 @@ export function OutputsPage() {
             <div className="change-item" key={destination.id}>
               <Badge tone={destination.enabled ? 'success' : 'neutral'}>{destination.type}</Badge>
               <strong>{destination.name}</strong>
-              <span>
-                {String(destination.config.url ?? destination.config.table ?? '')}
-                {destination.type === 'webhook'
-                  ? ` · ${String(destination.config.event ?? 'run.succeeded')}`
-                  : ''}
-              </span>
+              <span>{outputDestinationSummary(destination)}</span>
               <div className="row-actions">
                 <Button
                   className="button-secondary"
@@ -238,7 +251,13 @@ export function OutputsPage() {
                     className="button-secondary"
                     onClick={() => void promptOutputCredential(destination)}
                   >
-                    {destination.credentialRef ? '替换凭据' : '安全输入凭据'}
+                    {destination.type === 'local-directory'
+                      ? destination.credentialRef
+                        ? '更换目录'
+                        : '选择目录'
+                      : destination.credentialRef
+                        ? '替换凭据'
+                        : '安全输入凭据'}
                   </Button>
                 )}
                 <Button
@@ -362,6 +381,296 @@ export function OutputsPage() {
           ))}
         </div>
       </Card>
+    </>
+  );
+}
+
+function DestinationFormFields(props: {
+  draft: OutputDestinationDraft;
+  desktop: boolean;
+  developmentFixtureUrl: string | undefined;
+  onChange(patch: Partial<OutputDestinationDraft>): void;
+}) {
+  const { draft } = props;
+  if (draft.type === 'webhook') {
+    return (
+      <>
+        <label className="full">
+          <span>Webhook URL</span>
+          <Input
+            type="url"
+            value={draft.target}
+            onChange={(event) => props.onChange({ target: event.target.value })}
+          />
+          {props.developmentFixtureUrl && (
+            <button
+              className="inline-demo-link"
+              type="button"
+              onClick={() => props.onChange({ target: `${props.developmentFixtureUrl}/webhook` })}
+            >
+              加载开发演示 Webhook
+            </button>
+          )}
+        </label>
+        <div className="full">
+          <span className="field-label">订阅事件</span>
+          <div className="binding-list">
+            {webhookEventOptions.map((option) => (
+              <label className="check" key={option.value}>
+                <input
+                  type="checkbox"
+                  checked={draft.webhookEvents.includes(option.value)}
+                  onChange={(event) =>
+                    props.onChange({
+                      webhookEvents: event.target.checked
+                        ? [...draft.webhookEvents, option.value]
+                        : draft.webhookEvents.filter((value) => value !== option.value),
+                    })
+                  }
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </div>
+        {!props.desktop && (
+          <label className="full">
+            <span>HMAC Secret</span>
+            <Input
+              type="password"
+              value={draft.secret}
+              onChange={(event) => props.onChange({ secret: event.target.value })}
+            />
+          </label>
+        )}
+      </>
+    );
+  }
+  if (draft.type === 'postgres') {
+    return props.desktop ? (
+      <div className="full notice">保存后将在 Host 安全窗口输入 Connection string。</div>
+    ) : (
+      <label className="full">
+        <span>PostgreSQL Connection string</span>
+        <Input
+          type="password"
+          value={draft.target}
+          onChange={(event) => props.onChange({ target: event.target.value })}
+        />
+      </label>
+    );
+  }
+  if (draft.type === 'local-directory') {
+    return (
+      <>
+        {props.desktop ? (
+          <div className="full notice">保存后将打开原生目录选择器；目录授权会加密保存。</div>
+        ) : (
+          <label className="full">
+            <span>根目录内子目录（可选）</span>
+            <Input
+              value={draft.target}
+              onChange={(event) => props.onChange({ target: event.target.value })}
+            />
+            <small className="form-help">
+              使用相对路径；实际根目录由 Headless 的 ZHIYUN_OUTPUT_ROOT 锁定。
+            </small>
+          </label>
+        )}
+        <FileOutputFields draft={draft} onChange={props.onChange} />
+      </>
+    );
+  }
+  if (draft.type === 'google-sheets') {
+    return (
+      <>
+        <label>
+          <span>Spreadsheet ID</span>
+          <Input
+            value={draft.spreadsheetId}
+            onChange={(event) => props.onChange({ spreadsheetId: event.target.value })}
+          />
+        </label>
+        <label>
+          <span>工作表名称</span>
+          <Input
+            value={draft.sheetName}
+            onChange={(event) => props.onChange({ sheetName: event.target.value })}
+          />
+        </label>
+        <label>
+          <span>写入模式</span>
+          <select
+            value={draft.sheetMode}
+            onChange={(event) =>
+              props.onChange({
+                sheetMode: event.target.value as OutputDestinationDraft['sheetMode'],
+              })
+            }
+          >
+            <option value="auto">自动（Snapshot/Upsert 替换，Append 追加）</option>
+            <option value="replace">Replace（快照默认）</option>
+            <option value="append">Append（带 Run ID 去重）</option>
+          </select>
+        </label>
+        <label>
+          <span>字段顺序（逗号分隔）</span>
+          <Input
+            value={draft.columns}
+            onChange={(event) => props.onChange({ columns: event.target.value })}
+          />
+        </label>
+        {props.desktop ? (
+          <div className="full notice">
+            保存后安全输入服务账号 JSON，并将表格共享给其中的 client_email。
+          </div>
+        ) : (
+          <label className="full">
+            <span>服务账号 JSON</span>
+            <textarea
+              rows={6}
+              value={draft.serviceAccountJson}
+              onChange={(event) => props.onChange({ serviceAccountJson: event.target.value })}
+            />
+          </label>
+        )}
+      </>
+    );
+  }
+  return (
+    <>
+      <label>
+        <span>Bucket</span>
+        <Input
+          value={draft.bucket}
+          onChange={(event) => props.onChange({ bucket: event.target.value })}
+        />
+      </label>
+      <label>
+        <span>Region</span>
+        <Input
+          value={draft.region}
+          onChange={(event) => props.onChange({ region: event.target.value })}
+        />
+      </label>
+      <label>
+        <span>Prefix</span>
+        <Input
+          value={draft.prefix}
+          onChange={(event) => props.onChange({ prefix: event.target.value })}
+        />
+      </label>
+      <label>
+        <span>兼容端点（可选）</span>
+        <Input
+          type="url"
+          value={draft.endpoint}
+          onChange={(event) => props.onChange({ endpoint: event.target.value })}
+        />
+      </label>
+      <FileOutputFields draft={draft} onChange={props.onChange} />
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={draft.forcePathStyle}
+          onChange={(event) => props.onChange({ forcePathStyle: event.target.checked })}
+        />
+        使用 Path-style URL（MinIO 等）
+      </label>
+      <label>
+        <span>服务端加密</span>
+        <select
+          value={draft.serverSideEncryption}
+          onChange={(event) =>
+            props.onChange({
+              serverSideEncryption: event.target
+                .value as OutputDestinationDraft['serverSideEncryption'],
+            })
+          }
+        >
+          <option value="">不指定</option>
+          <option value="AES256">SSE-S3 (AES256)</option>
+          <option value="aws:kms">SSE-KMS</option>
+        </select>
+      </label>
+      {draft.serverSideEncryption === 'aws:kms' && (
+        <label className="full">
+          <span>KMS Key ID</span>
+          <Input
+            value={draft.kmsKeyId}
+            onChange={(event) => props.onChange({ kmsKeyId: event.target.value })}
+          />
+        </label>
+      )}
+      {props.desktop ? (
+        <div className="full notice">
+          保存后在 Host 安全窗口输入 S3 凭据；也可使用运行环境 IAM。
+        </div>
+      ) : (
+        <div className="full form-grid two output-credential-fields">
+          <label>
+            <span>Access Key ID（留空使用环境 IAM）</span>
+            <Input
+              value={draft.accessKeyId}
+              onChange={(event) => props.onChange({ accessKeyId: event.target.value })}
+            />
+          </label>
+          <label>
+            <span>Secret Access Key</span>
+            <Input
+              type="password"
+              value={draft.secretAccessKey}
+              onChange={(event) => props.onChange({ secretAccessKey: event.target.value })}
+            />
+          </label>
+          <label className="full">
+            <span>Session Token（可选）</span>
+            <Input
+              type="password"
+              value={draft.sessionToken}
+              onChange={(event) => props.onChange({ sessionToken: event.target.value })}
+            />
+          </label>
+        </div>
+      )}
+    </>
+  );
+}
+
+function FileOutputFields(props: {
+  draft: OutputDestinationDraft;
+  onChange(patch: Partial<OutputDestinationDraft>): void;
+}) {
+  return (
+    <>
+      <label>
+        <span>文件格式</span>
+        <select
+          value={props.draft.format}
+          onChange={(event) =>
+            props.onChange({ format: event.target.value as OutputDestinationDraft['format'] })
+          }
+        >
+          <option value="csv">CSV</option>
+          <option value="jsonl">JSONL</option>
+          <option value="parquet">Parquet（需要分析 Worker）</option>
+        </select>
+      </label>
+      <label className="full">
+        <span>归档路径模板</span>
+        <Input
+          value={props.draft.pathTemplate}
+          onChange={(event) => props.onChange({ pathTemplate: event.target.value })}
+        />
+      </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={props.draft.updateLatest}
+          onChange={(event) => props.onChange({ updateLatest: event.target.checked })}
+        />
+        同时原子更新 latest 文件 / 对象
+      </label>
     </>
   );
 }

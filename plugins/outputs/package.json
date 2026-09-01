@@ -24,6 +24,8 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
+    "@zhiyun/analytics-worker-client": "workspace:*",
+    "@zhiyun/artifact-store": "workspace:*",
     "@zhiyun/storage-postgres-v1": "workspace:*",
     "@zhiyun/storage-sqlite-v1": "workspace:*"
   }

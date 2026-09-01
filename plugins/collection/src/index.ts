@@ -54,6 +54,7 @@ export const collectionPlugin: PluginDescriptor = {
         'task_schedules',
       ],
     },
+    { id: '002-task-origin', tables: [] },
   ],
   uiContributions: collectionUiContributions,
   backgroundHandlers: [{ type: 'collection.crawl.execute', resourceClass: 'browser-heavy' }],

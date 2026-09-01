@@ -10,38 +10,78 @@ import { preferenceSignalInputSchema, trendSourceUpdateSchema } from '@zhiyun/sh
 import type { PreferencesRepository, PreferencesServiceContract } from '../contracts/index.js';
 
 export const preferencesRoutes = [
-  { operationId: 'getPreferenceProfile', method: 'GET', path: '/api/v2/preferences/profile' },
-  { operationId: 'listPreferenceSignals', method: 'GET', path: '/api/v2/preferences/signals' },
-  { operationId: 'createPreferenceSignal', method: 'POST', path: '/api/v2/preferences/signals' },
+  {
+    operationId: 'getPreferenceProfile',
+    method: 'GET',
+    path: '/api/v2/preferences/profile',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'listPreferenceSignals',
+    method: 'GET',
+    path: '/api/v2/preferences/signals',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'createPreferenceSignal',
+    method: 'POST',
+    path: '/api/v2/preferences/signals',
+    requiredPermission: 'task.write',
+  },
   {
     operationId: 'deletePreferenceSignal',
     method: 'DELETE',
     path: '/api/v2/preferences/signals/{signalId}',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'clearPreferenceSignals',
     method: 'DELETE',
     path: '/api/v2/preferences/signals',
+    requiredPermission: 'task.write',
   },
-  { operationId: 'listTrends', method: 'GET', path: '/api/v2/trends' },
-  { operationId: 'listTrendSources', method: 'GET', path: '/api/v2/trend-sources' },
+  {
+    operationId: 'listTrends',
+    method: 'GET',
+    path: '/api/v2/trends',
+    requiredPermission: 'workspace.read',
+  },
+  {
+    operationId: 'listTrendSources',
+    method: 'GET',
+    path: '/api/v2/trend-sources',
+    requiredPermission: 'workspace.read',
+  },
   {
     operationId: 'bootstrapTrendSources',
     method: 'POST',
     path: '/api/v2/trend-sources/bootstrap',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'updateTrendSource',
     method: 'PUT',
     path: '/api/v2/trend-sources/{sourceKey}',
+    requiredPermission: 'task.write',
   },
   {
     operationId: 'runTrendSource',
     method: 'POST',
     path: '/api/v2/trend-sources/{sourceKey}/run',
+    requiredPermission: 'run.execute',
   },
-  { operationId: 'runTrendSources', method: 'POST', path: '/api/v2/trend-sources/run' },
-  { operationId: 'importPreference', method: 'POST', path: '/api/v2/preferences/import' },
+  {
+    operationId: 'runTrendSources',
+    method: 'POST',
+    path: '/api/v2/trend-sources/run',
+    requiredPermission: 'run.execute',
+  },
+  {
+    operationId: 'importPreference',
+    method: 'POST',
+    path: '/api/v2/preferences/import',
+    requiredPermission: 'task.write',
+  },
 ] as const satisfies readonly RouteContribution[];
 
 export interface PreferencesHttpDependencies {
@@ -149,15 +189,20 @@ export async function registerPreferencesHttp(
   app.post('/api/v2/trend-sources/run', async (request, reply) =>
     send(reply, async () => {
       requireIdempotencyKey(request);
-      const bindings = await dependencies.repository.listTrendSourceBindings();
+      const bindings = new Map(
+        (await dependencies.repository.listTrendSourceBindings()).map((binding) => [
+          binding.key,
+          binding,
+        ]),
+      );
       const runs = await Promise.all(
-        bindings
-          .filter(({ enabled }) => enabled)
-          .map(({ key }) =>
-            dependencies.runTrendSource
-              ? dependencies.runTrendSource(key)
-              : Promise.resolve({ key, status: 'skipped', reason: 'not-installed' }),
-          ),
+        TREND_SOURCE_CATALOG.filter(
+          (entry) => entry.supported && (bindings.get(entry.key)?.enabled ?? true),
+        ).map(({ key }) =>
+          dependencies.runTrendSource
+            ? dependencies.runTrendSource(key)
+            : Promise.resolve({ key, status: 'skipped', reason: 'not-installed' }),
+        ),
       );
       return { runs };
     }),

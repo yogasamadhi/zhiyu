@@ -53,16 +53,89 @@ export const requestSettingsSchema = z.object({
   userAgent: z.string().min(1).max(500).optional(),
 });
 
-export const browserActionSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('click'), selector: z.string().min(1) }),
-  z.object({ type: z.literal('fill'), selector: z.string().min(1), value: z.string() }),
-  z.object({ type: z.literal('select'), selector: z.string().min(1), value: z.string() }),
-  z.object({ type: z.literal('press'), selector: z.string().min(1), key: z.string().min(1) }),
-  z.object({ type: z.literal('hover'), selector: z.string().min(1) }),
-  z.object({ type: z.literal('wait'), milliseconds: z.number().int().min(0).max(60_000) }),
-  z.object({ type: z.literal('waitFor'), selector: z.string().min(1) }),
-  z.object({ type: z.literal('scroll'), count: z.number().int().min(1).max(100).default(1) }),
-]);
+const sensitiveFillSelector = /password|passwd|pwd|type\s*=\s*["']?password/i;
+
+export const browserElementMetadataSchema = z.object({
+  tag: z.string().min(1),
+  inputType: z.string().min(1).nullable(),
+  sensitive: z.boolean(),
+});
+
+const browserActionTarget = {
+  target: browserElementMetadataSchema.optional(),
+};
+
+export const browserActionSchema = z
+  .discriminatedUnion('type', [
+    z.object({ type: z.literal('click'), selector: z.string().min(1), ...browserActionTarget }),
+    z.object({
+      type: z.literal('fill'),
+      selector: z.string().min(1),
+      value: z.string(),
+      ...browserActionTarget,
+    }),
+    z.object({
+      type: z.literal('select'),
+      selector: z.string().min(1),
+      value: z.string(),
+      ...browserActionTarget,
+    }),
+    z.object({
+      type: z.literal('press'),
+      selector: z.string().min(1),
+      key: z.string().min(1),
+      ...browserActionTarget,
+    }),
+    z.object({ type: z.literal('hover'), selector: z.string().min(1), ...browserActionTarget }),
+    z.object({ type: z.literal('wait'), milliseconds: z.number().int().min(0).max(60_000) }),
+    z.object({ type: z.literal('waitFor'), selector: z.string().min(1), ...browserActionTarget }),
+    z.object({ type: z.literal('scroll'), count: z.number().int().min(1).max(100).default(1) }),
+  ])
+  .superRefine((action, context) => {
+    if (
+      action.type === 'fill' &&
+      action.value.length > 0 &&
+      (sensitiveFillSelector.test(action.selector) || action.target?.sensitive === true)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['value'],
+        message: '禁止在浏览器动作中保存密码；请使用安全 Login Session 或 CredentialStore。',
+      });
+    }
+  });
+
+export const inspectionStepInputSchema = z.object({
+  stepIndex: z.number().int().nonnegative(),
+  action: browserActionSchema,
+});
+
+export const inspectionStepResultSchema = z.object({
+  stepIndex: z.number().int().nonnegative(),
+  status: z.enum(['succeeded', 'failed']),
+  url: z.string(),
+  screenshot: z.object({
+    image: z.string(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+  error: z.string().nullable(),
+  target: browserElementMetadataSchema.nullable().optional(),
+});
+
+export const inspectionElementSelectionSchema = z.object({
+  selector: z.string().min(1),
+  tag: z.string().min(1),
+  text: z.string(),
+  attributes: z.record(z.string(), z.string()),
+  box: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number().nonnegative(),
+    height: z.number().nonnegative(),
+  }),
+  metadata: browserElementMetadataSchema,
+});
 
 export const browserSettingsSchema = z.object({
   enabled: z.boolean().default(false),
@@ -101,12 +174,221 @@ export const outputSettingsSchema = z.object({
   persistRecords: z.boolean().default(true),
 });
 
-export const scheduleSchema = z.object({
-  mode: scheduleModeSchema.default('manual'),
-  cron: z.string().optional(),
-  timezone: z.string().default('Asia/Shanghai'),
-  misfirePolicy: z.enum(['skip', 'run-once']).default('skip'),
-});
+interface CronFieldDefinition {
+  label: string;
+  minimum: number;
+  maximum: number;
+  normalize?: (value: number) => number;
+}
+
+interface ParsedCronField {
+  values: ReadonlySet<number>;
+  wildcard: boolean;
+}
+
+interface ParsedFiveFieldCron {
+  minute: ParsedCronField;
+  hour: ParsedCronField;
+  dayOfMonth: ParsedCronField;
+  month: ParsedCronField;
+  dayOfWeek: ParsedCronField;
+}
+
+const cronFieldDefinitions: readonly CronFieldDefinition[] = [
+  { label: 'minute', minimum: 0, maximum: 59 },
+  { label: 'hour', minimum: 0, maximum: 23 },
+  { label: 'day of month', minimum: 1, maximum: 31 },
+  { label: 'month', minimum: 1, maximum: 12 },
+  { label: 'day of week', minimum: 0, maximum: 7, normalize: (value) => value % 7 },
+];
+
+/**
+ * Validates the deterministic five-field Cron subset persisted by ZhiYun.
+ *
+ * The scheduler deliberately excludes Croner's time-of-construction `?` token and
+ * named/extended fields so the same persisted expression has identical semantics in
+ * the API, desktop client and headless scheduler.
+ */
+export function validateFiveFieldCron(expression: string): string[] {
+  const fields = expression.trim().split(/\s+/).filter(Boolean);
+  if (fields.length !== cronFieldDefinitions.length) {
+    return ['cron must contain exactly five fields'];
+  }
+
+  const parsed: ParsedCronField[] = [];
+  const errors: string[] = [];
+  for (const [index, definition] of cronFieldDefinitions.entries()) {
+    const result = parseCronField(fields[index] ?? '', definition);
+    if (!result.ok) errors.push(result.message);
+    else parsed.push(result.value);
+  }
+  if (errors.length > 0 || parsed.length !== cronFieldDefinitions.length) return errors;
+
+  const cron: ParsedFiveFieldCron = {
+    minute: parsed[0]!,
+    hour: parsed[1]!,
+    dayOfMonth: parsed[2]!,
+    month: parsed[3]!,
+    dayOfWeek: parsed[4]!,
+  };
+  const calendar = analyzeCronCalendar(cron);
+  if (!calendar.hasExecutionDate) {
+    errors.push('cron does not contain a possible execution date');
+    return errors;
+  }
+  if (minimumCronIntervalMinutes(cron, calendar.hasConsecutiveExecutionDates) < 5) {
+    errors.push('scheduled tasks must run at intervals of at least five minutes');
+  }
+  return errors;
+}
+
+function parseCronField(
+  expression: string,
+  definition: CronFieldDefinition,
+): { ok: true; value: ParsedCronField } | { ok: false; message: string } {
+  if (expression.includes('?')) {
+    return {
+      ok: false,
+      message: `cron ${definition.label} cannot use the non-deterministic question-mark token`,
+    };
+  }
+  if (!expression || !/^[-\d*/,]+$/.test(expression)) {
+    return { ok: false, message: `cron ${definition.label} contains unsupported characters` };
+  }
+
+  const values = new Set<number>();
+  for (const item of expression.split(',')) {
+    if (!item) return { ok: false, message: `cron ${definition.label} contains an empty item` };
+    const parts = item.split('/');
+    if (parts.length > 2) {
+      return { ok: false, message: `cron ${definition.label} contains an invalid step` };
+    }
+    const base = parts[0] ?? '';
+    const stepText = parts[1];
+    const step = stepText === undefined ? 1 : Number(stepText);
+    if (!Number.isInteger(step) || step <= 0) {
+      return { ok: false, message: `cron ${definition.label} step must be a positive integer` };
+    }
+
+    let start: number;
+    let end: number;
+    if (base === '*') {
+      start = definition.minimum;
+      end = definition.maximum;
+    } else if (/^\d+$/.test(base)) {
+      start = Number(base);
+      end = stepText === undefined ? start : definition.maximum;
+    } else {
+      const range = /^(\d+)-(\d+)$/.exec(base);
+      if (!range) {
+        return { ok: false, message: `cron ${definition.label} contains an invalid range` };
+      }
+      start = Number(range[1]);
+      end = Number(range[2]);
+    }
+    if (
+      start < definition.minimum ||
+      start > definition.maximum ||
+      end < definition.minimum ||
+      end > definition.maximum ||
+      start > end
+    ) {
+      return {
+        ok: false,
+        message: `cron ${definition.label} must be between ${definition.minimum} and ${definition.maximum}`,
+      };
+    }
+    for (let value = start; value <= end; value += step) {
+      values.add(definition.normalize?.(value) ?? value);
+    }
+  }
+
+  const cardinality =
+    definition.normalize === undefined
+      ? definition.maximum - definition.minimum + 1
+      : new Set(
+          Array.from({ length: definition.maximum - definition.minimum + 1 }, (_, index) =>
+            definition.normalize?.(definition.minimum + index),
+          ),
+        ).size;
+  return { ok: true, value: { values, wildcard: values.size === cardinality } };
+}
+
+function analyzeCronCalendar(cron: ParsedFiveFieldCron): {
+  hasExecutionDate: boolean;
+  hasConsecutiveExecutionDates: boolean;
+} {
+  // A 28-year window covers every weekday/leap-year combination used by a yearless Cron.
+  const start = Date.UTC(2000, 0, 1);
+  const end = Date.UTC(2028, 0, 2);
+  const dayMs = 24 * 60 * 60 * 1_000;
+  let previousMatches = false;
+  let hasExecutionDate = false;
+  for (let timestamp = start; timestamp < end; timestamp += dayMs) {
+    const matches = cronDateMatches(new Date(timestamp), cron);
+    if (matches) hasExecutionDate = true;
+    if (matches && previousMatches) {
+      return { hasExecutionDate: true, hasConsecutiveExecutionDates: true };
+    }
+    previousMatches = matches;
+  }
+  return { hasExecutionDate, hasConsecutiveExecutionDates: false };
+}
+
+function cronDateMatches(date: Date, cron: ParsedFiveFieldCron): boolean {
+  if (!cron.month.values.has(date.getUTCMonth() + 1)) return false;
+  const dayOfMonthMatches = cron.dayOfMonth.values.has(date.getUTCDate());
+  const dayOfWeekMatches = cron.dayOfWeek.values.has(date.getUTCDay());
+  if (cron.dayOfMonth.wildcard && cron.dayOfWeek.wildcard) return true;
+  if (cron.dayOfMonth.wildcard) return dayOfWeekMatches;
+  if (cron.dayOfWeek.wildcard) return dayOfMonthMatches;
+  // Match Vixie Cron/Croner's legacy behavior when both day fields are restricted.
+  return dayOfMonthMatches || dayOfWeekMatches;
+}
+
+function minimumCronIntervalMinutes(
+  cron: ParsedFiveFieldCron,
+  hasConsecutiveExecutionDates: boolean,
+): number {
+  const times = [...cron.hour.values]
+    .flatMap((hour) => [...cron.minute.values].map((minute) => hour * 60 + minute))
+    .sort((left, right) => left - right);
+  let minimum = Number.POSITIVE_INFINITY;
+  for (let index = 1; index < times.length; index += 1) {
+    minimum = Math.min(minimum, (times[index] ?? 0) - (times[index - 1] ?? 0));
+  }
+  if (hasConsecutiveExecutionDates && times.length > 0) {
+    minimum = Math.min(minimum, 24 * 60 - (times.at(-1) ?? 0) + (times[0] ?? 0));
+  }
+  return minimum;
+}
+
+export const scheduleSchema = z
+  .object({
+    mode: scheduleModeSchema.default('manual'),
+    cron: z.string().optional(),
+    timezone: z.string().default('Asia/Shanghai'),
+    misfirePolicy: z.enum(['skip', 'run-once']).default('skip'),
+  })
+  .superRefine((schedule, context) => {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: schedule.timezone }).format(new Date());
+    } catch {
+      context.addIssue({
+        code: 'custom',
+        path: ['timezone'],
+        message: 'timezone must be a valid IANA timezone',
+      });
+    }
+    if (schedule.mode !== 'cron') return;
+    for (const message of validateFiveFieldCron(schedule.cron ?? '')) {
+      context.addIssue({
+        code: 'custom',
+        path: ['cron'],
+        message,
+      });
+    }
+  });
 
 export const fieldDataTypeSchema = z.enum(['string', 'url', 'number', 'date', 'json']);
 export const domFieldRuleSchema = z
@@ -251,6 +533,109 @@ export const datasetStatsSchema = z.object({
   current: z.number().int().nonnegative().default(0),
 });
 
+export const qualityIssueKindSchema = z.enum([
+  'run-failed',
+  'empty-result',
+  'record-count-drop',
+  'field-missing',
+  'null-rate-spike',
+  'type-change',
+  'content-change',
+]);
+
+export const qualityRuleSchema = z.object({
+  kind: qualityIssueKindSchema,
+  enabled: z.boolean().default(true),
+  threshold: z.number().min(0).max(1).optional(),
+  baselineThreshold: z.number().min(0).max(1).optional(),
+  deltaThreshold: z.number().min(0).max(1).optional(),
+  fields: z.array(z.string().min(1)).default([]),
+});
+
+export const qualityPolicySchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    baselineRuns: z.number().int().min(1).max(20).default(5),
+    minimumBaselineRuns: z.number().int().min(1).max(20).default(3),
+    rules: z.array(qualityRuleSchema).default([
+      { kind: 'run-failed', enabled: true, fields: [] },
+      { kind: 'empty-result', enabled: true, fields: [] },
+      { kind: 'record-count-drop', enabled: true, threshold: 0.5, fields: [] },
+      {
+        kind: 'field-missing',
+        enabled: true,
+        threshold: 0.1,
+        baselineThreshold: 0.9,
+        fields: [],
+      },
+      {
+        kind: 'null-rate-spike',
+        enabled: true,
+        threshold: 0.5,
+        deltaThreshold: 0.3,
+        fields: [],
+      },
+      { kind: 'type-change', enabled: true, threshold: 0.8, fields: [] },
+      { kind: 'content-change', enabled: false, threshold: 0.2, fields: [] },
+    ]),
+  })
+  .refine((policy) => policy.minimumBaselineRuns <= policy.baselineRuns, {
+    path: ['minimumBaselineRuns'],
+    message: 'minimumBaselineRuns cannot exceed baselineRuns',
+  });
+
+export const qualityFieldProfileSchema = z.object({
+  present: z.number().int().nonnegative(),
+  nulls: z.number().int().nonnegative(),
+  types: z.record(z.string(), z.number().int().nonnegative()),
+});
+
+export const qualityProfileSchema = z.object({
+  recordCount: z.number().int().nonnegative(),
+  fields: z.record(z.string(), qualityFieldProfileSchema),
+});
+
+export const qualityIssueSchema = z.object({
+  kind: qualityIssueKindSchema,
+  severity: z.enum(['warning', 'critical']).default('warning'),
+  message: z.string().min(1),
+  field: z.string().nullable().default(null),
+  actual: z.number().nullable().default(null),
+  expected: z.number().nullable().default(null),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+});
+
+export const taskHealthStatusSchema = z.enum(['unknown', 'healthy', 'warning', 'failing']);
+
+export const qualityEvaluationSchema = z.object({
+  id: z.string().uuid(),
+  taskId: z.string().uuid(),
+  runId: z.string().uuid(),
+  status: taskHealthStatusSchema,
+  profile: qualityProfileSchema,
+  issues: z.array(qualityIssueSchema),
+  createdAt: z.string().datetime(),
+});
+
+export const taskHealthSchema = z.object({
+  taskId: z.string().uuid(),
+  status: taskHealthStatusSchema,
+  latestRunId: z.string().uuid().nullable(),
+  issues: z.array(qualityIssueSchema),
+  baselineReady: z.boolean(),
+  updatedAt: z.string().datetime().nullable(),
+});
+
+export const taskOriginSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('manual') }),
+  z.object({ kind: z.literal('ai') }),
+  z.object({
+    kind: z.literal('template'),
+    templateId: z.string().min(1),
+    templateVersion: z.number().int().positive(),
+  }),
+]);
+
 export const taskCreateSchema = z.object({
   name: z.string().min(1).max(120),
   startUrl: z
@@ -315,6 +700,7 @@ export const taskSchema = taskCreateSchema.extend({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   revision: z.number().int().positive().default(1),
+  origin: taskOriginSchema.default({ kind: 'manual' }),
 });
 
 export const extractionRuleSchema = z.object({
@@ -451,24 +837,46 @@ export const domainEventSchema = z.object({
   cursor: z.number().int().nonnegative(),
   id: z.string().uuid(),
   type: z.string().min(1),
-  aggregateType: z.enum(['task', 'run', 'rule', 'artifact', 'runtime']),
+  aggregateType: z.enum([
+    'task',
+    'run',
+    'rule',
+    'artifact',
+    'runtime',
+    'task-health',
+    'quality-evaluation',
+    'output-destination',
+    'collection-task',
+    'user',
+    'invitation',
+    'audit-event',
+  ]),
   aggregateId: z.string(),
   payload: z.record(z.string(), z.unknown()),
   createdAt: z.string().datetime(),
 });
 
 export const realtimeEventSchema = z.object({
-  id: z.string().uuid(),
-  type: z.enum(['run.progress', 'runtime.connection', 'crawler.progress']),
+  id: z.union([z.number().int().nonnegative(), z.string().uuid()]),
+  type: z.enum([
+    'run.progress',
+    'runtime.connection',
+    'crawler.progress',
+    'ai.turn.delta',
+    'ai.turn.status',
+    'ai.tool.status',
+    'ai.draft.updated',
+  ]),
   runId: z.string().uuid().optional(),
   payload: z.record(z.string(), z.unknown()),
-  createdAt: z.string().datetime(),
+  createdAt: z.string().datetime().optional(),
+  occurredAt: z.string().datetime().optional(),
 });
 
 export const artifactDescriptorSchema = z.object({
   id: z.string().uuid(),
   runId: z.string().uuid(),
-  format: z.enum(['csv', 'json', 'xlsx']),
+  format: z.enum(['csv', 'json', 'jsonl', 'xlsx', 'parquet']),
   filename: z.string(),
   contentType: z.string(),
   size: z.number().int().nonnegative(),
@@ -553,15 +961,237 @@ export const runRequestEntrySchema = z.object({
   createdAt: z.string().datetime(),
 });
 
-export const outputDestinationSchema = z.object({
+const outputDestinationBaseSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
-  type: z.enum(['webhook', 'postgres']),
-  config: z.record(z.string(), z.unknown()),
   credentialRef: z.string().nullable(),
   enabled: z.boolean(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+});
+
+export const webhookEventTypeSchema = z.enum([
+  'run.succeeded',
+  'run.failed',
+  'dataset.changed',
+  'quality.issue.detected',
+  'quality.recovered',
+]);
+
+const outputFieldListSchema = z.array(z.string().min(1));
+const outputPathTemplateSchema = z.string().min(1);
+
+const webhookOutputDestinationConfigSchema = z
+  .object({
+    url: z.string().url().optional(),
+    event: webhookEventTypeSchema.optional(),
+    events: z.array(webhookEventTypeSchema).optional(),
+  })
+  .strip();
+
+const postgresOutputDestinationConfigSchema = z
+  .object({
+    schema: z.string().optional(),
+    table: z.string().optional(),
+  })
+  .strip();
+
+const localDirectoryOutputDestinationConfigSchema = z
+  .object({
+    format: z.enum(['csv', 'jsonl', 'parquet']).default('csv'),
+    pathTemplate: outputPathTemplateSchema
+      .default('{taskSlug}/{yyyy}/{mm}/{runId}.{ext}')
+      .refine((value) => value.includes('{runId}'), {
+        message: 'Local-directory pathTemplate must contain {runId}',
+      }),
+    updateLatest: z.boolean().default(true),
+    // Compatibility aliases are read by the adapters while old destinations are migrated.
+    latest: z.boolean().optional(),
+    basePath: z.string().optional(),
+    subdirectory: z.string().optional(),
+    taskSlug: z.string().optional(),
+    fields: outputFieldListSchema.optional(),
+    columns: outputFieldListSchema.optional(),
+    includeSourceUrl: z.boolean().optional(),
+  })
+  .strip();
+
+const googleSheetsOutputDestinationConfigSchema = z
+  .object({
+    spreadsheetId: z.string().min(1),
+    sheetName: z.string().min(1).default('Records'),
+    mode: z.enum(['auto', 'replace', 'append']).default('auto'),
+    columns: outputFieldListSchema.default([]),
+    fields: outputFieldListSchema.optional(),
+    includeSourceUrl: z.boolean().optional(),
+    clientEmail: z.string().min(3).optional(),
+  })
+  .strip();
+
+const s3OutputDestinationConfigSchema = z
+  .object({
+    bucket: z.string().min(1),
+    region: z.string().min(1).default('us-east-1'),
+    prefix: z.string().default(''),
+    pathTemplate: outputPathTemplateSchema
+      .default('{taskSlug}/{yyyy}/{mm}/{runId}.{ext}')
+      .refine((value) => value.includes('{runId}'), {
+        message: 'S3 pathTemplate must contain {runId}',
+      }),
+    format: z.enum(['csv', 'jsonl', 'parquet']).default('csv'),
+    updateLatest: z.boolean().default(true),
+    latest: z.boolean().optional(),
+    endpoint: z.string().url().optional(),
+    forcePathStyle: z.boolean().default(false),
+    serverSideEncryption: z.enum(['AES256', 'aws:kms']).optional(),
+    kmsKeyId: z.string().optional(),
+    taskSlug: z.string().optional(),
+    fields: outputFieldListSchema.optional(),
+    columns: outputFieldListSchema.optional(),
+    includeSourceUrl: z.boolean().optional(),
+  })
+  .strip();
+
+const outputDestinationConfigSchemas = {
+  webhook: webhookOutputDestinationConfigSchema,
+  postgres: postgresOutputDestinationConfigSchema,
+  'local-directory': localDirectoryOutputDestinationConfigSchema,
+  'google-sheets': googleSheetsOutputDestinationConfigSchema,
+  s3: s3OutputDestinationConfigSchema,
+} as const;
+
+export type OutputDestinationType = keyof typeof outputDestinationConfigSchemas;
+
+const sensitiveOutputConfigKey =
+  /password|passwd|passphrase|secret|token|credential|privatekey|accesskey|apikey|authorization|cookie|session|storagestate|connectionstring|serviceaccount/u;
+const privateKeyMaterial = /-----BEGIN(?: [A-Z0-9]+)? PRIVATE KEY-----/u;
+
+interface SensitiveOutputConfigEntry {
+  path: Array<string | number>;
+  displayPath: string;
+}
+
+function sensitiveOutputConfigEntries(value: unknown): SensitiveOutputConfigEntry[] {
+  const entries: SensitiveOutputConfigEntry[] = [];
+  const visited = new WeakSet<object>();
+  const visit = (item: unknown, path: Array<string | number>) => {
+    if (typeof item === 'string') {
+      if (privateKeyMaterial.test(item)) {
+        entries.push({ path, displayPath: displayOutputConfigPath(path) });
+      }
+      return;
+    }
+    if (!item || typeof item !== 'object') return;
+    if (visited.has(item)) return;
+    visited.add(item);
+    if (Array.isArray(item)) {
+      item.forEach((entry, index) => visit(entry, [...path, index]));
+      return;
+    }
+    for (const [key, entry] of Object.entries(item as Record<string, unknown>)) {
+      const entryPath = [...path, key];
+      const normalizedKey = key.toLowerCase().replaceAll(/[^a-z0-9]/g, '');
+      if (sensitiveOutputConfigKey.test(normalizedKey)) {
+        entries.push({ path: entryPath, displayPath: displayOutputConfigPath(entryPath) });
+        continue;
+      }
+      visit(entry, entryPath);
+    }
+  };
+  visit(value, []);
+  return entries;
+}
+
+function displayOutputConfigPath(path: readonly (string | number)[]): string {
+  return path.reduce<string>(
+    (result, part) =>
+      typeof part === 'number' ? `${result}[${part}]` : `${result}${result ? '.' : ''}${part}`,
+    'config',
+  );
+}
+
+/** Returns every nested config location that looks like inline credential material. */
+export function sensitiveOutputConfigPaths(value: unknown): string[] {
+  return sensitiveOutputConfigEntries(value).map((entry) => entry.displayPath);
+}
+
+/** Rejects credentials in destination config; callers must store them in CredentialStore. */
+export function assertNoSensitiveOutputConfig(value: unknown): void {
+  const paths = sensitiveOutputConfigPaths(value);
+  if (paths.length > 0) {
+    throw new Error(`Output Destination config must not contain credentials: ${paths.join(', ')}`);
+  }
+}
+
+/** Applies the per-type allowlist while reading legacy or otherwise untrusted stored config. */
+export function stripOutputDestinationConfig(
+  type: OutputDestinationType,
+  value: unknown,
+): Record<string, unknown> {
+  return outputDestinationConfigSchemas[type].parse(value) as Record<string, unknown>;
+}
+
+function protectedOutputDestinationConfigSchema<T extends z.ZodType>(schema: T) {
+  return z.preprocess((value, context) => {
+    for (const entry of sensitiveOutputConfigEntries(value)) {
+      context.addIssue({
+        code: 'custom',
+        path: entry.path,
+        message: 'Output Destination credentials must be stored in CredentialStore',
+      });
+    }
+    return value;
+  }, schema);
+}
+
+export const outputDestinationSchema = z.discriminatedUnion('type', [
+  outputDestinationBaseSchema.extend({
+    type: z.literal('webhook'),
+    config: protectedOutputDestinationConfigSchema(webhookOutputDestinationConfigSchema),
+  }),
+  outputDestinationBaseSchema.extend({
+    type: z.literal('postgres'),
+    config: protectedOutputDestinationConfigSchema(postgresOutputDestinationConfigSchema),
+  }),
+  outputDestinationBaseSchema.extend({
+    type: z.literal('local-directory'),
+    config: protectedOutputDestinationConfigSchema(localDirectoryOutputDestinationConfigSchema),
+  }),
+  outputDestinationBaseSchema.extend({
+    type: z.literal('google-sheets'),
+    config: protectedOutputDestinationConfigSchema(googleSheetsOutputDestinationConfigSchema),
+  }),
+  outputDestinationBaseSchema.extend({
+    type: z.literal('s3'),
+    config: protectedOutputDestinationConfigSchema(s3OutputDestinationConfigSchema),
+  }),
+]);
+
+export const taskTemplateParameterSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  type: z.enum(['string', 'number', 'boolean', 'selector']),
+  required: z.boolean().default(true),
+  defaultValue: z.unknown().optional(),
+});
+
+export const taskTemplateCompatibilitySchema = z.object({
+  browserRequired: z.boolean().default(false),
+  loginSupported: z.boolean().default(false),
+  capabilities: z.array(z.string().min(1)).default([]),
+});
+
+export const taskTemplateSchema = z.object({
+  id: z.string().min(1),
+  version: z.number().int().positive(),
+  name: z.string().min(1),
+  description: z.string().min(1),
+  category: z.string().min(1),
+  parameters: z.array(taskTemplateParameterSchema),
+  compatibility: taskTemplateCompatibilitySchema,
+  taskDefaults: taskCreateSchema.partial().omit({ startUrl: true }),
+  ruleDefinition: crawlPlanDefinitionSchema,
+  qualityPolicy: qualityPolicySchema.optional(),
 });
 
 export const deliveryAttemptSchema = z.object({
@@ -574,6 +1204,15 @@ export const deliveryAttemptSchema = z.object({
   responseStatus: z.number().int().nullable(),
   error: z.string().nullable(),
   nextAttemptAt: z.string().datetime().nullable(),
+  format: z.enum(['csv', 'jsonl', 'parquet']).nullable().default(null),
+  artifactId: z.string().min(1).nullable().default(null),
+  finalLocation: z.string().nullable().default(null),
+  sha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/u)
+    .nullable()
+    .default(null),
+  deliveredRecordCount: z.number().int().nonnegative().nullable().default(null),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -603,6 +1242,7 @@ export const ruleRepairProposalSchema = z.object({
 export const preferencePlatformSchema = z.enum([
   'hongguo',
   'fanqie',
+  'qidian',
   'bilibili',
   'douyin',
   'manual',
@@ -748,7 +1388,12 @@ export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type RunStatus = z.infer<typeof runStatusSchema>;
 export type GeneratedBy = z.infer<typeof generatedBySchema>;
 export type RequestSettings = z.infer<typeof requestSettingsSchema>;
+export type BrowserAction = z.infer<typeof browserActionSchema>;
 export type BrowserSettings = z.infer<typeof browserSettingsSchema>;
+export type BrowserElementMetadata = z.infer<typeof browserElementMetadataSchema>;
+export type InspectionStepInput = z.infer<typeof inspectionStepInputSchema>;
+export type InspectionStepResult = z.infer<typeof inspectionStepResultSchema>;
+export type InspectionElementSelection = z.infer<typeof inspectionElementSelectionSchema>;
 export type Pagination = z.infer<typeof paginationSchema>;
 export type Schedule = z.infer<typeof scheduleSchema>;
 export type ExtractionRuleDefinition = z.infer<typeof extractionRuleDefinitionSchema>;
@@ -759,6 +1404,16 @@ export type CrawlPlanDefinition = z.infer<typeof crawlPlanDefinitionSchema>;
 export type RuleDefinitionInput = z.infer<typeof ruleDefinitionInputSchema>;
 export type DatasetSettings = z.infer<typeof datasetSettingsSchema>;
 export type DatasetStats = z.infer<typeof datasetStatsSchema>;
+export type QualityIssueKind = z.infer<typeof qualityIssueKindSchema>;
+export type QualityRule = z.infer<typeof qualityRuleSchema>;
+export type QualityPolicy = z.infer<typeof qualityPolicySchema>;
+export type QualityFieldProfile = z.infer<typeof qualityFieldProfileSchema>;
+export type QualityProfile = z.infer<typeof qualityProfileSchema>;
+export type QualityIssue = z.infer<typeof qualityIssueSchema>;
+export type TaskHealthStatus = z.infer<typeof taskHealthStatusSchema>;
+export type QualityEvaluation = z.infer<typeof qualityEvaluationSchema>;
+export type TaskHealth = z.infer<typeof taskHealthSchema>;
+export type TaskOrigin = z.infer<typeof taskOriginSchema>;
 export type RetentionPolicy = z.infer<typeof retentionPolicySchema>;
 export type NetworkPolicy = z.infer<typeof networkPolicySchema>;
 export type DomFieldRule = z.infer<typeof domFieldRuleSchema>;
@@ -787,6 +1442,10 @@ export type DatasetDiffStats = z.infer<typeof datasetDiffStatsSchema>;
 export type RunLogEntry = z.infer<typeof runLogEntrySchema>;
 export type RunRequestEntry = z.infer<typeof runRequestEntrySchema>;
 export type OutputDestination = z.infer<typeof outputDestinationSchema>;
+export type WebhookEventType = z.infer<typeof webhookEventTypeSchema>;
+export type TaskTemplateParameter = z.infer<typeof taskTemplateParameterSchema>;
+export type TaskTemplateCompatibility = z.infer<typeof taskTemplateCompatibilitySchema>;
+export type TaskTemplate = z.infer<typeof taskTemplateSchema>;
 export type DeliveryAttempt = z.infer<typeof deliveryAttemptSchema>;
 export type ApiToken = z.infer<typeof apiTokenSchema>;
 export type RuleRepairProposal = z.infer<typeof ruleRepairProposalSchema>;
@@ -885,4 +1544,51 @@ export class NetworkPolicyError extends ZhiYunError {
   constructor(message: string, details?: unknown) {
     super('NETWORK_POLICY_ERROR', message, details);
   }
+}
+
+const sensitiveValueName =
+  /token|secret|password|passwd|authorization|proxy[-_ ]?authorization|cookie|signature|session|credential|api[-_ ]?key|access[-_ ]?key|private[-_ ]?key/i;
+
+/** Removes credentials and sensitive query values before errors or events are persisted. */
+export function redactSensitiveUrl(value: string): string {
+  try {
+    const parsed = new URL(value, 'http://zhiyun.invalid');
+    parsed.username = '';
+    parsed.password = '';
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (sensitiveValueName.test(key)) parsed.searchParams.set(key, '[REDACTED]');
+    }
+    return parsed.origin === 'http://zhiyun.invalid'
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : parsed.toString();
+  } catch {
+    return '[invalid-url]';
+  }
+}
+
+/** Redacts common header, URL, DSN and inline credential forms from diagnostic text. */
+export function redactSensitiveText(value: string): string {
+  return value
+    .replaceAll(/https?:\/\/[^\s"'<>]+/gi, (url) => redactSensitiveUrl(url))
+    .replaceAll(/(Bearer\s+)[A-Za-z0-9._~+/-]+=*/gi, '$1[REDACTED]')
+    .replaceAll(
+      /((?:authorization|cookie|proxy-authorization|api[-_ ]?key|access[-_ ]?key|password|passwd|token|secret|session)\s*[:=：]\s*)[^\s,;]+/gi,
+      '$1[REDACTED]',
+    )
+    .replaceAll(/(postgres(?:ql)?:\/\/)[^\s@]+@/gi, '$1[REDACTED]@');
+}
+
+/** Recursively redacts an event payload while retaining non-sensitive diagnostics. */
+export function redactSensitiveValue(value: unknown, depth = 0): unknown {
+  if (depth > 20) return '[TRUNCATED]';
+  if (typeof value === 'string') return redactSensitiveText(value);
+  if (Array.isArray(value)) return value.map((item) => redactSensitiveValue(item, depth + 1));
+  if (!value || typeof value !== 'object') return value;
+  const result: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    result[key] = sensitiveValueName.test(key)
+      ? '[REDACTED]'
+      : redactSensitiveValue(item, depth + 1);
+  }
+  return result;
 }

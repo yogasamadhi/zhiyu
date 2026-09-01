@@ -1,4 +1,43 @@
-import type { ApiToken, DeliveryAttempt, OutputDestination } from '@zhiyun/shared';
+import type {
+  ApiToken,
+  DeliveryAttempt as SharedDeliveryAttempt,
+  OutputDestination,
+  WebhookEventType,
+} from '@zhiyun/shared';
+import type { OutputFileFormat } from '@zhiyun/outputs';
+
+export interface DeliveryAttempt extends SharedDeliveryAttempt {
+  format: OutputFileFormat | null;
+  artifactId: string | null;
+  finalLocation: string | null;
+  sha256: string | null;
+  deliveredRecordCount: number | null;
+}
+
+export type EventNotificationSeverity = 'info' | 'warning' | 'error';
+export type EventNotificationStatus = 'pending' | 'running' | 'succeeded' | 'failed';
+
+export interface EventNotificationInput {
+  eventId: string;
+  type: WebhookEventType;
+  occurredAt: string;
+  taskId: string;
+  runId: string | null;
+  severity: EventNotificationSeverity;
+  payload: Record<string, unknown>;
+}
+
+export interface EventNotificationAttempt extends EventNotificationInput {
+  id: string;
+  destinationId: string;
+  status: EventNotificationStatus;
+  attempt: number;
+  responseStatus: number | null;
+  error: string | null;
+  nextAttemptAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface OutputRepository {
   migrate(): Promise<void>;
@@ -22,10 +61,36 @@ export interface OutputRepository {
   updateDeliveryAttempt(
     id: string,
     input: Partial<
-      Pick<DeliveryAttempt, 'status' | 'attempt' | 'responseStatus' | 'error' | 'nextAttemptAt'>
+      Pick<
+        DeliveryAttempt,
+        | 'status'
+        | 'attempt'
+        | 'responseStatus'
+        | 'error'
+        | 'nextAttemptAt'
+        | 'format'
+        | 'artifactId'
+        | 'finalLocation'
+        | 'sha256'
+        | 'deliveredRecordCount'
+      >
     >,
   ): Promise<DeliveryAttempt | null>;
   listDeliveryAttempts(runId?: string): Promise<DeliveryAttempt[]>;
+  createEventNotificationAttempt(
+    input: EventNotificationInput & { destinationId: string },
+  ): Promise<EventNotificationAttempt>;
+  getEventNotificationAttempt(id: string): Promise<EventNotificationAttempt | null>;
+  updateEventNotificationAttempt(
+    id: string,
+    input: Partial<
+      Pick<
+        EventNotificationAttempt,
+        'status' | 'attempt' | 'responseStatus' | 'error' | 'nextAttemptAt'
+      >
+    >,
+  ): Promise<EventNotificationAttempt | null>;
+  listEventNotificationAttempts(eventId?: string): Promise<EventNotificationAttempt[]>;
   createApiToken(
     input: Pick<ApiToken, 'name' | 'taskIds' | 'rateLimitPerMinute' | 'expiresAt'> & {
       tokenHash: string;
@@ -43,4 +108,4 @@ export interface OutputsServiceContract {
   clearCollectionTask(taskId: string): Promise<number>;
 }
 
-export type { ApiToken, DeliveryAttempt, OutputDestination };
+export type { ApiToken, OutputDestination };

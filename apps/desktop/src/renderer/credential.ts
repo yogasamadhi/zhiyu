@@ -10,6 +10,10 @@ const form = document.querySelector<HTMLFormElement>('#credential-form')!;
 const input = document.querySelector<HTMLTextAreaElement>('#credential-value')!;
 const label = document.querySelector<HTMLElement>('#credential-label')!;
 const examples: Record<string, { label: string; placeholder: string }> = {
+  'ai-api-key': {
+    label: 'AI Provider API Key',
+    placeholder: '输入 API Key（只会加密保存到本机）',
+  },
   'task-secret-headers': {
     label: '敏感 Headers（JSON）',
     placeholder: '{\n  "Authorization": "Bearer …"\n}',
@@ -37,7 +41,10 @@ const display = examples[window.zhiyunCredential.kind] ?? {
 };
 label.textContent = display.label;
 input.placeholder = display.placeholder;
-if (window.zhiyunCredential.kind.startsWith('output-')) {
+if (
+  window.zhiyunCredential.kind.startsWith('output-') ||
+  window.zhiyunCredential.kind === 'ai-api-key'
+) {
   input.style.setProperty('-webkit-text-security', 'disc');
 }
 form.addEventListener('submit', (event) => {
