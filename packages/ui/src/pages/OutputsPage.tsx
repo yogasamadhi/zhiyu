@@ -23,6 +23,9 @@ const webhookEventOptions: Array<{ value: WebhookEventType; label: string }> = [
   { value: 'dataset.changed', label: 'Dataset changed' },
   { value: 'quality.issue.detected', label: 'Quality issue detected' },
   { value: 'quality.recovered', label: 'Quality recovered' },
+  { value: 'recruitment.match.detected', label: 'Recruitment match detected' },
+  { value: 'recruitment.posting.changed', label: 'Recruitment posting changed' },
+  { value: 'recruitment.digest.ready', label: 'Recruitment digest ready' },
 ];
 
 export function OutputsPage() {

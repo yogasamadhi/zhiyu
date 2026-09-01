@@ -24,6 +24,17 @@ import {
   problemDetailsSchema,
   qualityEvaluationSchema,
   qualityPolicySchema,
+  recruitmentFileInputSchema,
+  recruitmentImportJobSchema,
+  recruitmentImportMappingInputSchema,
+  recruitmentImportMappingSchema,
+  recruitmentImportPreviewSchema,
+  recruitmentJobClusterSchema,
+  recruitmentSearchProfileInputSchema,
+  recruitmentSearchProfileSchema,
+  recruitmentSourceSchema,
+  recruitmentSyncResultSchema,
+  recruitmentWorkflowUpdateSchema,
   recordChangeSchema,
   ruleRepairProposalSchema,
   ruleVersionSchema,
@@ -572,6 +583,59 @@ export function openApiDocument(profileId = 'desktop-studio') {
     },
     '/api/v2/preferences/signals/{id}': { delete: { operationId: 'deletePreferenceSignal' } },
     '/api/v2/preferences/import': { post: { operationId: 'importPreferenceContent' } },
+    '/api/v2/recruitment/sources': {
+      get: { operationId: 'listRecruitmentSources' },
+    },
+    '/api/v2/recruitment/sources/{sourceKey}': {
+      get: { operationId: 'getRecruitmentSource' },
+    },
+    '/api/v2/recruitment/sources/{sourceKey}/sync': {
+      post: { operationId: 'syncRecruitmentSource' },
+    },
+    '/api/v2/recruitment/search-profiles': {
+      get: { operationId: 'listRecruitmentSearchProfiles' },
+      post: { operationId: 'createRecruitmentSearchProfile' },
+    },
+    '/api/v2/recruitment/search-profiles/{profileId}': {
+      get: { operationId: 'getRecruitmentSearchProfile' },
+      patch: { operationId: 'updateRecruitmentSearchProfile' },
+      delete: { operationId: 'deleteRecruitmentSearchProfile' },
+    },
+    '/api/v2/recruitment/imports/preview': {
+      post: { operationId: 'previewRecruitmentImport' },
+    },
+    '/api/v2/recruitment/imports': {
+      post: { operationId: 'createRecruitmentImport' },
+    },
+    '/api/v2/recruitment/imports/{importId}': {
+      get: { operationId: 'getRecruitmentImport' },
+    },
+    '/api/v2/recruitment/imports/{importId}/errors': {
+      get: { operationId: 'getRecruitmentImportErrors' },
+    },
+    '/api/v2/recruitment/import-mappings': {
+      get: { operationId: 'listRecruitmentImportMappings' },
+      post: { operationId: 'createRecruitmentImportMapping' },
+    },
+    '/api/v2/recruitment/import-mappings/{mappingId}': {
+      patch: { operationId: 'updateRecruitmentImportMapping' },
+      delete: { operationId: 'deleteRecruitmentImportMapping' },
+    },
+    '/api/v2/recruitment/job-clusters': {
+      get: { operationId: 'listRecruitmentJobClusters' },
+    },
+    '/api/v2/recruitment/job-clusters/{clusterId}': {
+      get: { operationId: 'getRecruitmentJobCluster' },
+    },
+    '/api/v2/recruitment/job-clusters/{clusterId}/state': {
+      put: { operationId: 'updateRecruitmentWorkflowState' },
+    },
+    '/api/v2/recruitment/job-clusters/merge': {
+      post: { operationId: 'mergeRecruitmentJobClusters' },
+    },
+    '/api/v2/recruitment/job-clusters/{clusterId}/split': {
+      post: { operationId: 'splitRecruitmentJobCluster' },
+    },
     '/api/v2/tasks': {
       get: { operationId: 'listTasks' },
       post: { operationId: 'createTask' },
@@ -1042,6 +1106,162 @@ export function openApiDocument(profileId = 'desktop-studio') {
   Object.assign(paths['/api/v2/preferences/import']!.post!, {
     requestBody: body(ref('PreferenceImport')),
     responses: responses(ref('PreferenceSignal'), '201'),
+  });
+  const recruitmentSourceView = {
+    allOf: [
+      ref('RecruitmentSource'),
+      {
+        type: 'object',
+        required: ['searchUrl'],
+        properties: { searchUrl: { type: 'string', format: 'uri' } },
+      },
+    ],
+  };
+  Object.assign(paths['/api/v2/recruitment/sources']!.get!, {
+    parameters: [{ name: 'profileId', in: 'query', schema: { type: 'string', format: 'uuid' } }],
+    responses: responses({ type: 'array', items: recruitmentSourceView }),
+  });
+  Object.assign(paths['/api/v2/recruitment/sources/{sourceKey}']!.get!, {
+    parameters: [
+      {
+        name: 'sourceKey',
+        in: 'path',
+        required: true,
+        schema: { type: 'string', enum: ['boss', 'liepin', 'huibo'] },
+      },
+      { name: 'profileId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+    ],
+    responses: responses(recruitmentSourceView),
+  });
+  paths['/api/v2/recruitment/sources/{sourceKey}/sync']!.post!.responses = {
+    '202': jsonResponse(ref('RecruitmentSyncResult')),
+    '409': problemResponse,
+    default: problemResponse,
+  };
+  paths['/api/v2/recruitment/search-profiles']!.get!.responses = responses({
+    type: 'array',
+    items: ref('RecruitmentSearchProfile'),
+  });
+  Object.assign(paths['/api/v2/recruitment/search-profiles']!.post!, {
+    requestBody: body(ref('RecruitmentSearchProfileInput')),
+    responses: responses(ref('RecruitmentSearchProfile'), '201'),
+  });
+  paths['/api/v2/recruitment/search-profiles/{profileId}']!.get!.responses = responses(
+    ref('RecruitmentSearchProfile'),
+  );
+  Object.assign(paths['/api/v2/recruitment/search-profiles/{profileId}']!.patch!, {
+    requestBody: body({
+      type: 'object',
+      required: ['revision', 'profile'],
+      properties: {
+        revision: { type: 'integer', minimum: 1 },
+        profile: ref('RecruitmentSearchProfileInput'),
+      },
+    }),
+    responses: responses(ref('RecruitmentSearchProfile')),
+  });
+  paths['/api/v2/recruitment/search-profiles/{profileId}']!.delete!.responses = {
+    '204': { description: 'Deleted' },
+    default: problemResponse,
+  };
+  Object.assign(paths['/api/v2/recruitment/imports/preview']!.post!, {
+    requestBody: body(ref('RecruitmentFileInput')),
+    responses: responses(ref('RecruitmentImportPreview')),
+  });
+  Object.assign(paths['/api/v2/recruitment/imports']!.post!, {
+    requestBody: body(ref('RecruitmentFileInput')),
+    responses: responses(ref('RecruitmentImportJob'), '201'),
+  });
+  paths['/api/v2/recruitment/imports/{importId}']!.get!.responses = responses(
+    ref('RecruitmentImportJob'),
+  );
+  paths['/api/v2/recruitment/imports/{importId}/errors']!.get!.responses = responses({
+    type: 'object',
+    required: ['items', 'artifactId'],
+    properties: {
+      items: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      artifactId: { type: ['string', 'null'], format: 'uuid' },
+    },
+  });
+  paths['/api/v2/recruitment/import-mappings']!.get!.responses = responses({
+    type: 'array',
+    items: ref('RecruitmentImportMapping'),
+  });
+  Object.assign(paths['/api/v2/recruitment/import-mappings']!.post!, {
+    requestBody: body(ref('RecruitmentImportMappingInput')),
+    responses: responses(ref('RecruitmentImportMapping'), '201'),
+  });
+  Object.assign(paths['/api/v2/recruitment/import-mappings/{mappingId}']!.patch!, {
+    requestBody: body({
+      type: 'object',
+      required: ['revision', 'mapping'],
+      properties: {
+        revision: { type: 'integer', minimum: 1 },
+        mapping: ref('RecruitmentImportMappingInput'),
+      },
+    }),
+    responses: responses(ref('RecruitmentImportMapping')),
+  });
+  paths['/api/v2/recruitment/import-mappings/{mappingId}']!.delete!.responses = {
+    '204': { description: 'Deleted' },
+    default: problemResponse,
+  };
+  Object.assign(paths['/api/v2/recruitment/job-clusters']!.get!, {
+    parameters: [
+      { name: 'cursor', in: 'query', schema: { type: 'string' } },
+      { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 200 } },
+      { name: 'profileId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+      {
+        name: 'sourceKey',
+        in: 'query',
+        schema: { type: 'string', enum: ['boss', 'liepin', 'huibo'] },
+      },
+      { name: 'workflowState', in: 'query', schema: { type: 'string' } },
+      { name: 'city', in: 'query', schema: { type: 'string' } },
+      { name: 'keyword', in: 'query', schema: { type: 'string' } },
+      { name: 'salaryMin', in: 'query', schema: { type: 'integer', minimum: 0 } },
+      { name: 'salaryMax', in: 'query', schema: { type: 'integer', minimum: 0 } },
+      { name: 'publishedAfter', in: 'query', schema: { type: 'string', format: 'date-time' } },
+      { name: 'publishedBefore', in: 'query', schema: { type: 'string', format: 'date-time' } },
+      { name: 'includeArchived', in: 'query', schema: { type: 'boolean' } },
+    ],
+    responses: responses(page(ref('RecruitmentJobCluster'))),
+  });
+  paths['/api/v2/recruitment/job-clusters/{clusterId}']!.get!.responses = responses(
+    ref('RecruitmentJobCluster'),
+  );
+  Object.assign(paths['/api/v2/recruitment/job-clusters/{clusterId}/state']!.put!, {
+    requestBody: body(ref('RecruitmentWorkflowUpdate')),
+    responses: responses(ref('RecruitmentJobCluster')),
+  });
+  Object.assign(paths['/api/v2/recruitment/job-clusters/merge']!.post!, {
+    requestBody: body({
+      type: 'object',
+      required: ['targetClusterId', 'sourceClusterIds'],
+      properties: {
+        targetClusterId: { type: 'string', format: 'uuid' },
+        sourceClusterIds: {
+          type: 'array',
+          minItems: 1,
+          items: { type: 'string', format: 'uuid' },
+        },
+      },
+    }),
+    responses: responses(ref('RecruitmentJobCluster')),
+  });
+  Object.assign(paths['/api/v2/recruitment/job-clusters/{clusterId}/split']!.post!, {
+    requestBody: body({
+      type: 'object',
+      required: ['postingIds'],
+      properties: {
+        postingIds: {
+          type: 'array',
+          minItems: 1,
+          items: { type: 'string', format: 'uuid' },
+        },
+      },
+    }),
+    responses: responses(ref('RecruitmentJobCluster')),
   });
   Object.assign(paths['/api/v2/tasks']!.get!, {
     parameters: [
@@ -1965,6 +2185,17 @@ export function openApiDocument(profileId = 'desktop-studio') {
         PreferenceSignal: z.toJSONSchema(preferenceSignalSchema),
         PreferenceProfile: z.toJSONSchema(preferenceProfileSchema),
         PreferenceImport: z.toJSONSchema(preferenceImportSchema),
+        RecruitmentSource: z.toJSONSchema(recruitmentSourceSchema),
+        RecruitmentSyncResult: z.toJSONSchema(recruitmentSyncResultSchema),
+        RecruitmentSearchProfileInput: z.toJSONSchema(recruitmentSearchProfileInputSchema),
+        RecruitmentSearchProfile: z.toJSONSchema(recruitmentSearchProfileSchema),
+        RecruitmentImportMappingInput: z.toJSONSchema(recruitmentImportMappingInputSchema),
+        RecruitmentImportMapping: z.toJSONSchema(recruitmentImportMappingSchema),
+        RecruitmentFileInput: z.toJSONSchema(recruitmentFileInputSchema),
+        RecruitmentImportPreview: z.toJSONSchema(recruitmentImportPreviewSchema),
+        RecruitmentImportJob: z.toJSONSchema(recruitmentImportJobSchema),
+        RecruitmentJobCluster: z.toJSONSchema(recruitmentJobClusterSchema),
+        RecruitmentWorkflowUpdate: z.toJSONSchema(recruitmentWorkflowUpdateSchema),
         TrendSource: z.toJSONSchema(trendSourceSchema),
         TrendSourceUpdate: z.toJSONSchema(trendSourceUpdateSchema),
         TrendItem: z.toJSONSchema(trendItemSchema),

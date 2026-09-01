@@ -4,6 +4,8 @@ import {
   outputDestinationSchema,
   sensitiveOutputConfigPaths,
   stripOutputDestinationConfig,
+  taskOriginSchema,
+  webhookEventTypeSchema,
 } from '../src/index.js';
 
 function destination(type: string, config: Record<string, unknown>) {
@@ -21,6 +23,24 @@ function destination(type: string, config: Record<string, unknown>) {
 }
 
 describe('Output Destination config security', () => {
+  it('accepts recruitment events and managed recruitment task origins', () => {
+    for (const event of [
+      'recruitment.match.detected',
+      'recruitment.posting.changed',
+      'recruitment.digest.ready',
+    ]) {
+      expect(webhookEventTypeSchema.parse(event)).toBe(event);
+    }
+    expect(
+      taskOriginSchema.parse({
+        kind: 'managed',
+        ownerPluginId: 'recruitment',
+        sourceKey: 'boss',
+        searchProfileId: crypto.randomUUID(),
+      }),
+    ).toMatchObject({ kind: 'managed', ownerPluginId: 'recruitment' });
+  });
+
   it('uses per-type allowlists and strips harmless unknown properties', () => {
     const fixtures = [
       destination('webhook', {

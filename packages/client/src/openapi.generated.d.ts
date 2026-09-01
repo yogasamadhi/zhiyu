@@ -1264,6 +1264,262 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
+  '/api/v2/recruitment/import-mappings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listRecruitmentImportMappings'];
+    put?: never;
+    post: operations['createRecruitmentImportMapping'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/import-mappings/{mappingId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations['deleteRecruitmentImportMapping'];
+    options?: never;
+    head?: never;
+    patch: operations['updateRecruitmentImportMapping'];
+    trace?: never;
+  };
+  '/api/v2/recruitment/imports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['createRecruitmentImport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/imports/{importId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getRecruitmentImport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/imports/{importId}/errors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getRecruitmentImportErrors'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/imports/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['previewRecruitmentImport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/job-clusters': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listRecruitmentJobClusters'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/job-clusters/{clusterId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getRecruitmentJobCluster'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/job-clusters/{clusterId}/split': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['splitRecruitmentJobCluster'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/job-clusters/{clusterId}/state': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations['updateRecruitmentWorkflowState'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/job-clusters/merge': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['mergeRecruitmentJobClusters'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/search-profiles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listRecruitmentSearchProfiles'];
+    put?: never;
+    post: operations['createRecruitmentSearchProfile'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/search-profiles/{profileId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getRecruitmentSearchProfile'];
+    put?: never;
+    post?: never;
+    delete: operations['deleteRecruitmentSearchProfile'];
+    options?: never;
+    head?: never;
+    patch: operations['updateRecruitmentSearchProfile'];
+    trace?: never;
+  };
+  '/api/v2/recruitment/sources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listRecruitmentSources'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/sources/{sourceKey}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getRecruitmentSource'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v2/recruitment/sources/{sourceKey}/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['syncRecruitmentSource'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v2/rules/ai-extract': {
     parameters: {
       query?: never;
@@ -3164,13 +3420,19 @@ export type components = {
               | 'run.failed'
               | 'dataset.changed'
               | 'quality.issue.detected'
-              | 'quality.recovered';
+              | 'quality.recovered'
+              | 'recruitment.match.detected'
+              | 'recruitment.posting.changed'
+              | 'recruitment.digest.ready';
             events?: (
               | 'run.succeeded'
               | 'run.failed'
               | 'dataset.changed'
               | 'quality.issue.detected'
               | 'quality.recovered'
+              | 'recruitment.match.detected'
+              | 'recruitment.posting.changed'
+              | 'recruitment.digest.ready'
             )[];
             /** Format: uri */
             url?: string;
@@ -3586,6 +3848,360 @@ export type components = {
       runId: string;
       /** @enum {string} */
       type: 'added' | 'updated' | 'removed';
+    };
+    RecruitmentFileInput: {
+      content: string;
+      filename: string;
+      /** @enum {string} */
+      format: 'csv' | 'json';
+      mapping?: {
+        [key: string]: string;
+      };
+      /** Format: uuid */
+      mappingId?: string;
+      mappingName?: string;
+      /** @default false */
+      saveMapping: boolean;
+      /** Format: uuid */
+      searchProfileId: string;
+      /** @enum {string} */
+      sourceKey: 'boss' | 'liepin' | 'huibo';
+    };
+    RecruitmentImportJob: {
+      completedAt: string | null;
+      createdRows: number;
+      errorArtifactId: string | null;
+      errorRows: number;
+      errorSummary: {
+        message: string;
+        row: number;
+      }[];
+      filename: string;
+      /** Format: uuid */
+      id: string;
+      importedRows: number;
+      mappingId: string | null;
+      mappingRevision: number | null;
+      /** Format: uuid */
+      searchProfileId: string;
+      sha256: string;
+      /** @enum {string} */
+      sourceKey: 'boss' | 'liepin' | 'huibo';
+      /** Format: date-time */
+      startedAt: string;
+      /** @enum {string} */
+      status: 'running' | 'succeeded' | 'failed';
+      totalRows: number;
+      unchangedRows: number;
+      updatedRows: number;
+    };
+    RecruitmentImportMapping: {
+      /** Format: date-time */
+      createdAt: string;
+      fields: {
+        [key: string]: string;
+      };
+      headerFingerprint: string;
+      /** Format: uuid */
+      id: string;
+      name: string;
+      revision: number;
+      /** @enum {string} */
+      sourceKey: 'boss' | 'liepin' | 'huibo';
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    RecruitmentImportMappingInput: {
+      fields: {
+        [key: string]: string;
+      };
+      headerFingerprint: string;
+      name: string;
+      /** @enum {string} */
+      sourceKey: 'boss' | 'liepin' | 'huibo';
+    };
+    RecruitmentImportPreview: {
+      filename: string;
+      /** @enum {string} */
+      format: 'csv' | 'json';
+      headerFingerprint: string;
+      headers: string[];
+      reusableMapping: {
+        /** Format: date-time */
+        createdAt: string;
+        fields: {
+          [key: string]: string;
+        };
+        headerFingerprint: string;
+        /** Format: uuid */
+        id: string;
+        name: string;
+        revision: number;
+        /** @enum {string} */
+        sourceKey: 'boss' | 'liepin' | 'huibo';
+        /** Format: date-time */
+        updatedAt: string;
+      } | null;
+      sample: {
+        [key: string]: unknown;
+      }[];
+      size: number;
+      suggestedMapping: {
+        [key: string]: string;
+      };
+      totalRows: number;
+    };
+    RecruitmentJobCluster: {
+      changes: {
+        changedFields: string[];
+        /** Format: date-time */
+        createdAt: string;
+        currentHash: string;
+        /** Format: uuid */
+        id: string;
+        /** Format: uuid */
+        postingId: string;
+        previousHash: string;
+      }[];
+      company: string;
+      confidence: number;
+      /** Format: date-time */
+      firstSeenAt: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      lastSeenAt: string;
+      location: string | null;
+      matchReasons: string[];
+      matchScore: number | null;
+      note: string;
+      postings: {
+        company: string;
+        contentHash: string;
+        description: string | null;
+        education: string | null;
+        employmentType: string | null;
+        experience: string | null;
+        expiresAt: string | null;
+        externalId: string | null;
+        /** Format: date-time */
+        firstSeenAt: string;
+        /** Format: uuid */
+        id: string;
+        importJobId: string | null;
+        importRow: number | null;
+        /** Format: date-time */
+        lastSeenAt: string;
+        location: string | null;
+        normalizedCompany: string;
+        normalizedLocation: string;
+        normalizedTitle: string;
+        normalizerVersion: string;
+        publishedAt: string | null;
+        salaryMaxMonthly: number | null;
+        salaryMinMonthly: number | null;
+        salaryMonths: number | null;
+        salaryRaw: string | null;
+        skills: string[];
+        /** @enum {string} */
+        sourceKey: 'boss' | 'liepin' | 'huibo';
+        sourceUrl: string | null;
+        stableKey: string;
+        /** @enum {string} */
+        status: 'active' | 'stale' | 'closed' | 'reopened';
+        title: string;
+      }[];
+      /** Format: uuid */
+      representativePostingId: string;
+      suggestions: {
+        /** Format: uuid */
+        candidateClusterId: string;
+        /** Format: uuid */
+        clusterId: string;
+        evidence: {
+          [key: string]: unknown;
+        };
+        score: number;
+      }[];
+      title: string;
+      /** @enum {string} */
+      workflowState:
+        | 'untracked'
+        | 'saved'
+        | 'planned'
+        | 'applied'
+        | 'interviewing'
+        | 'offer'
+        | 'rejected'
+        | 'withdrawn'
+        | 'ignored';
+    };
+    RecruitmentSearchProfile: {
+      /** @default [] */
+      cities: string[];
+      /** Format: date-time */
+      createdAt: string;
+      /** @default 08:00 */
+      digestTime: string;
+      /** @default [] */
+      education: string[];
+      /** @default [] */
+      employmentTypes: string[];
+      /** @default true */
+      enabled: boolean;
+      /** @default [] */
+      excludeCompanies: string[];
+      /** @default [] */
+      excludeKeywords: string[];
+      /** @default [] */
+      experience: string[];
+      /** @default 30 */
+      freshnessDays: number;
+      /** Format: uuid */
+      id: string;
+      /** @default [] */
+      includeCompanies: string[];
+      /** @default [] */
+      includeKeywords: string[];
+      /**
+       * @default any
+       * @enum {string}
+       */
+      keywordMode: 'any' | 'all';
+      lastDigestAt: string | null;
+      name: string;
+      /** @default [] */
+      outputDestinationIds: string[];
+      /**
+       * @default normal
+       * @enum {string}
+       */
+      priority: 'normal' | 'high';
+      /** @default true */
+      remoteAllowed: boolean;
+      revision: number;
+      /** @default null */
+      salaryMaxMonthly: number | null;
+      /** @default null */
+      salaryMinMonthly: number | null;
+      /**
+       * @default [
+       *       "boss",
+       *       "liepin",
+       *       "huibo"
+       *     ]
+       */
+      sourceKeys: ('boss' | 'liepin' | 'huibo')[];
+      /** @default Asia/Shanghai */
+      timezone: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    RecruitmentSearchProfileInput: {
+      /** @default [] */
+      cities: string[];
+      /** @default 08:00 */
+      digestTime: string;
+      /** @default [] */
+      education: string[];
+      /** @default [] */
+      employmentTypes: string[];
+      /** @default true */
+      enabled: boolean;
+      /** @default [] */
+      excludeCompanies: string[];
+      /** @default [] */
+      excludeKeywords: string[];
+      /** @default [] */
+      experience: string[];
+      /** @default 30 */
+      freshnessDays: number;
+      /** @default [] */
+      includeCompanies: string[];
+      /** @default [] */
+      includeKeywords: string[];
+      /**
+       * @default any
+       * @enum {string}
+       */
+      keywordMode: 'any' | 'all';
+      name: string;
+      /** @default [] */
+      outputDestinationIds: string[];
+      /**
+       * @default normal
+       * @enum {string}
+       */
+      priority: 'normal' | 'high';
+      /** @default true */
+      remoteAllowed: boolean;
+      /** @default null */
+      salaryMaxMonthly: number | null;
+      /** @default null */
+      salaryMinMonthly: number | null;
+      /**
+       * @default [
+       *       "boss",
+       *       "liepin",
+       *       "huibo"
+       *     ]
+       */
+      sourceKeys: ('boss' | 'liepin' | 'huibo')[];
+      /** @default Asia/Shanghai */
+      timezone: string;
+    };
+    RecruitmentSource: {
+      adapterVersion: string | null;
+      allowedHosts: string[];
+      authorizationScope: string | null;
+      /** @enum {string} */
+      authorizationStatus: 'pending' | 'authorized' | 'revoked' | 'error';
+      /** Format: date-time */
+      checkedAt: string;
+      credentialRef: string | null;
+      /** @enum {string} */
+      key: 'boss' | 'liepin' | 'huibo';
+      lastError: string | null;
+      lastImportAt: string | null;
+      lastSyncAt: string | null;
+      liveSyncAvailable: boolean;
+      /** @enum {string} */
+      mode: 'import_deeplink' | 'authorized_sync';
+      name: string;
+      officialHost: string;
+      /** Format: uri */
+      robotsUrl: string;
+      /** Format: uri */
+      termsUrl: string;
+    };
+    RecruitmentSyncResult: {
+      complete: boolean;
+      /** Format: date-time */
+      completedAt: string;
+      createdRows: number;
+      errorRows: number;
+      importedRows: number;
+      pages: number;
+      profiles: number;
+      /** @enum {string} */
+      sourceKey: 'boss' | 'liepin' | 'huibo';
+      unchangedRows: number;
+      updatedRows: number;
+    };
+    RecruitmentWorkflowUpdate: {
+      /** @default  */
+      note: string;
+      /** @enum {string} */
+      state:
+        | 'untracked'
+        | 'saved'
+        | 'planned'
+        | 'applied'
+        | 'interviewing'
+        | 'offer'
+        | 'rejected'
+        | 'withdrawn'
+        | 'ignored';
     };
     RuleAnalysisResult: {
       aiUsed: boolean;
@@ -5839,6 +6455,14 @@ export type components = {
             kind: 'template';
             templateId: string;
             templateVersion: number;
+          }
+        | {
+            /** @constant */
+            kind: 'managed';
+            ownerPluginId: string;
+            /** Format: uuid */
+            searchProfileId: string;
+            sourceKey: string;
           };
       /** @default [] */
       outputBindings: string[];
@@ -6268,6 +6892,14 @@ export type components = {
             kind: 'template';
             templateId: string;
             templateVersion: number;
+          }
+        | {
+            /** @constant */
+            kind: 'managed';
+            ownerPluginId: string;
+            /** Format: uuid */
+            searchProfileId: string;
+            sourceKey: string;
           };
       /** @default [] */
       outputBindings: string[];
@@ -11213,6 +11845,748 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listRecruitmentImportMappings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentImportMapping'][];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  createRecruitmentImportMapping: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecruitmentImportMappingInput'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentImportMapping'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  deleteRecruitmentImportMapping: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path: {
+        mappingId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  updateRecruitmentImportMapping: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path: {
+        mappingId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          mapping: components['schemas']['RecruitmentImportMappingInput'];
+          revision: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentImportMapping'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  createRecruitmentImport: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecruitmentFileInput'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentImportJob'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getRecruitmentImport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        importId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentImportJob'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getRecruitmentImportErrors: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        importId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** Format: uuid */
+            artifactId: string | null;
+            items: {
+              [key: string]: unknown;
+            }[];
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  previewRecruitmentImport: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecruitmentFileInput'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentImportPreview'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listRecruitmentJobClusters: {
+    parameters: {
+      query?: {
+        city?: string;
+        cursor?: string;
+        includeArchived?: boolean;
+        keyword?: string;
+        limit?: number;
+        profileId?: string;
+        publishedAfter?: string;
+        publishedBefore?: string;
+        salaryMax?: number;
+        salaryMin?: number;
+        sourceKey?: 'boss' | 'liepin' | 'huibo';
+        workflowState?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['RecruitmentJobCluster'][];
+            nextCursor: string | null;
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getRecruitmentJobCluster: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        clusterId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentJobCluster'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  splitRecruitmentJobCluster: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path: {
+        clusterId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          postingIds: string[];
+        };
+      };
+    };
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentJobCluster'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  updateRecruitmentWorkflowState: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path: {
+        clusterId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecruitmentWorkflowUpdate'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentJobCluster'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  mergeRecruitmentJobClusters: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          sourceClusterIds: string[];
+          /** Format: uuid */
+          targetClusterId: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentJobCluster'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listRecruitmentSearchProfiles: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentSearchProfile'][];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  createRecruitmentSearchProfile: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecruitmentSearchProfileInput'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentSearchProfile'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getRecruitmentSearchProfile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        profileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentSearchProfile'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  deleteRecruitmentSearchProfile: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path: {
+        profileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  updateRecruitmentSearchProfile: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path: {
+        profileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          profile: components['schemas']['RecruitmentSearchProfileInput'];
+          revision: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentSearchProfile'];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listRecruitmentSources: {
+    parameters: {
+      query?: {
+        profileId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': (components['schemas']['RecruitmentSource'] & {
+            /** Format: uri */
+            searchUrl: string;
+          })[];
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getRecruitmentSource: {
+    parameters: {
+      query?: {
+        profileId?: string;
+      };
+      header?: never;
+      path: {
+        sourceKey: 'boss' | 'liepin' | 'huibo';
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentSource'] & {
+            /** Format: uri */
+            searchUrl: string;
+          };
+        };
+      };
+      /** @description Problem Details */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  syncRecruitmentSource: {
+    parameters: {
+      query?: never;
+      header: {
+        'X-CSRF-Token': string;
+      };
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecruitmentSyncResult'];
+        };
+      };
+      /** @description Problem Details */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDetails'];
+        };
       };
       /** @description Problem Details */
       default: {

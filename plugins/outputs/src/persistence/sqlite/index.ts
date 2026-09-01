@@ -19,6 +19,7 @@ import {
   outputsSqliteMigration003,
   outputsSqliteMigration004,
   outputsSqliteMigration005,
+  outputsSqliteMigration006,
 } from '../../migrations/sqlite/index.js';
 
 type SqlRow = Record<string, unknown>;
@@ -28,6 +29,7 @@ const MIGRATIONS = [
   { id: '003-event-notification-attempts', sql: outputsSqliteMigration003, version: '1.2.0' },
   { id: '004-delivery-metadata', sql: outputsSqliteMigration004, version: '1.3.0' },
   { id: '005-webhook-event-subscriptions', sql: outputsSqliteMigration005, version: '1.4.0' },
+  { id: '006-recruitment-events', sql: outputsSqliteMigration006, version: '1.5.0' },
 ] as const;
 
 export class SqliteOutputRepository implements OutputRepository {

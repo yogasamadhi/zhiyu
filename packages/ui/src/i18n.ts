@@ -96,6 +96,7 @@ const resources = {
         exportArtifacts: '导出 Artifact',
       },
       preferencesAndTrends: '偏好与趋势',
+      recruitment: '职位雷达',
       preferencesIntro: '用你明确给出的反馈形成兴趣画像，并查看小说、短剧和视频的公开趋势。',
       enableTrendTitle: '启用公开趋势数据源',
       enableTrendDescription:
@@ -323,6 +324,7 @@ const resources = {
         exportArtifacts: 'Export artifacts',
       },
       preferencesAndTrends: 'Preferences & trends',
+      recruitment: 'Job radar',
       preferencesIntro:
         'Build an interest profile from your explicit feedback and explore public novel, short-drama, and video trends.',
       enableTrendTitle: 'Enable public trend sources',

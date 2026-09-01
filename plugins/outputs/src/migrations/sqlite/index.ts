@@ -129,3 +129,36 @@ SET config = json_remove(
 )
 WHERE type='webhook' AND json_type(config,'$.events') IS NULL;
 `;
+
+export const outputsSqliteMigration006 = `
+CREATE TABLE event_notification_attempts_v2 (
+  id TEXT PRIMARY KEY,
+  destination_id TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  event_type TEXT NOT NULL CHECK (event_type IN (
+    'run.succeeded','run.failed','dataset.changed','quality.issue.detected','quality.recovered',
+    'recruitment.match.detected','recruitment.posting.changed','recruitment.digest.ready'
+  )),
+  occurred_at TEXT NOT NULL,
+  task_id TEXT NOT NULL,
+  run_id TEXT,
+  severity TEXT NOT NULL CHECK (severity IN ('info','warning','error')),
+  payload TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending','running','succeeded','failed')),
+  attempt INTEGER NOT NULL CHECK (attempt > 0),
+  response_status INTEGER,
+  error TEXT,
+  next_attempt_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(destination_id,event_id)
+);
+INSERT INTO event_notification_attempts_v2
+SELECT * FROM event_notification_attempts;
+DROP TABLE event_notification_attempts;
+ALTER TABLE event_notification_attempts_v2 RENAME TO event_notification_attempts;
+CREATE INDEX outputs_event_notification_event_idx
+ON event_notification_attempts(event_id,created_at DESC);
+CREATE INDEX outputs_event_notification_pending_idx
+ON event_notification_attempts(status,next_attempt_at,created_at);
+`;

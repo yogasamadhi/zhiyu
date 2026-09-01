@@ -20,6 +20,12 @@ const SettingsPage = lazy(() => import('../pages/SettingsPage.js').then(moduleOf
 const PreferencesPage = lazy(() =>
   import('../pages/PreferencesPage.js').then(moduleOf('PreferencesPage')),
 );
+const RecruitmentPage = lazy(() =>
+  import('../pages/RecruitmentPage.js').then(moduleOf('RecruitmentPage')),
+);
+const RecruitmentClusterPage = lazy(() =>
+  import('../pages/RecruitmentClusterPage.js').then(moduleOf('RecruitmentClusterPage')),
+);
 const AnalyticsPage = lazy(() =>
   import('../pages/AnalyticsPage.js').then(moduleOf('AnalyticsPage')),
 );
@@ -84,6 +90,13 @@ export const routeContributionRegistry: readonly ShellRouteContribution[] = [
     routes: [{ path: '/preferences', component: PreferencesPage }],
   },
   {
+    id: 'recruitment.route',
+    routes: [
+      { path: '/recruitment', component: RecruitmentPage },
+      { path: '/recruitment/job-clusters/:clusterId', component: RecruitmentClusterPage },
+    ],
+  },
+  {
     id: 'outputs.route',
     routes: [{ path: '/outputs', component: OutputsPage }],
   },
@@ -129,6 +142,13 @@ export const navigationContributionRegistry: readonly ShellNavigationContributio
     labelKey: 'preferencesAndTrends',
     group: 'collection',
     icon: '◇',
+  },
+  {
+    id: 'recruitment.navigation',
+    to: '/recruitment',
+    labelKey: 'recruitment',
+    group: 'collection',
+    icon: '◎',
   },
   {
     id: 'outputs.navigation',

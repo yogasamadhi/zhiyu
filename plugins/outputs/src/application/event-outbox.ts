@@ -14,6 +14,9 @@ const notificationEventTypes = [
   'dataset.changed',
   'quality.issue.detected',
   'quality.recovered',
+  'recruitment.match.detected',
+  'recruitment.posting.changed',
+  'recruitment.digest.ready',
 ] as const satisfies readonly WebhookEventType[];
 
 /** Durable platform-event consumer that materializes notification outbox attempts. */

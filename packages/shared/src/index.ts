@@ -634,6 +634,12 @@ export const taskOriginSchema = z.discriminatedUnion('kind', [
     templateId: z.string().min(1),
     templateVersion: z.number().int().positive(),
   }),
+  z.object({
+    kind: z.literal('managed'),
+    ownerPluginId: z.string().min(1),
+    sourceKey: z.string().min(1),
+    searchProfileId: z.string().uuid(),
+  }),
 ]);
 
 export const taskCreateSchema = z.object({
@@ -976,7 +982,247 @@ export const webhookEventTypeSchema = z.enum([
   'dataset.changed',
   'quality.issue.detected',
   'quality.recovered',
+  'recruitment.match.detected',
+  'recruitment.posting.changed',
+  'recruitment.digest.ready',
 ]);
+
+export const recruitmentSourceKeySchema = z.enum(['boss', 'liepin', 'huibo']);
+export const recruitmentAuthorizationStatusSchema = z.enum([
+  'pending',
+  'authorized',
+  'revoked',
+  'error',
+]);
+export const recruitmentSourceModeSchema = z.enum(['import_deeplink', 'authorized_sync']);
+export const recruitmentPrioritySchema = z.enum(['normal', 'high']);
+export const recruitmentWorkflowStateSchema = z.enum([
+  'untracked',
+  'saved',
+  'planned',
+  'applied',
+  'interviewing',
+  'offer',
+  'rejected',
+  'withdrawn',
+  'ignored',
+]);
+export const recruitmentPostingStatusSchema = z.enum(['active', 'stale', 'closed', 'reopened']);
+
+export const recruitmentSourceSchema = z.object({
+  key: recruitmentSourceKeySchema,
+  name: z.string().min(1),
+  officialHost: z.string().min(1),
+  allowedHosts: z.array(z.string().min(1)).min(1),
+  termsUrl: z.string().url(),
+  robotsUrl: z.string().url(),
+  checkedAt: z.string().datetime(),
+  mode: recruitmentSourceModeSchema,
+  authorizationStatus: recruitmentAuthorizationStatusSchema,
+  liveSyncAvailable: z.boolean(),
+  adapterVersion: z.string().nullable(),
+  authorizationScope: z.string().nullable(),
+  credentialRef: z.string().nullable(),
+  lastSyncAt: z.string().datetime().nullable(),
+  lastImportAt: z.string().datetime().nullable(),
+  lastError: z.string().nullable(),
+});
+
+export const recruitmentSyncResultSchema = z.object({
+  sourceKey: recruitmentSourceKeySchema,
+  profiles: z.number().int().nonnegative(),
+  pages: z.number().int().nonnegative(),
+  importedRows: z.number().int().nonnegative(),
+  createdRows: z.number().int().nonnegative(),
+  updatedRows: z.number().int().nonnegative(),
+  unchangedRows: z.number().int().nonnegative(),
+  errorRows: z.number().int().nonnegative(),
+  complete: z.boolean(),
+  completedAt: z.string().datetime(),
+});
+
+export const recruitmentSearchProfileInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  includeKeywords: z.array(z.string().trim().min(1).max(100)).max(100).default([]),
+  keywordMode: z.enum(['any', 'all']).default('any'),
+  excludeKeywords: z.array(z.string().trim().min(1).max(100)).max(100).default([]),
+  cities: z.array(z.string().trim().min(1).max(100)).max(50).default([]),
+  remoteAllowed: z.boolean().default(true),
+  salaryMinMonthly: z.number().int().nonnegative().nullable().default(null),
+  salaryMaxMonthly: z.number().int().positive().nullable().default(null),
+  experience: z.array(z.string().trim().min(1).max(100)).max(20).default([]),
+  education: z.array(z.string().trim().min(1).max(100)).max(20).default([]),
+  employmentTypes: z.array(z.string().trim().min(1).max(100)).max(20).default([]),
+  includeCompanies: z.array(z.string().trim().min(1).max(200)).max(100).default([]),
+  excludeCompanies: z.array(z.string().trim().min(1).max(200)).max(100).default([]),
+  sourceKeys: z.array(recruitmentSourceKeySchema).min(1).default(['boss', 'liepin', 'huibo']),
+  freshnessDays: z.number().int().min(1).max(365).default(30),
+  priority: recruitmentPrioritySchema.default('normal'),
+  enabled: z.boolean().default(true),
+  digestTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .default('08:00'),
+  timezone: z.string().min(1).default('Asia/Shanghai'),
+  outputDestinationIds: z.array(z.string().uuid()).max(100).default([]),
+});
+
+export const recruitmentSearchProfileSchema = recruitmentSearchProfileInputSchema.extend({
+  id: z.string().uuid(),
+  revision: z.number().int().positive(),
+  lastDigestAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const recruitmentImportFieldSchema = z.enum([
+  'externalId',
+  'sourceUrl',
+  'title',
+  'company',
+  'location',
+  'salaryRaw',
+  'description',
+  'publishedAt',
+  'expiresAt',
+  'experience',
+  'education',
+  'employmentType',
+  'skills',
+  'status',
+]);
+
+export const recruitmentImportMappingInputSchema = z.object({
+  sourceKey: recruitmentSourceKeySchema,
+  name: z.string().trim().min(1).max(120),
+  headerFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  fields: z.record(z.string(), z.string().min(1)),
+});
+
+export const recruitmentImportMappingSchema = recruitmentImportMappingInputSchema.extend({
+  id: z.string().uuid(),
+  revision: z.number().int().positive(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const recruitmentFileInputSchema = z.object({
+  sourceKey: recruitmentSourceKeySchema,
+  searchProfileId: z.string().uuid(),
+  filename: z.string().trim().min(1).max(255),
+  format: z.enum(['csv', 'json']),
+  content: z.string().max(70 * 1024 * 1024),
+  mapping: z.record(z.string(), z.string().min(1)).optional(),
+  mappingId: z.string().uuid().optional(),
+  mappingName: z.string().trim().min(1).max(120).optional(),
+  saveMapping: z.boolean().default(false),
+});
+
+export const recruitmentImportPreviewSchema = z.object({
+  format: z.enum(['csv', 'json']),
+  filename: z.string(),
+  size: z.number().int().nonnegative(),
+  totalRows: z.number().int().nonnegative(),
+  headers: z.array(z.string()),
+  headerFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  sample: z.array(z.record(z.string(), z.unknown())).max(20),
+  suggestedMapping: z.record(z.string(), z.string()),
+  reusableMapping: z.lazy(() => recruitmentImportMappingSchema.nullable()),
+});
+
+export const recruitmentImportJobSchema = z.object({
+  id: z.string().uuid(),
+  sourceKey: recruitmentSourceKeySchema,
+  searchProfileId: z.string().uuid(),
+  mappingId: z.string().uuid().nullable(),
+  mappingRevision: z.number().int().positive().nullable(),
+  filename: z.string(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  status: z.enum(['running', 'succeeded', 'failed']),
+  totalRows: z.number().int().nonnegative(),
+  importedRows: z.number().int().nonnegative(),
+  createdRows: z.number().int().nonnegative(),
+  updatedRows: z.number().int().nonnegative(),
+  unchangedRows: z.number().int().nonnegative(),
+  errorRows: z.number().int().nonnegative(),
+  errorArtifactId: z.string().uuid().nullable(),
+  errorSummary: z
+    .array(z.object({ row: z.number().int().positive(), message: z.string() }))
+    .max(100),
+  startedAt: z.string().datetime(),
+  completedAt: z.string().datetime().nullable(),
+});
+
+export const recruitmentPostingSchema = z.object({
+  id: z.string().uuid(),
+  sourceKey: recruitmentSourceKeySchema,
+  stableKey: z.string().min(1),
+  externalId: z.string().nullable(),
+  sourceUrl: z.string().url().nullable(),
+  title: z.string().min(1),
+  company: z.string().min(1),
+  location: z.string().nullable(),
+  salaryRaw: z.string().nullable(),
+  salaryMinMonthly: z.number().int().nonnegative().nullable(),
+  salaryMaxMonthly: z.number().int().nonnegative().nullable(),
+  salaryMonths: z.number().int().min(1).max(24).nullable(),
+  description: z.string().nullable(),
+  publishedAt: z.string().datetime().nullable(),
+  expiresAt: z.string().datetime().nullable(),
+  experience: z.string().nullable(),
+  education: z.string().nullable(),
+  employmentType: z.string().nullable(),
+  skills: z.array(z.string()),
+  status: recruitmentPostingStatusSchema,
+  normalizedTitle: z.string(),
+  normalizedCompany: z.string(),
+  normalizedLocation: z.string(),
+  contentHash: z.string().regex(/^[a-f0-9]{64}$/),
+  firstSeenAt: z.string().datetime(),
+  lastSeenAt: z.string().datetime(),
+  importJobId: z.string().uuid().nullable(),
+  importRow: z.number().int().positive().nullable(),
+  normalizerVersion: z.string(),
+});
+
+export const recruitmentClusterSuggestionSchema = z.object({
+  clusterId: z.string().uuid(),
+  candidateClusterId: z.string().uuid(),
+  score: z.number().min(0).max(1),
+  evidence: z.record(z.string(), z.unknown()),
+});
+
+export const recruitmentPostingChangeSchema = z.object({
+  id: z.string().uuid(),
+  postingId: z.string().uuid(),
+  previousHash: z.string().regex(/^[a-f0-9]{64}$/),
+  currentHash: z.string().regex(/^[a-f0-9]{64}$/),
+  changedFields: z.array(z.string()),
+  createdAt: z.string().datetime(),
+});
+
+export const recruitmentJobClusterSchema = z.object({
+  id: z.string().uuid(),
+  representativePostingId: z.string().uuid(),
+  title: z.string(),
+  company: z.string(),
+  location: z.string().nullable(),
+  confidence: z.number().min(0).max(1),
+  firstSeenAt: z.string().datetime(),
+  lastSeenAt: z.string().datetime(),
+  postings: z.array(recruitmentPostingSchema),
+  workflowState: recruitmentWorkflowStateSchema,
+  note: z.string(),
+  matchScore: z.number().int().min(0).max(100).nullable(),
+  matchReasons: z.array(z.string()),
+  suggestions: z.array(recruitmentClusterSuggestionSchema),
+  changes: z.array(recruitmentPostingChangeSchema),
+});
+
+export const recruitmentWorkflowUpdateSchema = z.object({
+  state: recruitmentWorkflowStateSchema,
+  note: z.string().max(10_000).default(''),
+});
 
 const outputFieldListSchema = z.array(z.string().min(1));
 const outputPathTemplateSchema = z.string().min(1);
@@ -1443,6 +1689,27 @@ export type RunLogEntry = z.infer<typeof runLogEntrySchema>;
 export type RunRequestEntry = z.infer<typeof runRequestEntrySchema>;
 export type OutputDestination = z.infer<typeof outputDestinationSchema>;
 export type WebhookEventType = z.infer<typeof webhookEventTypeSchema>;
+export type RecruitmentSourceKey = z.infer<typeof recruitmentSourceKeySchema>;
+export type RecruitmentAuthorizationStatus = z.infer<typeof recruitmentAuthorizationStatusSchema>;
+export type RecruitmentSourceMode = z.infer<typeof recruitmentSourceModeSchema>;
+export type RecruitmentSource = z.infer<typeof recruitmentSourceSchema>;
+export type RecruitmentSyncResult = z.infer<typeof recruitmentSyncResultSchema>;
+export type RecruitmentPriority = z.infer<typeof recruitmentPrioritySchema>;
+export type RecruitmentWorkflowState = z.infer<typeof recruitmentWorkflowStateSchema>;
+export type RecruitmentPostingStatus = z.infer<typeof recruitmentPostingStatusSchema>;
+export type RecruitmentSearchProfileInput = z.infer<typeof recruitmentSearchProfileInputSchema>;
+export type RecruitmentSearchProfile = z.infer<typeof recruitmentSearchProfileSchema>;
+export type RecruitmentImportField = z.infer<typeof recruitmentImportFieldSchema>;
+export type RecruitmentImportMappingInput = z.infer<typeof recruitmentImportMappingInputSchema>;
+export type RecruitmentImportMapping = z.infer<typeof recruitmentImportMappingSchema>;
+export type RecruitmentFileInput = z.infer<typeof recruitmentFileInputSchema>;
+export type RecruitmentImportPreview = z.infer<typeof recruitmentImportPreviewSchema>;
+export type RecruitmentImportJob = z.infer<typeof recruitmentImportJobSchema>;
+export type RecruitmentPosting = z.infer<typeof recruitmentPostingSchema>;
+export type RecruitmentClusterSuggestion = z.infer<typeof recruitmentClusterSuggestionSchema>;
+export type RecruitmentPostingChange = z.infer<typeof recruitmentPostingChangeSchema>;
+export type RecruitmentJobCluster = z.infer<typeof recruitmentJobClusterSchema>;
+export type RecruitmentWorkflowUpdate = z.infer<typeof recruitmentWorkflowUpdateSchema>;
 export type TaskTemplateParameter = z.infer<typeof taskTemplateParameterSchema>;
 export type TaskTemplateCompatibility = z.infer<typeof taskTemplateCompatibilitySchema>;
 export type TaskTemplate = z.infer<typeof taskTemplateSchema>;
@@ -1485,6 +1752,9 @@ export type ErrorCode =
   | 'CANCELED'
   | 'IDEMPOTENCY_CONFLICT'
   | 'CREDENTIAL_ERROR'
+  | 'SOURCE_AUTHORIZATION_REQUIRED'
+  | 'SOURCE_SYNC_FAILED'
+  | 'REVISION_CONFLICT'
   | 'NETWORK_POLICY_ERROR'
   | 'BROWSER_MISSING'
   | 'BROWSER_CRASHED';

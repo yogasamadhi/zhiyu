@@ -16,6 +16,7 @@ import { PostgresIdentityRepository } from '@zhiyun/plugin-identity';
 import { PostgresOutputRepository } from '@zhiyun/plugin-outputs';
 import { PostgresMonitoringRepository } from '@zhiyun/plugin-monitoring';
 import { PostgresPreferencesRepository } from '@zhiyun/plugin-preferences';
+import { PostgresRecruitmentRepository } from '@zhiyun/plugin-recruitment';
 import { resolveProductGraph } from '@zhiyun/product-profiles';
 import { RedisPlatformJobQueue, resetLegacyRedis } from '@zhiyun/queue-redis-v1';
 import { buildLevel2Runtime, openApiDocument, type Level2Runtime } from '@zhiyun/runtime';
@@ -108,6 +109,7 @@ export async function buildApp() {
     outputs: new PostgresOutputRepository(config.DATABASE_URL),
     monitoring: new PostgresMonitoringRepository(config.DATABASE_URL),
     preferences: new PostgresPreferencesRepository(config.DATABASE_URL),
+    recruitment: new PostgresRecruitmentRepository(config.DATABASE_URL),
     analytics: new PostgresAnalysisRepository(config.DATABASE_URL),
     corpus: new PostgresCorpusRepository(config.DATABASE_URL),
     aiAssistance: new PostgresAiConversationRepository(config.DATABASE_URL),

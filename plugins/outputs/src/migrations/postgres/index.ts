@@ -110,3 +110,13 @@ SET config = jsonb_set(
 )
 WHERE type='webhook' AND NOT (config ? 'events');
 `;
+
+export const outputsPostgresMigration006 = `
+ALTER TABLE event_notification_attempts
+DROP CONSTRAINT IF EXISTS event_notification_attempts_event_type_check;
+ALTER TABLE event_notification_attempts
+ADD CONSTRAINT event_notification_attempts_event_type_check CHECK (event_type IN (
+  'run.succeeded','run.failed','dataset.changed','quality.issue.detected','quality.recovered',
+  'recruitment.match.detected','recruitment.posting.changed','recruitment.digest.ready'
+));
+`;

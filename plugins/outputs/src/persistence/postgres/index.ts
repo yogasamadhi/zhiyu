@@ -19,6 +19,7 @@ import {
   outputsPostgresMigration003,
   outputsPostgresMigration004,
   outputsPostgresMigration005,
+  outputsPostgresMigration006,
 } from '../../migrations/postgres/index.js';
 
 type PgRow = Record<string, unknown>;
@@ -29,6 +30,7 @@ const MIGRATIONS = [
   { id: '003-event-notification-attempts', sql: outputsPostgresMigration003, version: '1.2.0' },
   { id: '004-delivery-metadata', sql: outputsPostgresMigration004, version: '1.3.0' },
   { id: '005-webhook-event-subscriptions', sql: outputsPostgresMigration005, version: '1.4.0' },
+  { id: '006-recruitment-events', sql: outputsPostgresMigration006, version: '1.5.0' },
 ] as const;
 
 export class PostgresOutputRepository implements OutputRepository {

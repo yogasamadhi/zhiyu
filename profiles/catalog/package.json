@@ -27,6 +27,7 @@
     "@zhiyun/plugin-monitoring": "workspace:*",
     "@zhiyun/plugin-platform": "workspace:*",
     "@zhiyun/plugin-preferences": "workspace:*",
+    "@zhiyun/plugin-recruitment": "workspace:*",
     "@zhiyun/plugin-templates": "workspace:*"
   },
   "devDependencies": {

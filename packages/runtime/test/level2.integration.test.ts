@@ -19,6 +19,7 @@ import {
 } from '@zhiyun/plugin-monitoring';
 import { SqliteOutputRepository } from '@zhiyun/plugin-outputs';
 import { SqlitePreferencesRepository } from '@zhiyun/plugin-preferences';
+import { SqliteRecruitmentRepository } from '@zhiyun/plugin-recruitment';
 import { resolveProductGraph } from '@zhiyun/product-profiles';
 import { LocalPlatformJobQueue } from '@zhiyun/queue-local-v1';
 import { openSqlitePlatformRepository } from '@zhiyun/storage-sqlite-v1';
@@ -53,6 +54,7 @@ describe('Level 2 Runtime composition', () => {
       collection: new SqliteCollectionRepository(databasePath),
       outputs: new SqliteOutputRepository(databasePath),
       preferences: new SqlitePreferencesRepository(databasePath),
+      recruitment: new SqliteRecruitmentRepository(databasePath),
       analytics: new SqliteAnalysisRepository(databasePath),
       corpus: new SqliteCorpusRepository(databasePath),
       aiAssistance: new SqliteAiConversationRepository(databasePath),

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
 import type { FastifyInstance } from 'fastify';
 import type { AnalyticsWorkerClient } from '@zhiyun/analytics-worker-client';
 import type {
@@ -103,6 +104,12 @@ import {
   registerPreferencesHttp,
   type PreferencesRepository,
 } from '@zhiyun/plugin-preferences';
+import {
+  RecruitmentDigestScheduler,
+  RecruitmentService,
+  registerRecruitmentHttp,
+  type RecruitmentRepository,
+} from '@zhiyun/plugin-recruitment';
 import { registerTemplatesHttp } from '@zhiyun/plugin-templates';
 import {
   buildRuntimeGateway,
@@ -123,6 +130,7 @@ export interface Level2RuntimeRepositories {
   corpus: CorpusRepository;
   aiAssistance: AiConversationRepository;
   monitoring: MonitoringRepository;
+  recruitment: RecruitmentRepository;
 }
 
 export interface Level2RuntimeDependencies {
@@ -257,6 +265,41 @@ export async function buildLevel2Runtime(
     dependencies.jobs,
   );
   const outputsService = new OutputsService(repositories.outputs);
+  const recruitment = new RecruitmentService({
+    repository: repositories.recruitment,
+    platform: repositories.platform,
+    replaceOutputBindings: (profileId, destinationIds) =>
+      outputsService.bindTask(profileId, destinationIds),
+    clearOutputBindings: async (profileId) => {
+      await outputsService.clearCollectionTask(profileId);
+    },
+    resolveCredential: (reference) => dependencies.credentialStore.resolve(reference),
+    ...(dependencies.host.notify
+      ? { notify: dependencies.host.notify.bind(dependencies.host) }
+      : {}),
+    async createErrorArtifact(importJobId, filename, content) {
+      const workspace = await dependencies.artifactStore.openWorkspace(importJobId);
+      const relativeSource = 'errors.jsonl';
+      await writeFile(await workspace.resolve(relativeSource), content, { encoding: 'utf8' });
+      const stored = await dependencies.artifactStore.commitWorkspaceFile(
+        importJobId,
+        relativeSource,
+        `recruitment/${importJobId}/${filename}`,
+      );
+      const artifact = await repositories.platform.createArtifact({
+        ownerPluginId: 'recruitment',
+        kind: 'recruitment-import-errors',
+        filename,
+        contentType: 'application/x-ndjson',
+        size: stored.size,
+        checksum: stored.checksum,
+        storageKey: stored.storageKey,
+        metadata: { importJobId },
+      });
+      await dependencies.artifactStore.removeWorkspace(importJobId).catch(() => undefined);
+      return artifact.id;
+    },
+  });
   const monitoring = new MonitoringService(repositories.monitoring, {
     async issue(evaluation, notification) {
       await enqueueOutputEventNotifications(
@@ -754,6 +797,7 @@ export async function buildLevel2Runtime(
       repository: repositories.monitoring,
       tasks: repositories.collection,
     });
+    await registerRecruitmentHttp(app, recruitment);
     await registerTemplatesHttp(app, {
       collection: repositories.collection,
       platform: repositories.platform,
@@ -890,6 +934,7 @@ export async function buildLevel2Runtime(
         migration('outputs', repositories.outputs),
         migration('monitoring', repositories.monitoring),
         migration('preferences', repositories.preferences),
+        migration('recruitment', repositories.recruitment),
         migration('analytics', repositories.analytics),
         migration('corpus', repositories.corpus),
         ...(aiEnabled ? [migration('ai-assistance', repositories.aiAssistance)] : []),
@@ -908,6 +953,7 @@ export async function buildLevel2Runtime(
           dependencies.jobs,
         ),
         new OutputAttemptReplay(repositories.outputs, dependencies.jobs),
+        new RecruitmentDigestScheduler(recruitment),
         collectionScheduler,
         ...(aiEnabled
           ? [

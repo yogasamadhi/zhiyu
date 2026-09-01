@@ -53,6 +53,21 @@ describe('UI Contribution Registry', () => {
     ]);
   });
 
+  it('registers the recruitment radar inside the Collection navigation group', () => {
+    const resolved = resolveUiContributions(['recruitment.route', 'recruitment.navigation']);
+    expect(resolved.routes[0]?.routes.map(({ path }) => path)).toEqual([
+      '/recruitment',
+      '/recruitment/job-clusters/:clusterId',
+    ]);
+    expect(resolved.navigation).toEqual([
+      expect.objectContaining({
+        id: 'recruitment.navigation',
+        to: '/recruitment',
+        group: 'collection',
+      }),
+    ]);
+  });
+
   it('registers the stable identity member and audit contribution IDs', () => {
     const resolved = resolveUiContributions([
       'identity.members-route',

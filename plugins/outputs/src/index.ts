@@ -37,6 +37,7 @@ export const outputsPlugin: PluginDescriptor = {
     { id: '003-event-notification-attempts', tables: ['event_notification_attempts'] },
     { id: '004-delivery-metadata', tables: [] },
     { id: '005-webhook-event-subscriptions', tables: [] },
+    { id: '006-recruitment-events', tables: [] },
   ],
   uiContributions: outputsUiContributions,
   backgroundHandlers: [

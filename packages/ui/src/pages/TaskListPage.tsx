@@ -24,7 +24,9 @@ export function TaskListPage() {
         const managed = new Set(
           sources.flatMap((source) => (source.taskId ? [source.taskId] : [])),
         );
-        const visible = page.items.filter((task) => !managed.has(task.id));
+        const visible = page.items.filter(
+          (task) => task.origin.kind !== 'managed' && !managed.has(task.id),
+        );
         setTasks(visible);
         if (!visible.length) {
           setTaskHealth([]);

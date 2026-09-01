@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 let createdTaskId = '';
+let createdRecruitmentProfileId = '';
 let csrfToken = '';
 const apiBaseUrl = `http://127.0.0.1:${process.env.E2E_API_PORT ?? 45300}`;
 const fixtureBaseUrl = `http://127.0.0.1:${process.env.E2E_FIXTURE_PORT ?? 45100}`;
@@ -49,6 +50,55 @@ test.afterEach(async ({ page }) => {
     await deleteTask(page, createdTaskId);
     createdTaskId = '';
   }
+  if (createdRecruitmentProfileId) {
+    await page.request.delete(
+      `${apiBaseUrl}/api/v2/recruitment/search-profiles/${createdRecruitmentProfileId}`,
+      { headers: { 'x-csrf-token': csrfToken } },
+    );
+    createdRecruitmentProfileId = '';
+  }
+});
+
+test('creates a recruitment profile, imports a BOSS fixture and tracks workflow state', async ({
+  page,
+}) => {
+  const suffix = Date.now();
+  await page.goto('/recruitment');
+  await expect(page.getByRole('heading', { name: '职位雷达' })).toBeVisible();
+  await page.getByLabel('档案名称').fill(`招聘 E2E ${suffix}`);
+  await page.getByLabel('包含关键词').fill('TypeScript');
+  await page.getByLabel('城市', { exact: true }).first().fill('上海');
+  await page.getByRole('button', { name: '保存档案' }).click();
+  await expect(page).toHaveURL(/\/recruitment\?profile=/);
+  createdRecruitmentProfileId = new URL(page.url()).searchParams.get('profile') ?? '';
+  expect(createdRecruitmentProfileId).toBeTruthy();
+  await expect(page.getByText('实时同步需授权')).toHaveCount(3);
+
+  await page.getByRole('button', { name: '下一步' }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'boss-e2e.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(
+      [
+        '职位ID,职位名称,公司名称,职位链接,城市,薪资,职位描述,发布时间',
+        `boss-e2e-${suffix},TypeScript E2E 工程师,织云测试有限公司,https://www.zhipin.com/job/e2e-${suffix},上海,20-30K,TypeScript 数据平台,2030-01-01`,
+      ].join('\n'),
+    ),
+  });
+  await page.getByRole('button', { name: '预览并识别字段' }).click();
+  await expect(page.getByText(/识别到 1 行/)).toBeVisible();
+  await page.getByRole('button', { name: '检查完成' }).click();
+  await page.getByRole('button', { name: '开始导入' }).click();
+  await expect(page.getByText('导入完成')).toBeVisible();
+
+  await page.getByRole('link', { name: 'TypeScript E2E 工程师' }).click();
+  await expect(page.getByRole('heading', { name: 'TypeScript E2E 工程师' })).toBeVisible();
+  await page.getByLabel('当前状态').selectOption('saved');
+  await expect(page.getByLabel('当前状态')).toHaveValue('saved');
+  await expect(page.getByRole('link', { name: '打开原职位 ↗' })).toHaveAttribute(
+    'href',
+    `https://www.zhipin.com/job/e2e-${suffix}`,
+  );
 });
 
 test('instantiates an official template with an active rule without running it', async ({

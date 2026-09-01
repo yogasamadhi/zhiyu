@@ -34,6 +34,17 @@ describe('product profiles', () => {
     }
   });
 
+  it('enables Recruitment for core-data profiles but excludes the safe profile', () => {
+    for (const profileId of ['desktop-studio', 'headless-server', 'test', 'e2e']) {
+      expect(
+        resolveProductGraph(profileId).plugins.map(({ descriptor }) => descriptor.id),
+      ).toContain('recruitment');
+    }
+    expect(
+      resolveProductGraph('safe').plugins.map(({ descriptor }) => descriptor.id),
+    ).not.toContain('recruitment');
+  });
+
   it('publishes every explicit route permission in the architecture catalog', () => {
     const catalog = createArchitectureCatalog(resolveProductGraph('headless-server'));
     expect(catalog.routes.length).toBeGreaterThan(0);
@@ -45,6 +56,15 @@ describe('product profiles', () => {
     expect(catalog.routes.find(({ id }) => id === 'listAuditEvents')?.requiredPermission).toBe(
       'audit.read',
     );
+    expect(
+      catalog.routes.find(({ id }) => id === 'listRecruitmentJobClusters')?.requiredPermission,
+    ).toBe('workspace.read');
+    expect(
+      catalog.routes.find(({ id }) => id === 'createRecruitmentImport')?.requiredPermission,
+    ).toBe('task.write');
+    expect(
+      catalog.routes.find(({ id }) => id === 'syncRecruitmentSource')?.requiredPermission,
+    ).toBe('run.execute');
   });
 
   it('limits null permissions to the intentional bootstrap and public metadata surface', () => {

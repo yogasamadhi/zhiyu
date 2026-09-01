@@ -93,6 +93,11 @@ function defineOutputConformance(name: string, create: () => Promise<Fixture>): 
             migrationId: '005-webhook-event-subscriptions',
             pluginVersion: '1.4.0',
           }),
+          expect.objectContaining({
+            pluginId: 'outputs',
+            migrationId: '006-recruitment-events',
+            pluginVersion: '1.5.0',
+          }),
         ]),
       );
     });

@@ -14,6 +14,7 @@ import { outputsPlugin } from '@zhiyun/plugin-outputs';
 import { monitoringPlugin } from '@zhiyun/plugin-monitoring';
 import { platformPlugin } from '@zhiyun/plugin-platform';
 import { preferencesPlugin } from '@zhiyun/plugin-preferences';
+import { recruitmentPlugin } from '@zhiyun/plugin-recruitment';
 import { templatesPlugin } from '@zhiyun/plugin-templates';
 
 export const productPlugins: readonly PluginDescriptor[] = [
@@ -24,6 +25,7 @@ export const productPlugins: readonly PluginDescriptor[] = [
   templatesPlugin,
   outputsPlugin,
   preferencesPlugin,
+  recruitmentPlugin,
   analyticsPlugin,
   corpusPlugin,
   aiAssistancePlugin,
@@ -42,6 +44,7 @@ export const productBundles: readonly BundleDescriptor[] = [
       'templates',
       'outputs',
       'preferences',
+      'recruitment',
     ],
   },
   {

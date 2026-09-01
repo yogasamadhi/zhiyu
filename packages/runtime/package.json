@@ -31,6 +31,7 @@
     "@zhiyun/plugin-outputs": "workspace:*",
     "@zhiyun/plugin-monitoring": "workspace:*",
     "@zhiyun/plugin-preferences": "workspace:*",
+    "@zhiyun/plugin-recruitment": "workspace:*",
     "@zhiyun/plugin-templates": "workspace:*",
     "@zhiyun/product-profiles": "workspace:*",
     "@zhiyun/runtime-gateway": "workspace:*",

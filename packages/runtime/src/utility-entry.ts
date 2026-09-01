@@ -16,6 +16,7 @@ import { SqliteDatasetRepository } from '@zhiyun/plugin-datasets';
 import { SqliteOutputRepository } from '@zhiyun/plugin-outputs';
 import { SqliteMonitoringRepository } from '@zhiyun/plugin-monitoring';
 import { SqlitePreferencesRepository } from '@zhiyun/plugin-preferences';
+import { SqliteRecruitmentRepository } from '@zhiyun/plugin-recruitment';
 import { resolveProductGraph } from '@zhiyun/product-profiles';
 import { LocalPlatformJobQueue } from '@zhiyun/queue-local-v1';
 import { openSqlitePlatformRepository } from '@zhiyun/storage-sqlite-v1';
@@ -93,6 +94,7 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
     outputs: new SqliteOutputRepository(databasePath),
     monitoring: new SqliteMonitoringRepository(databasePath),
     preferences: new SqlitePreferencesRepository(databasePath),
+    recruitment: new SqliteRecruitmentRepository(databasePath),
     analytics: new SqliteAnalysisRepository(databasePath),
     corpus: new SqliteCorpusRepository(databasePath),
     aiAssistance: new SqliteAiConversationRepository(databasePath),

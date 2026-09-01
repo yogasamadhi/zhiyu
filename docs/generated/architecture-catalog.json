@@ -1,5 +1,5 @@
 {
-  "graphRevision": "35c964355d7125091d25a44026124e65dd112c1162947bfd27565802f572cef4",
+  "graphRevision": "126f88bcaeaad81a8b9d57bc1904d83a9f275b8a619b7e5d5b331e4340e2d7f5",
   "profileId": "desktop-studio",
   "plugins": [
     { "id": "datasets", "version": "1.0.0", "dependencies": [] },
@@ -27,6 +27,11 @@
       "version": "1.0.0",
       "dependencies": ["collection", "datasets"]
     },
+    {
+      "id": "recruitment",
+      "version": "1.0.0",
+      "dependencies": ["collection", "datasets", "outputs"]
+    },
     { "id": "templates", "version": "1.0.0", "dependencies": ["collection"] }
   ],
   "services": [
@@ -41,7 +46,8 @@
     { "id": "monitoring.service", "owner": "monitoring" },
     { "id": "outputs.service", "owner": "outputs" },
     { "id": "platform.repository", "owner": "platform" },
-    { "id": "preferences.service", "owner": "preferences" }
+    { "id": "preferences.service", "owner": "preferences" },
+    { "id": "recruitment.service", "owner": "recruitment" }
   ],
   "routes": [
     {
@@ -199,6 +205,27 @@
       "requiredPermission": "task.write"
     },
     {
+      "id": "createRecruitmentImport",
+      "owner": "recruitment",
+      "method": "POST",
+      "path": "/api/v2/recruitment/imports",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "createRecruitmentImportMapping",
+      "owner": "recruitment",
+      "method": "POST",
+      "path": "/api/v2/recruitment/import-mappings",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "createRecruitmentSearchProfile",
+      "owner": "recruitment",
+      "method": "POST",
+      "path": "/api/v2/recruitment/search-profiles",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "createRule",
       "owner": "collection",
       "method": "POST",
@@ -294,6 +321,20 @@
       "owner": "preferences",
       "method": "DELETE",
       "path": "/api/v2/preferences/signals/{signalId}",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "deleteRecruitmentImportMapping",
+      "owner": "recruitment",
+      "method": "DELETE",
+      "path": "/api/v2/recruitment/import-mappings/{mappingId}",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "deleteRecruitmentSearchProfile",
+      "owner": "recruitment",
+      "method": "DELETE",
+      "path": "/api/v2/recruitment/search-profiles/{profileId}",
       "requiredPermission": "task.write"
     },
     {
@@ -507,6 +548,41 @@
       "requiredPermission": null
     },
     {
+      "id": "getRecruitmentImport",
+      "owner": "recruitment",
+      "method": "GET",
+      "path": "/api/v2/recruitment/imports/{importId}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getRecruitmentImportErrors",
+      "owner": "recruitment",
+      "method": "GET",
+      "path": "/api/v2/recruitment/imports/{importId}/errors",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getRecruitmentJobCluster",
+      "owner": "recruitment",
+      "method": "GET",
+      "path": "/api/v2/recruitment/job-clusters/{clusterId}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getRecruitmentSearchProfile",
+      "owner": "recruitment",
+      "method": "GET",
+      "path": "/api/v2/recruitment/search-profiles/{profileId}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getRecruitmentSource",
+      "owner": "recruitment",
+      "method": "GET",
+      "path": "/api/v2/recruitment/sources/{sourceKey}",
+      "requiredPermission": "workspace.read"
+    },
+    {
       "id": "getRun",
       "owner": "collection",
       "method": "GET",
@@ -710,6 +786,34 @@
       "requiredPermission": "workspace.read"
     },
     {
+      "id": "listRecruitmentImportMappings",
+      "owner": "recruitment",
+      "method": "GET",
+      "path": "/api/v2/recruitment/import-mappings",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listRecruitmentJobClusters",
+      "owner": "recruitment",
+      "method": "GET",
+      "path": "/api/v2/recruitment/job-clusters",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listRecruitmentSearchProfiles",
+      "owner": "recruitment",
+      "method": "GET",
+      "path": "/api/v2/recruitment/search-profiles",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listRecruitmentSources",
+      "owner": "recruitment",
+      "method": "GET",
+      "path": "/api/v2/recruitment/sources",
+      "requiredPermission": "workspace.read"
+    },
+    {
       "id": "listRuleRepairProposals",
       "owner": "collection",
       "method": "GET",
@@ -794,6 +898,13 @@
       "requiredPermission": "workspace.read"
     },
     {
+      "id": "mergeRecruitmentJobClusters",
+      "owner": "recruitment",
+      "method": "POST",
+      "path": "/api/v2/recruitment/job-clusters/merge",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "pauseScheduler",
       "owner": "platform",
       "method": "POST",
@@ -812,6 +923,13 @@
       "owner": "collection",
       "method": "POST",
       "path": "/api/v2/rules/preview",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "previewRecruitmentImport",
+      "owner": "recruitment",
+      "method": "POST",
+      "path": "/api/v2/recruitment/imports/preview",
       "requiredPermission": "task.write"
     },
     {
@@ -948,6 +1066,13 @@
       "requiredPermission": "task.write"
     },
     {
+      "id": "splitRecruitmentJobCluster",
+      "owner": "recruitment",
+      "method": "POST",
+      "path": "/api/v2/recruitment/job-clusters/{clusterId}/split",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "startTaskLoginSession",
       "owner": "collection",
       "method": "POST",
@@ -967,6 +1092,13 @@
       "method": "GET",
       "path": "/api/v2/events/realtime",
       "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "syncRecruitmentSource",
+      "owner": "recruitment",
+      "method": "POST",
+      "path": "/api/v2/recruitment/sources/{sourceKey}/sync",
+      "requiredPermission": "run.execute"
     },
     {
       "id": "testAiProviderSettings",
@@ -1037,6 +1169,27 @@
       "method": "PUT",
       "path": "/api/v2/output-destinations/{destinationId}",
       "requiredPermission": "output.manage"
+    },
+    {
+      "id": "updateRecruitmentImportMapping",
+      "owner": "recruitment",
+      "method": "PATCH",
+      "path": "/api/v2/recruitment/import-mappings/{mappingId}",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "updateRecruitmentSearchProfile",
+      "owner": "recruitment",
+      "method": "PATCH",
+      "path": "/api/v2/recruitment/search-profiles/{profileId}",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "updateRecruitmentWorkflowState",
+      "owner": "recruitment",
+      "method": "PUT",
+      "path": "/api/v2/recruitment/job-clusters/{clusterId}/state",
+      "requiredPermission": "task.write"
     },
     {
       "id": "updateTask",
@@ -1111,7 +1264,10 @@
     { "id": "preferences.signal.updated", "owner": "preferences" },
     { "id": "preferences.trend-source.updated", "owner": "preferences" },
     { "id": "quality.issue.detected", "owner": "monitoring" },
-    { "id": "quality.recovered", "owner": "monitoring" }
+    { "id": "quality.recovered", "owner": "monitoring" },
+    { "id": "recruitment.digest.ready", "owner": "recruitment" },
+    { "id": "recruitment.match.detected", "owner": "recruitment" },
+    { "id": "recruitment.posting.changed", "owner": "recruitment" }
   ],
   "tables": [
     { "id": "ai_conversations", "owner": "ai-assistance" },
@@ -1150,6 +1306,20 @@
     { "id": "quality_task_state", "owner": "monitoring" },
     { "id": "record_changes", "owner": "datasets" },
     { "id": "records", "owner": "datasets" },
+    { "id": "recruitment_cluster_members", "owner": "recruitment" },
+    { "id": "recruitment_cluster_suggestions", "owner": "recruitment" },
+    { "id": "recruitment_clusters", "owner": "recruitment" },
+    { "id": "recruitment_import_jobs", "owner": "recruitment" },
+    { "id": "recruitment_import_mappings", "owner": "recruitment" },
+    { "id": "recruitment_match_events", "owner": "recruitment" },
+    { "id": "recruitment_posting_changes", "owner": "recruitment" },
+    { "id": "recruitment_posting_profiles", "owner": "recruitment" },
+    { "id": "recruitment_postings", "owner": "recruitment" },
+    { "id": "recruitment_search_profiles", "owner": "recruitment" },
+    { "id": "recruitment_snapshot_presence", "owner": "recruitment" },
+    { "id": "recruitment_source_bindings", "owner": "recruitment" },
+    { "id": "recruitment_sources", "owner": "recruitment" },
+    { "id": "recruitment_user_states", "owner": "recruitment" },
     { "id": "rule_repair_proposals", "owner": "collection" },
     { "id": "rule_versions", "owner": "collection" },
     { "id": "rules", "owner": "collection" },
@@ -1173,12 +1343,14 @@
     { "id": "001-initial", "owner": "outputs" },
     { "id": "001-initial", "owner": "platform" },
     { "id": "001-initial", "owner": "preferences" },
+    { "id": "001-initial", "owner": "recruitment" },
     { "id": "002-destination-types", "owner": "outputs" },
     { "id": "002-durable-notifications", "owner": "monitoring" },
     { "id": "002-task-origin", "owner": "collection" },
     { "id": "003-event-notification-attempts", "owner": "outputs" },
     { "id": "004-delivery-metadata", "owner": "outputs" },
-    { "id": "005-webhook-event-subscriptions", "owner": "outputs" }
+    { "id": "005-webhook-event-subscriptions", "owner": "outputs" },
+    { "id": "006-recruitment-events", "owner": "outputs" }
   ],
   "uiContributions": [
     {
@@ -1207,7 +1379,9 @@
     { "id": "platform.settings-navigation", "owner": "platform" },
     { "id": "platform.settings-route", "owner": "platform" },
     { "id": "preferences.navigation", "owner": "preferences" },
-    { "id": "preferences.route", "owner": "preferences" }
+    { "id": "preferences.route", "owner": "preferences" },
+    { "id": "recruitment.navigation", "owner": "recruitment" },
+    { "id": "recruitment.route", "owner": "recruitment" }
   ],
   "backgroundHandlers": [
     { "id": "ai.conversation.turn", "owner": "ai-assistance" },

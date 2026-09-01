@@ -45,6 +45,19 @@ import type {
   PreferenceProfile,
   PreferenceSignal,
   PreferenceSignalInput,
+  RecruitmentFileInput,
+  RecruitmentImportJob,
+  RecruitmentImportMapping,
+  RecruitmentImportMappingInput,
+  RecruitmentImportPreview,
+  RecruitmentJobCluster,
+  RecruitmentSearchProfile,
+  RecruitmentSearchProfileInput,
+  RecruitmentSource,
+  RecruitmentSourceKey,
+  RecruitmentSyncResult,
+  RecruitmentWorkflowState,
+  RecruitmentWorkflowUpdate,
   TrendSource,
   TrendSourceUpdate,
   TrendsResponse,
@@ -120,6 +133,15 @@ export interface DatasetPageResult {
   items: DatasetRecord[];
   nextCursor: string | null;
   stats: DatasetStats;
+}
+
+export interface RecruitmentSourceView extends RecruitmentSource {
+  searchUrl: string;
+}
+
+export interface RecruitmentClusterPage {
+  items: RecruitmentJobCluster[];
+  nextCursor: string | null;
 }
 
 export interface CrawlerAssistantConversation {
@@ -822,6 +844,164 @@ export class ZhiYunClient {
 
   getPreferenceProfile() {
     return this.request<PreferenceProfile>('/api/v2/preferences/profile');
+  }
+
+  listRecruitmentSources(profileId?: string) {
+    return this.request<RecruitmentSourceView[]>(
+      `/api/v2/recruitment/sources${search({ profileId })}`,
+    );
+  }
+
+  getRecruitmentSource(sourceKey: RecruitmentSourceKey, profileId?: string) {
+    return this.request<RecruitmentSourceView>(
+      `/api/v2/recruitment/sources/${encodeURIComponent(sourceKey)}${search({ profileId })}`,
+    );
+  }
+
+  syncRecruitmentSource(sourceKey: RecruitmentSourceKey) {
+    return this.request<RecruitmentSyncResult>(
+      `/api/v2/recruitment/sources/${encodeURIComponent(sourceKey)}/sync`,
+      { method: 'POST' },
+    );
+  }
+
+  listRecruitmentSearchProfiles() {
+    return this.request<RecruitmentSearchProfile[]>('/api/v2/recruitment/search-profiles');
+  }
+
+  getRecruitmentSearchProfile(id: string) {
+    return this.request<RecruitmentSearchProfile>(
+      `/api/v2/recruitment/search-profiles/${encodeURIComponent(id)}`,
+    );
+  }
+
+  createRecruitmentSearchProfile(input: RecruitmentSearchProfileInput) {
+    return this.request<RecruitmentSearchProfile>('/api/v2/recruitment/search-profiles', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateRecruitmentSearchProfile(
+    id: string,
+    revision: number,
+    profile: RecruitmentSearchProfileInput,
+  ) {
+    return this.request<RecruitmentSearchProfile>(
+      `/api/v2/recruitment/search-profiles/${encodeURIComponent(id)}`,
+      { method: 'PATCH', body: JSON.stringify({ revision, profile }) },
+    );
+  }
+
+  deleteRecruitmentSearchProfile(id: string) {
+    return this.request<void>(`/api/v2/recruitment/search-profiles/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  previewRecruitmentImport(input: RecruitmentFileInput) {
+    return this.request<RecruitmentImportPreview>('/api/v2/recruitment/imports/preview', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  createRecruitmentImport(input: RecruitmentFileInput) {
+    return this.request<RecruitmentImportJob>('/api/v2/recruitment/imports', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  getRecruitmentImport(id: string) {
+    return this.request<RecruitmentImportJob>(
+      `/api/v2/recruitment/imports/${encodeURIComponent(id)}`,
+    );
+  }
+
+  getRecruitmentImportErrors(id: string) {
+    return this.request<{
+      items: Array<{ row: number; message: string; data?: unknown }>;
+      artifactId: string | null;
+    }>(`/api/v2/recruitment/imports/${encodeURIComponent(id)}/errors`);
+  }
+
+  listRecruitmentImportMappings(sourceKey?: RecruitmentSourceKey) {
+    return this.request<RecruitmentImportMapping[]>(
+      `/api/v2/recruitment/import-mappings${search({ sourceKey })}`,
+    );
+  }
+
+  createRecruitmentImportMapping(input: RecruitmentImportMappingInput) {
+    return this.request<RecruitmentImportMapping>('/api/v2/recruitment/import-mappings', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateRecruitmentImportMapping(
+    id: string,
+    revision: number,
+    mapping: RecruitmentImportMappingInput,
+  ) {
+    return this.request<RecruitmentImportMapping>(
+      `/api/v2/recruitment/import-mappings/${encodeURIComponent(id)}`,
+      { method: 'PATCH', body: JSON.stringify({ revision, mapping }) },
+    );
+  }
+
+  deleteRecruitmentImportMapping(id: string) {
+    return this.request<void>(`/api/v2/recruitment/import-mappings/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  listRecruitmentJobClusters(
+    options: {
+      cursor?: string;
+      limit?: number;
+      profileId?: string;
+      sourceKey?: RecruitmentSourceKey;
+      workflowState?: RecruitmentWorkflowState;
+      city?: string;
+      keyword?: string;
+      salaryMin?: number;
+      salaryMax?: number;
+      publishedAfter?: string;
+      publishedBefore?: string;
+      includeArchived?: boolean;
+    } = {},
+  ) {
+    return this.request<RecruitmentClusterPage>(
+      `/api/v2/recruitment/job-clusters${search(options)}`,
+    );
+  }
+
+  getRecruitmentJobCluster(id: string, profileId?: string) {
+    return this.request<RecruitmentJobCluster>(
+      `/api/v2/recruitment/job-clusters/${encodeURIComponent(id)}${search({ profileId })}`,
+    );
+  }
+
+  updateRecruitmentWorkflowState(id: string, input: RecruitmentWorkflowUpdate) {
+    return this.request<RecruitmentJobCluster>(
+      `/api/v2/recruitment/job-clusters/${encodeURIComponent(id)}/state`,
+      { method: 'PUT', body: JSON.stringify(input) },
+    );
+  }
+
+  mergeRecruitmentJobClusters(targetClusterId: string, sourceClusterIds: string[]) {
+    return this.request<RecruitmentJobCluster>('/api/v2/recruitment/job-clusters/merge', {
+      method: 'POST',
+      body: JSON.stringify({ targetClusterId, sourceClusterIds }),
+    });
+  }
+
+  splitRecruitmentJobCluster(clusterId: string, postingIds: string[]) {
+    return this.request<RecruitmentJobCluster>(
+      `/api/v2/recruitment/job-clusters/${encodeURIComponent(clusterId)}/split`,
+      { method: 'POST', body: JSON.stringify({ postingIds }) },
+    );
   }
 
   listPreferenceSignals(limit = 100, cursor?: string) {
