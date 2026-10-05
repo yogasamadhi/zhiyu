@@ -7,12 +7,18 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      '**/.next/**',
       '**/node_modules/**',
       '**/.venv/**',
       '**/coverage/**',
-      'apps/desktop/out/**',
-      'apps/desktop/.forge-app/**',
-      'apps/desktop/resources/playwright/**',
+      '**/playwright-report*/**',
+      '**/test-results/**',
+      '.artifacts/**',
+      'desktop/out/**',
+      'desktop/.forge-app/**',
+      'desktop/resources/playwright/**',
+      // Retained upstream sources; local changes have dedicated security tests.
+      'tooling/dependency-patches/**/*.js',
     ],
   },
   js.configs.recommended,

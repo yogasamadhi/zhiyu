@@ -65,6 +65,13 @@
       "requiredPermission": "task.write"
     },
     {
+      "id": "applyDatasetCleaning",
+      "owner": "datasets",
+      "method": "POST",
+      "path": "/api/v2/datasets/{datasetId}/cleaning/sessions",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "applyRuleRepairProposal",
       "owner": "ai-assistance",
       "method": "POST",
@@ -79,11 +86,25 @@
       "requiredPermission": "task.write"
     },
     {
+      "id": "branchAnalysisResult",
+      "owner": "analytics",
+      "method": "POST",
+      "path": "/api/v2/analytics/results/{resultId}/branches",
+      "requiredPermission": "analysis.write"
+    },
+    {
       "id": "cancelAnalysisJob",
       "owner": "analytics",
       "method": "POST",
       "path": "/api/v2/analytics/jobs/{jobId}/cancel",
       "requiredPermission": "analysis.write"
+    },
+    {
+      "id": "cancelAssistantTurn",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/assistant/turns/{id}/cancel",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "cancelCorpusBuild",
@@ -107,10 +128,31 @@
       "requiredPermission": "run.execute"
     },
     {
+      "id": "clearExperienceEvents",
+      "owner": "platform",
+      "method": "DELETE",
+      "path": "/api/v2/experience/events",
+      "requiredPermission": "workspace.manage"
+    },
+    {
       "id": "clearPreferenceSignals",
       "owner": "preferences",
       "method": "DELETE",
       "path": "/api/v2/preferences/signals",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "clearRuleCache",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/rules/cache/clear",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "clearRunDiagnostics",
+      "owner": "collection",
+      "method": "DELETE",
+      "path": "/api/v2/runs/{runId}/diagnostics",
       "requiredPermission": "task.write"
     },
     {
@@ -121,11 +163,25 @@
       "requiredPermission": "task.write"
     },
     {
+      "id": "commitCollectionDraft",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/collection-drafts/{draftId}/commit",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "commitCrawlerAssistantDraft",
       "owner": "ai-assistance",
       "method": "POST",
       "path": "/api/v2/crawler-assistant/conversations/{id}/commit",
       "requiredPermission": "task.write"
+    },
+    {
+      "id": "compareAnalysisResults",
+      "owner": "analytics",
+      "method": "GET",
+      "path": "/api/v2/analytics/results/{leftId}/compare/{rightId}",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "createAnalysisJob",
@@ -147,6 +203,20 @@
       "method": "POST",
       "path": "/api/v2/api-tokens",
       "requiredPermission": "output.manage"
+    },
+    {
+      "id": "createAssistantConversation",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/assistant/conversations",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "createCollectionDraft",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/collection-drafts",
+      "requiredPermission": "task.write"
     },
     {
       "id": "createCorpus",
@@ -181,6 +251,13 @@
       "owner": "datasets",
       "method": "POST",
       "path": "/api/v2/datasets/{datasetId}/snapshots",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "createExampleDraft",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/examples/{exampleId}/drafts",
       "requiredPermission": "task.write"
     },
     {
@@ -289,6 +366,20 @@
       "requiredPermission": "analysis.write"
     },
     {
+      "id": "deleteAssistantConversation",
+      "owner": "ai-assistance",
+      "method": "DELETE",
+      "path": "/api/v2/assistant/conversations/{id}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "deleteCollectionDraft",
+      "owner": "collection",
+      "method": "DELETE",
+      "path": "/api/v2/collection-drafts/{draftId}",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "deleteCorpus",
       "owner": "corpus",
       "method": "DELETE",
@@ -363,6 +454,20 @@
       "owner": "collection",
       "method": "GET",
       "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/diff",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "dismissTaskMonitoringAlert",
+      "owner": "monitoring",
+      "method": "DELETE",
+      "path": "/api/v2/tasks/{taskId}/monitoring-alerts/{alertId}",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "executeAssistantAction",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/assistant/actions/{id}/execute",
       "requiredPermission": "workspace.read"
     },
     {
@@ -443,10 +548,38 @@
       "requiredPermission": "workspace.read"
     },
     {
+      "id": "getAnalysisResultPage",
+      "owner": "analytics",
+      "method": "GET",
+      "path": "/api/v2/analytics/results/{resultId}/collections/{section}/{collectionId}",
+      "requiredPermission": "workspace.read"
+    },
+    {
       "id": "getArtifactContent",
       "owner": "platform",
       "method": "GET",
       "path": "/api/v2/artifacts/{artifactId}/content",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getAssistantAction",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/assistant/actions/{id}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getAssistantCapabilities",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/assistant/capabilities",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getAssistantConversation",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/assistant/conversations/{id}",
       "requiredPermission": "workspace.read"
     },
     {
@@ -455,6 +588,13 @@
       "method": "GET",
       "path": "/api/v2/capabilities",
       "requiredPermission": null
+    },
+    {
+      "id": "getCollectionDraft",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/collection-drafts/{draftId}",
+      "requiredPermission": "task.write"
     },
     {
       "id": "getCorpus",
@@ -492,6 +632,27 @@
       "requiredPermission": "workspace.read"
     },
     {
+      "id": "getDatasetCleaningRecipe",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/cleaning/recipes/{recipeId}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getDatasetCleaningSession",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/cleaning/sessions/{sessionId}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getDatasetFields",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/fields",
+      "requiredPermission": "workspace.read"
+    },
+    {
       "id": "getDatasetSnapshot",
       "owner": "datasets",
       "method": "GET",
@@ -504,6 +665,20 @@
       "method": "GET",
       "path": "/api/v2/desktop/diagnostics",
       "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "getExperienceSettings",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/experience/settings",
+      "requiredPermission": "workspace.manage"
+    },
+    {
+      "id": "getExperienceSummary",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/experience/summary",
+      "requiredPermission": "workspace.manage"
     },
     {
       "id": "getHealth",
@@ -590,6 +765,13 @@
       "requiredPermission": "workspace.read"
     },
     {
+      "id": "getRunDiagnostics",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/runs/{runId}/diagnostics",
+      "requiredPermission": "workspace.read"
+    },
+    {
       "id": "getRuntime",
       "owner": "platform",
       "method": "GET",
@@ -646,6 +828,13 @@
       "requiredPermission": null
     },
     {
+      "id": "getWorkspaceIdentity",
+      "owner": "platform",
+      "method": "GET",
+      "path": "/api/v2/workspace",
+      "requiredPermission": "workspace.read"
+    },
+    {
       "id": "importPreference",
       "owner": "preferences",
       "method": "POST",
@@ -695,6 +884,34 @@
       "requiredPermission": "output.manage"
     },
     {
+      "id": "listAssistantConversations",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/assistant/conversations",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listAssistantLessons",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/assistant/lessons",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listAssistantMessages",
+      "owner": "ai-assistance",
+      "method": "GET",
+      "path": "/api/v2/assistant/conversations/{id}/messages",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listCollectionDrafts",
+      "owner": "collection",
+      "method": "GET",
+      "path": "/api/v2/collection-drafts",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "listCorpora",
       "owner": "corpus",
       "method": "GET",
@@ -741,6 +958,20 @@
       "owner": "datasets",
       "method": "GET",
       "path": "/api/v2/datasets/{datasetId}/changes",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listDatasetCleaningRecipes",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/cleaning/recipes",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listDatasetCleaningSessions",
+      "owner": "datasets",
+      "method": "GET",
+      "path": "/api/v2/datasets/{datasetId}/cleaning/sessions",
       "requiredPermission": "workspace.read"
     },
     {
@@ -863,6 +1094,20 @@
       "requiredPermission": "workspace.read"
     },
     {
+      "id": "listTaskMonitoringAlertRuns",
+      "owner": "monitoring",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}/monitoring-alerts/{alertId}/runs",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "listTaskMonitoringAlerts",
+      "owner": "monitoring",
+      "method": "GET",
+      "path": "/api/v2/tasks/{taskId}/monitoring-alerts",
+      "requiredPermission": "workspace.read"
+    },
+    {
       "id": "listTaskQualityEvaluations",
       "owner": "monitoring",
       "method": "GET",
@@ -912,11 +1157,46 @@
       "requiredPermission": "workspace.manage"
     },
     {
+      "id": "postAssistantMessage",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/assistant/conversations/{id}/messages",
+      "requiredPermission": "workspace.read"
+    },
+    {
       "id": "postCrawlerAssistantMessage",
       "owner": "ai-assistance",
       "method": "POST",
       "path": "/api/v2/crawler-assistant/conversations/{id}/messages",
       "requiredPermission": "task.write"
+    },
+    {
+      "id": "prepareAssistantAction",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/assistant/conversations/{id}/actions",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "previewCollectionDraft",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/collection-drafts/{draftId}/preview",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "previewCorpus",
+      "owner": "corpus",
+      "method": "POST",
+      "path": "/api/v2/corpora/{corpusId}/preview",
+      "requiredPermission": "analysis.write"
+    },
+    {
+      "id": "previewDatasetCleaning",
+      "owner": "datasets",
+      "method": "POST",
+      "path": "/api/v2/datasets/{datasetId}/cleaning/preview",
+      "requiredPermission": "workspace.read"
     },
     {
       "id": "previewInitialRule",
@@ -989,6 +1269,13 @@
       "requiredPermission": "analysis.write"
     },
     {
+      "id": "retryAssistantTurn",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/assistant/turns/{id}/retry",
+      "requiredPermission": "workspace.read"
+    },
+    {
       "id": "retryCorpusBuild",
       "owner": "corpus",
       "method": "POST",
@@ -1052,10 +1339,24 @@
       "requiredPermission": "workspace.read"
     },
     {
+      "id": "saveDatasetCleaningRecipe",
+      "owner": "datasets",
+      "method": "POST",
+      "path": "/api/v2/datasets/{datasetId}/cleaning/recipes",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "selectCrawlerAssistantSite",
       "owner": "ai-assistance",
       "method": "POST",
       "path": "/api/v2/crawler-assistant/conversations/{id}/site-selection",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "selectDatasetCleaningStep",
+      "owner": "datasets",
+      "method": "POST",
+      "path": "/api/v2/datasets/{datasetId}/cleaning/sessions/{sessionId}/selection",
       "requiredPermission": "task.write"
     },
     {
@@ -1070,6 +1371,13 @@
       "owner": "recruitment",
       "method": "POST",
       "path": "/api/v2/recruitment/job-clusters/{clusterId}/split",
+      "requiredPermission": "task.write"
+    },
+    {
+      "id": "startDraftLoginSession",
+      "owner": "collection",
+      "method": "POST",
+      "path": "/api/v2/collection-drafts/{draftId}/browser-session/login",
       "requiredPermission": "task.write"
     },
     {
@@ -1150,6 +1458,34 @@
       "requiredPermission": "analysis.write"
     },
     {
+      "id": "updateAssistantContext",
+      "owner": "ai-assistance",
+      "method": "PUT",
+      "path": "/api/v2/assistant/conversations/{id}/context",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "updateAssistantConversation",
+      "owner": "ai-assistance",
+      "method": "PATCH",
+      "path": "/api/v2/assistant/conversations/{id}",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "updateAssistantLesson",
+      "owner": "ai-assistance",
+      "method": "POST",
+      "path": "/api/v2/assistant/conversations/{id}/lesson-progress",
+      "requiredPermission": "workspace.read"
+    },
+    {
+      "id": "updateCollectionDraft",
+      "owner": "collection",
+      "method": "PATCH",
+      "path": "/api/v2/collection-drafts/{draftId}",
+      "requiredPermission": "task.write"
+    },
+    {
       "id": "updateCorpus",
       "owner": "corpus",
       "method": "PUT",
@@ -1162,6 +1498,13 @@
       "method": "PUT",
       "path": "/api/v2/corpora/{corpusId}/recipes/{recipeId}",
       "requiredPermission": "analysis.write"
+    },
+    {
+      "id": "updateExperienceSettings",
+      "owner": "platform",
+      "method": "PUT",
+      "path": "/api/v2/experience/settings",
+      "requiredPermission": "workspace.manage"
     },
     {
       "id": "updateOutputDestination",
@@ -1211,6 +1554,13 @@
       "method": "PUT",
       "path": "/api/v2/trend-sources/{sourceKey}",
       "requiredPermission": "task.write"
+    },
+    {
+      "id": "writeExperienceEvent",
+      "owner": "platform",
+      "method": "POST",
+      "path": "/api/v2/experience/events",
+      "requiredPermission": "workspace.read"
     }
   ],
   "events": [
@@ -1227,6 +1577,9 @@
     { "id": "analysis.recipe.created", "owner": "analytics" },
     { "id": "analysis.recipe.deleted", "owner": "analytics" },
     { "id": "analysis.recipe.updated", "owner": "analytics" },
+    { "id": "assistant.delta", "owner": "ai-assistance" },
+    { "id": "assistant.tool", "owner": "ai-assistance" },
+    { "id": "assistant.updated", "owner": "ai-assistance" },
     { "id": "collection.rule.created", "owner": "collection" },
     { "id": "collection.rule.version-created", "owner": "collection" },
     { "id": "collection.run.cancel-requested", "owner": "collection" },
@@ -1251,6 +1604,11 @@
     { "id": "corpus.version.created", "owner": "corpus" },
     { "id": "dataset.projected", "owner": "datasets" },
     { "id": "dataset.snapshot.ready", "owner": "datasets" },
+    { "id": "monitoring.alert.created", "owner": "monitoring" },
+    { "id": "monitoring.alert.deleted", "owner": "monitoring" },
+    { "id": "monitoring.alert.resolved", "owner": "monitoring" },
+    { "id": "monitoring.alert.updated", "owner": "monitoring" },
+    { "id": "monitoring.notification.local", "owner": "monitoring" },
     { "id": "outputs.api-token.updated", "owner": "outputs" },
     { "id": "outputs.bindings.updated", "owner": "outputs" },
     { "id": "outputs.delivery.failed", "owner": "outputs" },
@@ -1270,22 +1628,46 @@
     { "id": "recruitment.posting.changed", "owner": "recruitment" }
   ],
   "tables": [
+    { "id": "ai_assistant_records", "owner": "ai-assistance" },
     { "id": "ai_conversations", "owner": "ai-assistance" },
     { "id": "ai_draft_versions", "owner": "ai-assistance" },
     { "id": "ai_messages", "owner": "ai-assistance" },
     { "id": "ai_provider_settings", "owner": "ai-assistance" },
     { "id": "ai_tool_invocations", "owner": "ai-assistance" },
     { "id": "ai_turns", "owner": "ai-assistance" },
+    { "id": "ai_validated_cache", "owner": "ai-assistance" },
+    { "id": "ai_validated_cache_state", "owner": "ai-assistance" },
     { "id": "analysis_artifacts", "owner": "analytics" },
     { "id": "analysis_jobs", "owner": "analytics" },
     { "id": "analysis_recipes", "owner": "analytics" },
+    { "id": "analysis_result_collections", "owner": "analytics" },
+    { "id": "analysis_result_rows", "owner": "analytics" },
     { "id": "analysis_results", "owner": "analytics" },
     { "id": "api_tokens", "owner": "outputs" },
+    { "id": "collection_crawl_batches", "owner": "collection" },
+    { "id": "collection_crawl_browser_observed", "owner": "collection" },
+    { "id": "collection_crawl_browser_rounds", "owner": "collection" },
+    { "id": "collection_crawl_browser_seen", "owner": "collection" },
+    { "id": "collection_crawl_browser_selected", "owner": "collection" },
+    { "id": "collection_crawl_cleanup", "owner": "collection" },
+    { "id": "collection_crawl_requests", "owner": "collection" },
+    { "id": "collection_crawl_sessions", "owner": "collection" },
+    { "id": "collection_crawl_sitemap_batches", "owner": "collection" },
+    { "id": "collection_crawl_sitemap_entries", "owner": "collection" },
+    { "id": "collection_crawl_sitemap_nodes", "owner": "collection" },
+    { "id": "collection_drafts", "owner": "collection" },
     { "id": "corpora", "owner": "corpus" },
     { "id": "corpus_artifacts", "owner": "corpus" },
     { "id": "corpus_builds", "owner": "corpus" },
     { "id": "corpus_recipes", "owner": "corpus" },
     { "id": "corpus_versions", "owner": "corpus" },
+    { "id": "dataset_cleaning_recipe_versions", "owner": "datasets" },
+    { "id": "dataset_cleaning_recipes", "owner": "datasets" },
+    { "id": "dataset_cleaning_sessions", "owner": "datasets" },
+    { "id": "dataset_ingestion_batches", "owner": "datasets" },
+    { "id": "dataset_ingestion_records", "owner": "datasets" },
+    { "id": "dataset_ingestion_seen", "owner": "datasets" },
+    { "id": "dataset_ingestions", "owner": "datasets" },
     { "id": "dataset_records", "owner": "datasets" },
     { "id": "dataset_snapshots", "owner": "datasets" },
     { "id": "datasets", "owner": "datasets" },
@@ -1293,6 +1675,7 @@
     { "id": "event_consumer_checkpoints", "owner": "platform" },
     { "id": "event_dead_letters", "owner": "platform" },
     { "id": "event_notification_attempts", "owner": "outputs" },
+    { "id": "experience_events", "owner": "platform" },
     { "id": "idempotency_keys", "owner": "platform" },
     { "id": "output_destinations", "owner": "outputs" },
     { "id": "platform_artifacts", "owner": "platform" },
@@ -1300,9 +1683,12 @@
     { "id": "platform_jobs", "owner": "platform" },
     { "id": "plugin_migrations", "owner": "platform" },
     { "id": "preference_signals", "owner": "preferences" },
+    { "id": "quality_alert_runs", "owner": "monitoring" },
+    { "id": "quality_alerts", "owner": "monitoring" },
     { "id": "quality_evaluations", "owner": "monitoring" },
     { "id": "quality_notifications", "owner": "monitoring" },
     { "id": "quality_policies", "owner": "monitoring" },
+    { "id": "quality_rule_state", "owner": "monitoring" },
     { "id": "quality_task_state", "owner": "monitoring" },
     { "id": "record_changes", "owner": "datasets" },
     { "id": "records", "owner": "datasets" },
@@ -1344,13 +1730,30 @@
     { "id": "001-initial", "owner": "platform" },
     { "id": "001-initial", "owner": "preferences" },
     { "id": "001-initial", "owner": "recruitment" },
+    { "id": "002-assistant", "owner": "ai-assistance" },
+    { "id": "002-data-query", "owner": "datasets" },
     { "id": "002-destination-types", "owner": "outputs" },
     { "id": "002-durable-notifications", "owner": "monitoring" },
+    { "id": "002-local-experience", "owner": "platform" },
+    { "id": "002-result-lineage", "owner": "analytics" },
     { "id": "002-task-origin", "owner": "collection" },
+    { "id": "003-assistant-experience", "owner": "platform" },
+    { "id": "003-batch-ingestion", "owner": "datasets" },
     { "id": "003-event-notification-attempts", "owner": "outputs" },
+    { "id": "003-rule-alerts", "owner": "monitoring" },
+    { "id": "003-unified-drafts", "owner": "collection" },
+    { "id": "003-validated-cache", "owner": "ai-assistance" },
+    { "id": "004-cache-owners", "owner": "ai-assistance" },
+    { "id": "004-cleaning", "owner": "datasets" },
+    { "id": "004-crawl-batches", "owner": "collection" },
     { "id": "004-delivery-metadata", "owner": "outputs" },
+    { "id": "005-cost-accounting", "owner": "ai-assistance" },
+    { "id": "005-url-checkpoints", "owner": "collection" },
     { "id": "005-webhook-event-subscriptions", "owner": "outputs" },
-    { "id": "006-recruitment-events", "owner": "outputs" }
+    { "id": "006-recruitment-events", "owner": "outputs" },
+    { "id": "006-sitemap-spool", "owner": "collection" },
+    { "id": "007-crawl-cleanup", "owner": "collection" },
+    { "id": "008-browser-rounds", "owner": "collection" }
   ],
   "uiContributions": [
     {
@@ -1369,9 +1772,11 @@
     { "id": "collection.navigation", "owner": "collection" },
     { "id": "collection.route", "owner": "collection" },
     { "id": "collection.run-panel", "owner": "collection" },
+    { "id": "collection.scenarios-navigation", "owner": "collection" },
     { "id": "corpus.dataset-panel", "owner": "corpus" },
     { "id": "corpus.navigation", "owner": "corpus" },
     { "id": "corpus.route", "owner": "corpus" },
+    { "id": "datasets.navigation", "owner": "datasets" },
     { "id": "datasets.route", "owner": "datasets" },
     { "id": "datasets.task-panel", "owner": "datasets" },
     { "id": "outputs.navigation", "owner": "outputs" },
@@ -1384,6 +1789,8 @@
     { "id": "recruitment.route", "owner": "recruitment" }
   ],
   "backgroundHandlers": [
+    { "id": "ai.assistant.browser", "owner": "ai-assistance" },
+    { "id": "ai.assistant.turn", "owner": "ai-assistance" },
     { "id": "ai.conversation.turn", "owner": "ai-assistance" },
     { "id": "analytics.job.execute", "owner": "analytics" },
     { "id": "collection.crawl.execute", "owner": "collection" },

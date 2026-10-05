@@ -1,5 +1,7 @@
 # 通用桌面软件架构：Level 1 小型项目版
 
+> 2026-09-10 更新：本文中的浏览器工作台、Headless 启动和独立发行内容属于历史方案，已由 [应用入口收敛决策](../../adr/0011-desktop-cloud-apps.md) 替代；本地 Runtime、SQLite、插件与 Worker 的边界继续保留。
+
 > 文档类型：Normative Level Profile
 >
 > 架构版本：2.0
@@ -174,7 +176,7 @@ project/
 │   ├── desktop-host/
 │   └── ui/
 ├── docs/
-├── scripts/
+├── tooling/scripts/
 └── tests/
 ```
 

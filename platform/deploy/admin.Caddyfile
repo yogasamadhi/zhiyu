@@ -1,0 +1,17 @@
+:3101 {
+  handle /api/cloud/v1/admin/* {
+    reverse_proxy server:3200
+  }
+  handle /api/cloud/v1/health {
+    reverse_proxy server:3200
+  }
+  handle /api/* {
+    respond 404
+  }
+  handle {
+    root * /srv
+    try_files {path} /index.html
+    file_server
+    header Cache-Control "no-store"
+  }
+}

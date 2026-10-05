@@ -1,5 +1,15 @@
 {
   "extends": "./tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "types": ["node", "bun"] },
-  "include": ["vitest.config.ts", "run.ts", "scripts/**/*.ts"]
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "bun"]
+  },
+  "include": [
+    "vitest.config.ts",
+    "run-desktop.ts",
+    "run-platform.ts",
+    "tooling/scripts/**/*.ts",
+    "desktop/tooling/**/*.ts",
+    "platform/tooling/**/*.ts"
+  ]
 }

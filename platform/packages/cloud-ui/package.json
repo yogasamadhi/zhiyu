@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "name": "@zhiyun/cloud-ui",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zhiyun/cloud-client": "workspace:*",
+    "react": "^19.2.3",
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.5.0",
+    "lucide-react": "^0.577.0",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "version": "cleaning-quality-v1",
+  "cases": [
+    {
+      "id": "trim",
+      "rows": [{ "name": "  Alpha\t" }, { "name": null }, { "name": "  " }],
+      "steps": [{ "type": "trim", "fields": ["name"] }],
+      "expected": [{ "name": "Alpha" }, { "name": null }, { "name": "" }],
+      "errorRows": 0,
+      "removedRows": 0
+    },
+    {
+      "id": "normalize-null",
+      "rows": [
+        { "value": "" },
+        { "value": "N/A" },
+        { "value": " null " },
+        { "value": "0" },
+        { "value": null }
+      ],
+      "steps": [{ "type": "normalize_null", "fields": ["value"] }],
+      "expected": [
+        { "value": null },
+        { "value": null },
+        { "value": " null " },
+        { "value": "0" },
+        { "value": null }
+      ],
+      "errorRows": 0,
+      "removedRows": 0
+    },
+    {
+      "id": "convert-number",
+      "rows": [
+        { "value": "12.5" },
+        { "value": "1e2" },
+        { "value": "bad" },
+        { "value": "NaN" },
+        { "value": null },
+        { "value": "9007199254740993" }
+      ],
+      "steps": [{ "type": "convert", "fields": ["value"], "targetType": "number" }],
+      "expected": [
+        { "value": 12.5 },
+        { "value": 100 },
+        { "value": null },
+        { "value": null },
+        { "value": null },
+        { "value": null }
+      ],
+      "errorRows": 3,
+      "removedRows": 0
+    },
+    {
+      "id": "convert-date",
+      "rows": [
+        { "when": "2026-01-01" },
+        { "when": "2026-01-02T03:04:05+08:00" },
+        { "when": "bad" },
+        { "when": null }
+      ],
+      "steps": [{ "type": "convert", "fields": ["when"], "targetType": "date" }],
+      "expected": [
+        { "when": "2026-01-01T00:00:00Z" },
+        { "when": "2026-01-01T19:04:05Z" },
+        { "when": null },
+        { "when": null }
+      ],
+      "errorRows": 1,
+      "removedRows": 0
+    },
+    {
+      "id": "split",
+      "rows": [{ "contact": "A|B|C" }, { "contact": "D" }, { "contact": null }],
+      "steps": [
+        { "type": "split", "field": "contact", "delimiter": "|", "targets": ["first", "last"] }
+      ],
+      "expected": [
+        { "contact": "A|B|C", "first": "A", "last": "B|C" },
+        { "contact": "D", "first": "D", "last": null },
+        { "contact": null, "first": null, "last": null }
+      ],
+      "errorRows": 0,
+      "removedRows": 0
+    },
+    {
+      "id": "merge",
+      "rows": [
+        { "name": "Alpha", "count": 2, "flag": true },
+        { "name": null, "count": 0, "flag": false },
+        { "name": null, "count": null, "flag": null }
+      ],
+      "steps": [
+        {
+          "type": "merge",
+          "fields": ["name", "count", "flag"],
+          "target": "label",
+          "separator": " / "
+        }
+      ],
+      "expected": [
+        { "name": "Alpha", "count": 2, "flag": true, "label": "Alpha / 2 / true" },
+        { "name": null, "count": 0, "flag": false, "label": "0 / false" },
+        { "name": null, "count": null, "flag": null, "label": null }
+      ],
+      "errorRows": 0,
+      "removedRows": 0
+    },
+    {
+      "id": "dedupe",
+      "rows": [
+        { "name": "Alpha", "price": 1 },
+        { "name": "Alpha", "price": 1 },
+        { "name": "Alpha", "price": 2 },
+        { "name": null, "price": null },
+        { "name": null, "price": null }
+      ],
+      "steps": [{ "type": "dedupe", "fields": ["name", "price"] }],
+      "expected": [
+        { "name": "Alpha", "price": 1 },
+        { "name": "Alpha", "price": 2 },
+        { "name": null, "price": null }
+      ],
+      "errorRows": 0,
+      "removedRows": 2
+    }
+  ],
+  "invalidSteps": [
+    { "type": "python", "code": "print(1)" },
+    { "type": "sql", "query": "select 1" },
+    { "type": "trim", "fields": ["name"], "formula": "x+1" },
+    { "type": "trim", "fields": ["name", "name"] },
+    { "type": "convert", "fields": ["name"], "targetType": "json" },
+    { "type": "split", "field": "name", "delimiter": "", "targets": ["a", "b"] },
+    { "type": "split", "field": "name", "delimiter": ",", "targets": ["a", "a"] },
+    { "type": "merge", "fields": ["a", "b"], "target": "__zhiyun_record_key" },
+    { "type": "dedupe", "fields": [] }
+  ]
+}

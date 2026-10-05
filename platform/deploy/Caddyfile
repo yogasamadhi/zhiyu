@@ -1,0 +1,25 @@
+{$PORTAL_HOST:portal.localhost} {
+  reverse_proxy portal:3100
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    X-Frame-Options DENY
+  }
+}
+{$ADMIN_HOST:admin.localhost} {
+  reverse_proxy admin:3101
+  header {
+    X-Content-Type-Options nosniff
+    X-Frame-Options DENY
+    Cache-Control "no-store"
+  }
+}
+{$API_HOST:api.localhost} {
+  request_body {
+    max_size 512KB
+  }
+  reverse_proxy server:3200 {
+    flush_interval -1
+  }
+  header X-Content-Type-Options nosniff
+}

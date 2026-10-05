@@ -1,0 +1,88 @@
+.analysis-questions {
+  margin-top: 24px;
+}
+.analysis-question-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.analysis-question-grid > div {
+  display: grid;
+  gap: 8px;
+}
+.analysis-question-grid small {
+  color: var(--muted);
+}
+.analysis-question-grid button[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+}
+.analysis-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.analysis-pagination > span {
+  margin-right: auto;
+}
+.analysis-provenance dd,
+.analysis-provenance pre {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.analysis-comparison pre,
+.analysis-comparison h3 {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.analysis-result-table,
+.analysis-comparison,
+.analysis-provenance {
+  min-width: 0;
+}
+.analysis-result-table .table-wrap {
+  overflow-x: auto;
+}
+.analysis-branch-actions {
+  margin-top: 16px;
+}
+.analysis-comparison {
+  margin-top: 24px;
+}
+.analysis-comparison select {
+  max-width: 100%;
+  width: 100%;
+}
+.analysis-result-chart .notice {
+  display: block;
+}
+.analysis-pagination .button,
+.analysis-result-chart .button,
+.analysis-artifacts .button {
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .analysis-question-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .analysis-provenance .diagnostics-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .analysis-provenance .diagnostics-grid dd {
+    margin: 0 0 12px;
+  }
+  .analysis-artifacts .compact-list > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .analysis-artifacts .compact-list > div > span {
+    grid-column: 1 / -1;
+  }
+  .analysis-artifacts .compact-list small {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

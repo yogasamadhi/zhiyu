@@ -1,0 +1,29 @@
+{
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "name": "@zhiyun/cloud-server",
+  "scripts": {
+    "dev": "bun --watch src/start.ts",
+    "worker": "bun src/worker.ts",
+    "migrate": "bun src/migrate.ts",
+    "admin:create": "bun src/bootstrap-admin.ts",
+    "build": "bun build src/start.ts src/worker.ts src/migrate.ts src/bootstrap-admin.ts --outdir dist --target bun",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test tests"
+  },
+  "dependencies": {
+    "@zhiyun/cloud-contracts": "workspace:*",
+    "hono": "^4.13.7",
+    "@hono/zod-openapi": "^1.6.3",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.8",
+    "zod": "^4.1.13",
+    "nodemailer": "^10.0.6",
+    "otpauth": "^9.5.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.9",
+    "@types/nodemailer": "^7.0.11"
+  }
+}

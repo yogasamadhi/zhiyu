@@ -1,0 +1,31 @@
+# Always run with a fresh --project-name and an explicit empty --env-file.
+# Published ports are allocated by Docker; resources belong only to this run.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: zhiyun_test
+      POSTGRES_PASSWORD: local-test-only
+      POSTGRES_DB: postgres
+    ports:
+      - target: 5432
+        host_ip: 127.0.0.1
+    volumes: [test-postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U zhiyun_test -d postgres']
+      interval: 1s
+      timeout: 3s
+      retries: 60
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - target: 6379
+        host_ip: 127.0.0.1
+    command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, allkeys-lru]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+volumes:
+  test-postgres:

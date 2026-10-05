@@ -1,5 +1,7 @@
 # ADR 0001: Bun and TypeScript runtime
 
+> 后续调整（2026-09-10）：数据库与队列现已统一 SQLite；本文保留历史决策，当前部署以 [SQLite 统一存储记录](0010-unified-sqlite.md) 为准。
+
 ## Status
 
 Accepted

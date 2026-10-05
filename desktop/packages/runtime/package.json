@@ -1,0 +1,47 @@
+{
+  "name": "@zhiyun/runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "development": "./src/index.ts",
+    "bun": "./src/index.ts",
+    "types": "./src/index.ts",
+    "default": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/utility-entry.ts --outfile dist/utility-entry.js --target node --format esm --packages bundle --external better-sqlite3 --external playwright && bun build src/index.ts --outfile dist/index.js --target node --format esm --packages external",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zhiyun/analytics-worker-client": "workspace:*",
+    "@zhiyun/artifact-store": "workspace:*",
+    "@zhiyun/ai-runtime": "workspace:*",
+    "@zhiyun/contracts": "workspace:*",
+    "@zhiyun/crawler-runtime": "workspace:*",
+    "@zhiyun/platform-core": "workspace:*",
+    "@zhiyun/platform": "workspace:*",
+    "@zhiyun/preferences": "workspace:*",
+    "@zhiyun/plugin-ai-assistance": "workspace:*",
+    "@zhiyun/plugin-analytics": "workspace:*",
+    "@zhiyun/plugin-collection": "workspace:*",
+    "@zhiyun/plugin-corpus": "workspace:*",
+    "@zhiyun/plugin-datasets": "workspace:*",
+    "@zhiyun/plugin-identity": "workspace:*",
+    "@zhiyun/plugin-outputs": "workspace:*",
+    "@zhiyun/plugin-monitoring": "workspace:*",
+    "@zhiyun/plugin-preferences": "workspace:*",
+    "@zhiyun/plugin-recruitment": "workspace:*",
+    "@zhiyun/plugin-templates": "workspace:*",
+    "@zhiyun/product-profiles": "workspace:*",
+    "@zhiyun/runtime-gateway": "workspace:*",
+    "@zhiyun/queue-local-v1": "workspace:*",
+    "@zhiyun/storage-sqlite-v1": "workspace:*",
+    "fastify": "^5.12.2",
+    "playwright": "1.62.1",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@zhiyun/client": "workspace:*"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@zhiyun/plugin-collection",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "development": "./src/index.ts",
+    "bun": "./src/index.ts",
+    "types": "./src/index.ts",
+    "default": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zhiyun/contracts": "workspace:*",
+    "@zhiyun/kernel": "workspace:*",
+    "@zhiyun/platform-core": "workspace:*",
+    "@zhiyun/shared": "workspace:*",
+    "croner": "^9.1.0",
+    "better-sqlite3": "13.0.3",
+    "fastify": "^5.12.2",
+    "@zhiyun/extraction": "workspace:*",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@zhiyun/platform-core": "workspace:*",
+    "@zhiyun/plugin-datasets": "workspace:*",
+    "@zhiyun/queue-local-v1": "workspace:*",
+    "@zhiyun/artifact-store": "workspace:*",
+    "@zhiyun/crawler-runtime": "workspace:*",
+    "@zhiyun/storage-sqlite-v1": "workspace:*"
+  }
+}

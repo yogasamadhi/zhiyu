@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "name": "@zhiyun/admin",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 3101",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "@zhiyun/cloud-ui": "workspace:*",
+    "@zhiyun/cloud-client": "workspace:*",
+    "@zhiyun/cloud-contracts": "workspace:*",
+    "lucide-react": "^0.577.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "vite": "^8.0.0"
+  }
+}

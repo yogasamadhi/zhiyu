@@ -1,0 +1,18 @@
+diff --git a/dist/forward.js b/dist/forward.js
+--- a/dist/forward.js
++++ b/dist/forward.js
+@@ -92,6 +92,14 @@ const forward = async (request, response, handlerOpts) => new Promise(async (resolve
+         socket.previousBytesWritten = socket.bytesWritten;
+         (0, count_target_bytes_1.countTargetBytes)(request.socket, socket, (handler) => response.once('close', handler));
+     });
++    // A browser can disconnect before upstream sends headers. There is no
++    // response pipeline yet to destroy the upstream request in that case.
++    response.once('close', () => {
++        if (!response.writableFinished) {
++            client.destroy();
++            resolve();
++        }
++    });
+     // Can't use pipeline here as it automatically destroys the streams
+     request.pipe(client);
+     client.on('error', (error) => {

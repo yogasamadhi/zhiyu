@@ -1,5 +1,7 @@
 # ADR 0008: Supervised Python Analytics Worker
 
+> 2026-09-10 更新：本文中的浏览器工作台、Headless 启动和独立发行内容属于历史方案，已由 [应用入口收敛决策](0011-desktop-cloud-apps.md) 替代；本地 Runtime、SQLite、插件与 Worker 的边界继续保留。
+
 ## Status
 
 Accepted

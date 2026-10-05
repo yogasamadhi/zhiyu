@@ -1,5 +1,11 @@
 # ZhiYun Level 2 TS/Python 大重构架构方案
 
+> 2026-09-10 更新：本文中的浏览器工作台、Headless 启动和独立发行内容属于历史方案，已由 [应用入口收敛决策](../adr/0011-desktop-cloud-apps.md) 替代；本地 Runtime、SQLite、插件与 Worker 的边界继续保留。
+
+> 后续调整（2026-09-10）：数据库与队列现已统一 SQLite；本文保留历史决策，当前部署以 [SQLite 统一存储记录](../adr/0010-unified-sqlite.md) 为准。
+
+> 目录调整（2026-09-12）：本文中的 `apps/`、`packages/`、`services/` 是方案当时的历史路径。当前本地产品实现位于 `desktop/`，商业平台位于 `platform/`，详见 [仓库布局](./REPOSITORY_LAYOUT.md)。
+
 > 文档类型：Project Architecture Proposal
 >
 > 文档状态：Accepted
@@ -551,7 +557,7 @@ packages/
   ui-shell/
   platform-core/
 
-plugins/
+packages/plugins/
   collection/
   datasets/
   outputs/
@@ -560,7 +566,7 @@ plugins/
   preferences/
   ai-assistance/
 
-capabilities/
+packages/capabilities/
   storage-sqlite/
   storage-postgres/
   queue-local/
@@ -577,7 +583,7 @@ services/
     tests/
     packaging/
 
-profiles/
+packages/profiles/
   desktop-studio/
   headless-server/
   safe/

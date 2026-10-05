@@ -1,5 +1,9 @@
 # ADR 0006: Electron Level 1 Runtime
 
+> 2026-09-10 更新：本文中的浏览器工作台、Headless 启动和独立发行内容属于历史方案，已由 [应用入口收敛决策](0011-desktop-cloud-apps.md) 替代；本地 Runtime、SQLite、插件与 Worker 的边界继续保留。
+
+> 后续调整（2026-09-10）：数据库与队列现已统一 SQLite；本文保留历史决策，当前部署以 [SQLite 统一存储记录](0010-unified-sqlite.md) 为准。
+
 ## Status
 
 Accepted

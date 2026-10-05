@@ -8,25 +8,10 @@ on:
 jobs:
   release-verify:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: zhiyun
-          POSTGRES_PASSWORD: zhiyun
-          POSTGRES_DB: zhiyun
-        ports: ['45432:5432']
-        options: >-
-          --health-cmd "pg_isready -U zhiyun"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-      redis:
-        image: redis:8.2-alpine
-        ports: ['46379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: 1.4.0 }
       - uses: actions/setup-python@v5
@@ -36,39 +21,6 @@ jobs:
       - run: bun run worker:sync
       - run: bun run browser:install
       - run: bun run release:verify
-
-  headless-linux:
-    needs: release-verify
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 1.4.0 }
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - run: python -m pip install uv==0.11.14
-      - run: bun install --frozen-lockfile
-      - run: bun run dependency:audit
-      - run: bun run worker:sync
-      - run: bun run worker:build
-      - run: bun run worker:smoke
-      - run: bun run --filter @zhiyun/api package:linux
-      - run: bun run --filter @zhiyun/api test:packaged
-      - run: docker build -f apps/api/Dockerfile -t zhiyun-headless:1.0.0 .
-      - run: bun run test:e2e:headless-compose
-        env:
-          ZHIYUN_IMAGE: zhiyun-headless:1.0.0
-      - uses: anchore/sbom-action@v0
-        with:
-          path: apps/api/dist/headless/linux-x64
-          output-file: apps/api/dist/headless/zhiyun-headless-1.0.0-linux-x64.spdx.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: zhiyun-headless-linux-x64
-          path: |
-            apps/api/dist/headless/zhiyun-headless-1.0.0-linux-x64.tar.gz
-            apps/api/dist/headless/zhiyun-headless-1.0.0-linux-x64.spdx.json
-          if-no-files-found: error
 
   signed-installers:
     needs: release-verify
@@ -85,6 +37,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: 1.4.0 }
       - uses: actions/setup-python@v5
@@ -132,12 +86,12 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       - uses: anchore/sbom-action@v0
         with:
-          path: apps/desktop/out
-          output-file: apps/desktop/out/zhiyun-desktop-${{ runner.os }}-${{ matrix.arch }}.spdx.json
+          path: desktop/out
+          output-file: desktop/out/zhiyun-desktop-${{ runner.os }}-${{ matrix.arch }}.spdx.json
       - uses: actions/upload-artifact@v4
         with:
           name: zhiyun-signed-${{ runner.os }}-${{ matrix.arch }}
           path: |
-            apps/desktop/out/make/**
-            apps/desktop/out/zhiyun-desktop-${{ runner.os }}-${{ matrix.arch }}.spdx.json
+            desktop/out/make/**
+            desktop/out/zhiyun-desktop-${{ runner.os }}-${{ matrix.arch }}.spdx.json
           if-no-files-found: error

@@ -1,5 +1,11 @@
 # ZhiYun 织云桌面化改造分析
 
+> 2026-09-10 更新：本文中的浏览器工作台、Headless 启动和独立发行内容属于历史方案，已由 [应用入口收敛决策](../../adr/0011-desktop-cloud-apps.md) 替代；本地 Runtime、SQLite、插件与 Worker 的边界继续保留。
+
+> 后续调整（2026-09-10）：数据库与队列现已统一 SQLite；本文保留历史决策，当前部署以 [SQLite 统一存储记录](../../adr/0010-unified-sqlite.md) 为准。
+
+> 目录调整（2026-09-12）：本文后续章节中的 `apps/`、`packages/` 和 `services/` 是历史设计路径。当前 Electron 与本地 Runtime 已聚合到 `desktop/`，商业平台已聚合到 `platform/`，详见 [仓库布局](../REPOSITORY_LAYOUT.md)。
+
 > 文档类型：Project Architecture Analysis
 >
 > 状态：Implemented

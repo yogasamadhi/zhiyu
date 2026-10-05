@@ -1,0 +1,22 @@
+-- Keyset pagination uses the original order field plus the immutable primary key.
+CREATE INDEX cloud_users_page ON cloud_users(created_at DESC,id DESC);
+CREATE INDEX cloud_prices_page ON cloud_prices(created_at DESC,id DESC);
+CREATE INDEX cloud_models_page ON cloud_models(created_at DESC,id DESC);
+CREATE INDEX cloud_terms_page ON cloud_terms(starts_at DESC,id DESC);
+CREATE INDEX cloud_orders_page ON cloud_orders(created_at DESC,id DESC);
+CREATE INDEX cloud_refunds_page ON cloud_refunds(created_at DESC,id DESC);
+CREATE INDEX cloud_ledger_page ON cloud_credit_ledger(created_at DESC,id DESC);
+CREATE INDEX cloud_periods_page ON cloud_credit_periods(starts_at DESC,id DESC);
+CREATE INDEX cloud_devices_page ON cloud_devices(created_at DESC,id DESC);
+CREATE INDEX cloud_staff_page ON cloud_staff(email DESC,id DESC);
+CREATE INDEX cloud_jobs_page ON cloud_jobs(created_at DESC,id DESC);
+CREATE INDEX cloud_audit_page ON cloud_audit(created_at DESC,id DESC);
+CREATE INDEX cloud_requests_page ON cloud_ai_requests(created_at DESC,id DESC);
+CREATE INDEX cloud_agreements_page ON cloud_agreements(created_at DESC,id DESC);
+CREATE INDEX cloud_inbox_page ON cloud_test_inbox(expires_at DESC,id DESC);
+CREATE INDEX cloud_orders_user_page ON cloud_orders(user_id,created_at DESC,id DESC);
+CREATE INDEX cloud_ledger_user_page ON cloud_credit_ledger(user_id,created_at DESC,id DESC);
+CREATE INDEX cloud_periods_user_page ON cloud_credit_periods(user_id,starts_at DESC,id DESC);
+CREATE INDEX cloud_devices_user_page ON cloud_devices(user_id,created_at DESC,id DESC);
+CREATE INDEX cloud_sessions_user_page ON cloud_sessions(user_id,created_at DESC,id DESC);
+CREATE INDEX cloud_requests_user_page ON cloud_ai_requests(user_id,created_at DESC,id DESC);

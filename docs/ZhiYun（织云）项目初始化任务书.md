@@ -647,7 +647,7 @@ zhiyun/
 ├── services/
 │   └── ai/
 │
-├── fixtures/
+├── tooling/fixtures/
 │   ├── static-site/
 │   └── dynamic-site/
 │
@@ -660,7 +660,7 @@ zhiyun/
 │   ├── concepts.md
 │   └── adr/
 │
-├── scripts/
+├── tooling/scripts/
 │
 ├── docker-compose.yml
 ├── pnpm-workspace.yaml
@@ -1265,8 +1265,8 @@ interface DataExporter {
 建立：
 
 ```text
-fixtures/static-site
-fixtures/dynamic-site
+tooling/fixtures/static-site
+tooling/fixtures/dynamic-site
 ```
 
 ---

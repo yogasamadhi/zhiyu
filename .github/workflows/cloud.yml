@@ -1,0 +1,41 @@
+name: Cloud platform
+on:
+  push:
+  pull_request:
+jobs:
+  cloud:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: zhiyun
+          POSTGRES_PASSWORD: zhiyun-local
+          POSTGRES_DB: zhiyun_cloud
+        ports: ['55432:5432']
+        options: --health-cmd "pg_isready -U zhiyun" --health-interval 3s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: ['56379:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.4.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: bun install --frozen-lockfile
+      - run: bun run cloud:migrate
+      - run: bun run cloud:check
+      - run: bun run cloud:test
+      - run: bun run cloud:build
+      - run: bun run architecture:deps
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run cloud:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-validation
+          path: |
+            .artifacts/playwright/cloud
+            platform/portal/test-results
+            .artifacts/cloud

@@ -17,7 +17,7 @@
 - API integration: 7 passed
 - Desktop E2E: 3 passed
 
-Package tests require PostgreSQL/Redis and use the Chromium bundled under `apps/desktop/resources/playwright`.
+当时的 Package tests 依赖 PostgreSQL/Redis，并使用历史路径 `apps/desktop/resources/playwright` 下随桌面端提供的 Chromium；当前对应路径为 `desktop/resources/playwright`。
 
 ## Size baseline
 
