@@ -34,7 +34,7 @@ export function apply(ctx: Context) {
   ctx.effect(
     () =>
       ctx.slots.registerNavigation({
-        order: 2,
+        order: 3,
         id: 'analytics.navigation',
         to: '/analytics',
         labelKey: 'ux.analysis',

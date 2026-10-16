@@ -120,6 +120,7 @@ const copyCatalog = `
 任务配置|Task settings
 · 活动规则|· Active rule
 未建立|Not created
+成功运行 {{count}}/3 次后评估|Evaluated after {{count}}/3 successful runs
 · 输出目的地 {{count}} 个|· {{count}} output destinations
 内置样例|Built-in example
 手动创建|Created manually

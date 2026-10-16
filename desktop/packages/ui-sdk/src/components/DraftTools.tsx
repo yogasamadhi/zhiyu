@@ -9,6 +9,7 @@ import {
   templateParameterDefaults,
   missingTemplateParameters,
 } from '../task-template.js';
+import { MousePointerClick } from 'lucide-react';
 import { Button, ErrorNotice } from './ui.js';
 import { Dialog, Field, Select } from './experience.js';
 import { SchemaForm } from './SchemaForm.js';
@@ -94,10 +95,12 @@ export function DraftInspection({
   flush,
   fields,
   onSelect,
+  disabledReason,
 }: {
   flush: () => Promise<{ id: string } | null>;
   fields: string[];
   onSelect: (field: string, selector: string) => void;
+  disabledReason?: string | undefined;
 }) {
   const { i18n } = useTranslation();
   const zh = i18n.language.startsWith('zh');
@@ -132,8 +135,8 @@ export function DraftInspection({
   return (
     <>
       <Button
-        className="button-secondary"
-        disabled={busy}
+        disabled={busy || Boolean(disabledReason)}
+        aria-describedby={disabledReason ? 'draft-inspection-disabled' : undefined}
         onClick={() =>
           void action(async () => {
             const draft = await flush();
@@ -144,8 +147,14 @@ export function DraftInspection({
           })
         }
       >
-        {zh ? '打开页面点选字段' : 'Open page to select fields'}
+        <MousePointerClick size={16} aria-hidden="true" />
+        {zh ? '在网页上点选字段' : 'Select fields on the page'}
       </Button>
+      {disabledReason && (
+        <small id="draft-inspection-disabled" className="field-help">
+          {disabledReason}
+        </small>
+      )}
       <ErrorNotice message={error} />
       <Dialog
         open={Boolean(session)}

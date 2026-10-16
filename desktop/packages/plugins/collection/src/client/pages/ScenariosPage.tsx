@@ -1,7 +1,7 @@
 import { productCopy } from '@zhiyun/ui-sdk/product-copy';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Briefcase, TrendingUp, BookOpen, Pin } from 'lucide-react';
+import { Briefcase, TrendingUp, Pin, PinOff } from 'lucide-react';
 import { Button, Card } from '@zhiyun/ui-sdk/components/ui';
 import { useWorkspacePreference } from '@zhiyun/ui-sdk/workspace-preferences';
 export function ScenariosPage() {
@@ -25,14 +25,6 @@ export function ScenariosPage() {
         ? '关注主题，查看热点与内容变化。'
         : 'Follow topics and explore changing content trends.',
     },
-    {
-      path: '/corpora',
-      icon: BookOpen,
-      title: zh ? '语料工作台' : 'Corpus workbench',
-      description: zh
-        ? '将文本数据清洗、分块并导出为语料。'
-        : 'Clean, chunk and export text datasets.',
-    },
   ];
   return (
     <>
@@ -47,33 +39,37 @@ export function ScenariosPage() {
         </div>
       </div>
       <div className="scenario-grid">
-        {items.map((item) => (
-          <Card key={item.path}>
-            <item.icon size={28} />
-            <h2>{item.title}</h2>
-            <p>{item.description}</p>
-            <div className="heading-actions">
-              <Link className="button button-secondary" to={item.path}>
-                {zh ? '打开应用' : 'Open application'}
-              </Link>
-              <Button
-                className="button-ghost"
-                aria-pressed={pins.includes(item.path)}
-                aria-label={`${zh ? '固定' : 'Pin'} ${item.title}`}
-                onClick={() =>
-                  setPins(
-                    pins.includes(item.path)
-                      ? pins.filter((p) => p !== item.path)
-                      : [...pins, item.path],
-                  )
-                }
-              >
-                <Pin size={18} />
-                {pins.includes(item.path) ? (zh ? '已固定' : 'Pinned') : zh ? '固定' : 'Pin'}
-              </Button>
-            </div>
-          </Card>
-        ))}
+        {items.map((item) => {
+          const pinned = pins.includes(item.path);
+          const pinLabel = pinned
+            ? `${zh ? '从侧边栏取消固定' : 'Unpin from sidebar'} ${item.title}`
+            : `${zh ? '固定到侧边栏' : 'Pin to sidebar'} ${item.title}`;
+          return (
+            <Card key={item.path}>
+              <div className="scenario-card-heading">
+                <item.icon size={28} aria-hidden="true" />
+                <Button
+                  className="button-ghost icon-button"
+                  aria-pressed={pinned}
+                  aria-label={pinLabel}
+                  title={pinLabel}
+                  onClick={() =>
+                    setPins(pinned ? pins.filter((p) => p !== item.path) : [...pins, item.path])
+                  }
+                >
+                  {pinned ? <PinOff size={18} /> : <Pin size={18} />}
+                </Button>
+              </div>
+              <h2>{item.title}</h2>
+              <p>{item.description}</p>
+              <div className="heading-actions">
+                <Link className="button button-secondary" to={item.path}>
+                  {zh ? '打开应用' : 'Open application'}
+                </Link>
+              </div>
+            </Card>
+          );
+        })}
       </div>
     </>
   );

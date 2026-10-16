@@ -15,6 +15,7 @@ import { runtimeClient } from '@zhiyun/client';
 import { useWorkspaceAuth } from '@zhiyun/ui-sdk/auth';
 import { Badge, Button, Card, ErrorNotice, Input } from '@zhiyun/ui-sdk/components/ui';
 import { resolveDevelopmentFixture } from '@zhiyun/ui-sdk/development-demo';
+import { describeSchedule } from '@zhiyun/ui-sdk/schedule-builder';
 import {
   buildOutputDestinationInput,
   defaultOutputDestinationDraft,
@@ -238,19 +239,31 @@ export function OutputsPage() {
           </p>
           <div className="compact-list">
             {tasks
-              .filter((task) => task.schedule.mode === 'cron')
+              .filter((task) => task.schedule.mode !== 'manual')
               .map((task) => (
-                <Link key={task.id} to={`/tasks/${task.id}/edit`}>
-                  <strong>{task.name}</strong>
+                <Link key={task.id} to={`/tasks/${task.id}`}>
                   <span>
+                    <strong>{task.name}</strong>
+                    <small>{describeSchedule(task.schedule)}</small>
+                  </span>
+                  <Badge tone={task.schedule.paused ? 'neutral' : 'success'}>
                     {task.schedule.paused
                       ? zh
                         ? productCopy('已暂停')
                         : 'Paused'
-                      : task.schedule.cron}
-                  </span>
+                      : zh
+                        ? '运行中'
+                        : 'Active'}
+                  </Badge>
                 </Link>
               ))}
+            {!tasks.some((task) => task.schedule.mode !== 'manual') && (
+              <div className="empty-small">
+                {zh
+                  ? '还没有定时任务。在采集任务的“规则与设置”里设置运行频率。'
+                  : 'No scheduled tasks yet. Set a frequency in a task’s rules and settings.'}
+              </div>
+            )}
           </div>
           <Link className="button button-secondary" to="/tasks">
             {zh ? productCopy('管理采集计划') : 'Manage schedules'}

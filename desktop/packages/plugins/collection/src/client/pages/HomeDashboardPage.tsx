@@ -9,6 +9,7 @@ import { runtimeClient } from '@zhiyun/client';
 import type { TaskHealth } from '@zhiyun/contracts';
 import { useWorkspaceAuth } from '@zhiyun/ui-sdk/auth';
 import { Badge, Card, ErrorNotice } from '@zhiyun/ui-sdk/components/ui';
+import { CheckCircle2, Circle } from 'lucide-react';
 
 export function HomeDashboardPage() {
   const auth = useWorkspaceAuth();
@@ -44,6 +45,11 @@ export function HomeDashboardPage() {
   );
 
   const items = tasks.data?.items ?? [];
+  const corpora = useQuery({
+    queryKey: ['dashboard', 'corpora'],
+    queryFn: () => runtimeClient.listCorpora(1),
+    retry: false,
+  });
   const health = useQuery({
     queryKey: ['dashboard', 'health', items.map(({ id }) => id)],
     queryFn: async () => {
@@ -100,12 +106,31 @@ export function HomeDashboardPage() {
         <ErrorNotice message={tasks.error.message} onRetry={() => void tasks.refetch()} />
       </>
     );
+  const onboarding = [
+    {
+      done: items.some((task) => task.origin.kind === 'example'),
+      title: t('onboarding.example'),
+      hint: t('onboarding.exampleHint'),
+      to: '/tasks/new',
+    },
+    {
+      done: items.some((task) => !['example', 'managed'].includes(task.origin.kind)),
+      title: t('onboarding.firstTask'),
+      hint: t('onboarding.firstTaskHint'),
+      to: '/tasks/new',
+    },
+    {
+      done: (corpora.data?.items.length ?? 0) > 0,
+      title: t('onboarding.useData'),
+      hint: t('onboarding.useDataHint'),
+      to: items.some((task) => task.latestRun?.status === 'succeeded') ? '/corpora' : '/datasets',
+    },
+  ];
+  const showOnboarding = canCreate && (items.length === 0 || !items.some((task) => task.latestRun));
   return (
     <>
-      <AssistantHomeEntry />
       <div className="page-heading dashboard-heading">
         <div>
-          <p className="eyebrow">{t('workspace')}</p>
           <h1>{t('home')}</h1>
           <p>{t('homeIntro')}</p>
         </div>
@@ -117,6 +142,39 @@ export function HomeDashboardPage() {
           </div>
         )}
       </div>
+      <AssistantHomeEntry />
+      {showOnboarding && (
+        <Card className="onboarding-card">
+          <div className="section-heading compact">
+            <div>
+              <h2>{t('onboarding.title')}</h2>
+              <p>{t('onboarding.description')}</p>
+            </div>
+          </div>
+          <ol className="onboarding-steps">
+            {onboarding.map((step, index) => (
+              <li key={step.title} className={step.done ? 'done' : ''}>
+                {step.done ? (
+                  <CheckCircle2 size={20} aria-hidden="true" />
+                ) : (
+                  <Circle size={20} aria-hidden="true" />
+                )}
+                <span>
+                  <strong>
+                    {index + 1}. {step.title}
+                  </strong>
+                  <small>{step.done ? t('onboarding.done') : step.hint}</small>
+                </span>
+                {!step.done && (
+                  <Link className="button button-secondary" to={step.to}>
+                    {t('onboarding.start')}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ol>
+        </Card>
+      )}
 
       {(drafts.data?.items.length ?? 0) > 0 && (
         <Card>
@@ -187,18 +245,13 @@ export function HomeDashboardPage() {
         </div>
       )}
       {items.length === 0 ? (
-        <Card className="empty dashboard-empty">
-          <div className="empty-icon">⌁</div>
-          <h2>{t('welcomeTitle')}</h2>
-          <p>{t('welcomeHint')}</p>
-          {canCreate && (
-            <div className="empty-actions">
-              <Link className="button" to="/tasks/new">
-                {t('newTask')}
-              </Link>
-            </div>
-          )}
-        </Card>
+        !canCreate && (
+          <Card className="empty dashboard-empty">
+            <div className="empty-icon">⌁</div>
+            <h2>{t('welcomeTitle')}</h2>
+            <p>{t('welcomeHint')}</p>
+          </Card>
+        )
       ) : (
         <div className="dashboard-columns">
           <Card>

@@ -46,7 +46,7 @@ export function apply(ctx: Context) {
   ctx.effect(
     () =>
       ctx.slots.registerNavigation({
-        order: 4,
+        order: 5,
         id: 'collection.scenarios-navigation',
         to: '/scenarios',
         labelKey: 'ux.scenarios',

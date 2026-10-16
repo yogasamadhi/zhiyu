@@ -175,6 +175,8 @@ test('cleans through the actual desktop, reuses a version, restores history and 
     );
     const datasetId = datasets.items[0]!.id;
     await page.goto(`app://zhiyun/datasets/${datasetId}`);
+    const cleaningTab = page.getByRole('tab', { name: '清洗与版本', exact: true });
+    await cleaningTab.click();
     const panel = page.getByTestId('dataset-cleaning-panel');
     await expect(panel.getByRole('heading', { name: '清洗与数据版本' })).toBeVisible();
     await panel.getByRole('button', { name: '从当前采集创建输入版本', exact: true }).click();
@@ -263,6 +265,7 @@ test('cleans through the actual desktop, reuses a version, restores history and 
     await page.getByRole('button', { name: '开始分析', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`snapshotId=${finalId}`));
     await page.goto(`app://zhiyun/datasets/${datasetId}`);
+    await cleaningTab.click();
     await panel.getByRole('button', { name: '查看清洗历史', exact: false }).first().click();
     await expect(panel.getByTestId('cleaning-history-selection')).toContainText(
       '当前选择步骤：7/7',
@@ -278,9 +281,11 @@ test('cleans through the actual desktop, reuses a version, restores history and 
     await expect(panel.getByLabel('清洗操作', { exact: true })).toBeEnabled();
     const secondInputId = await panel.getByLabel('清洗输入版本').inputValue();
     expect(secondInputId).not.toBe(inputId);
+    await page.getByRole('tab', { name: '数据', exact: true }).click();
     await expect(page.getByRole('heading', { name: '原始采集记录' }).locator('..')).toContainText(
       'Gamma',
     );
+    await cleaningTab.click();
     const reuseResponse = page.waitForResponse(
       (response) =>
         new URL(response.url()).pathname.endsWith('/cleaning/preview') &&

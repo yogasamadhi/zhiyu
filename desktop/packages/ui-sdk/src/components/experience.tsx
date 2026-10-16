@@ -206,10 +206,90 @@ export function EmptyState({
     </div>
   );
 }
-export function StatusNotice({ children }: { children: ReactNode }) {
+export function StatusNotice({
+  children,
+  tone = 'warning',
+}: {
+  children: ReactNode;
+  tone?: 'warning' | 'info';
+}) {
   return (
-    <div className="notice" role="status">
-      <AlertCircle size={18} />
+    <div className={tone === 'info' ? 'notice notice-info' : 'notice'} role="status">
+      {tone === 'warning' && <AlertCircle size={18} />}
+      {children}
+    </div>
+  );
+}
+
+export function Tabs<T extends string>({
+  label,
+  idPrefix,
+  tabs,
+  value,
+  onChange,
+}: {
+  label: string;
+  idPrefix: string;
+  tabs: Array<{ id: T; label: ReactNode }>;
+  value: T;
+  onChange: (id: T) => void;
+}) {
+  const list = useRef<HTMLDivElement>(null);
+  const move = (index: number) => {
+    const next = tabs[(index + tabs.length) % tabs.length]!;
+    onChange(next.id);
+    list.current
+      ?.querySelector<HTMLElement>(`#${CSS.escape(`${idPrefix}-tab-${next.id}`)}`)
+      ?.focus();
+  };
+  return (
+    <div className="section-tabs" role="tablist" aria-label={label} ref={list}>
+      {tabs.map((tab, index) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          className={`button ${value === tab.id ? 'button-secondary' : 'button-ghost'}`}
+          id={`${idPrefix}-tab-${tab.id}`}
+          aria-controls={`${idPrefix}-panel-${tab.id}`}
+          aria-selected={value === tab.id}
+          tabIndex={value === tab.id ? 0 : -1}
+          onClick={() => onChange(tab.id)}
+          onKeyDown={(event) => {
+            const target = { ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: -1 }[
+              event.key
+            ];
+            if (target === undefined) return;
+            event.preventDefault();
+            move(target);
+          }}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function TabPanel({
+  idPrefix,
+  id,
+  children,
+  hidden = false,
+}: {
+  idPrefix: string;
+  id: string;
+  children: ReactNode;
+  hidden?: boolean;
+}) {
+  return (
+    <div
+      hidden={hidden}
+      role="tabpanel"
+      id={`${idPrefix}-panel-${id}`}
+      aria-labelledby={`${idPrefix}-tab-${id}`}
+      className="tab-panel"
+    >
       {children}
     </div>
   );

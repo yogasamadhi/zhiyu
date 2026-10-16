@@ -7,13 +7,14 @@ import {
 import { useWorkspaceAuth } from '@zhiyun/ui-sdk/auth';
 import '@zhiyun/ui-sdk/components/analysis/analysis.css';
 import { DatasetVersionPicker } from '@zhiyun/ui-sdk/components/DatasetVersionPicker';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { runtimeClient, type AnalysisJobInput } from '@zhiyun/client';
 import { SchemaForm } from '@zhiyun/ui-sdk/components/SchemaForm';
 import { Badge, Button, Card, ErrorNotice, Input } from '@zhiyun/ui-sdk/components/ui';
+import { StatusNotice } from '@zhiyun/ui-sdk/components/experience';
 
 export function AnalyticsPage() {
   const { t } = useTranslation();
@@ -54,14 +55,15 @@ export function AnalyticsPage() {
     () => methods.data?.find((method) => method.id === methodId),
     [methodId, methods.data],
   );
-  useEffect(() => {
-    if (!methodId && methods.data?.[0]) {
-      setMethodId(methods.data[0].id);
-      setParameters(defaultAnalysisParameters(methods.data[0]));
-    }
-  }, [methodId, methods.data]);
-
   const questions = recommendAnalysisQuestions(fields.data?.fields ?? [], methods.data ?? []);
+  const unavailable = new Map<string, string[]>();
+  if (snapshotId && fields.isSuccess)
+    for (const question of questions)
+      if (question.reason)
+        unavailable.set(question.reason, [
+          ...(unavailable.get(question.reason) ?? []),
+          t(`analytics.questions.${question.id}.title`),
+        ]);
   const validParameters =
     !fields.isPending &&
     !fields.isError &&
@@ -121,7 +123,6 @@ export function AnalyticsPage() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">{t('analytics.eyebrow')}</span>
           <h1>{t('analytics.title')}</h1>
           <p>{t('analytics.intro')}</p>
         </div>
@@ -134,8 +135,124 @@ export function AnalyticsPage() {
           <p>{t('analytics.workerUnavailableHint')}</p>
         </Card>
       ) : (
-        <div className="analytics-layout">
-          <Card className="method-catalog">
+        <div className="analytics-flow">
+          <Card className="analysis-launcher">
+            <DatasetVersionPicker
+              datasetId={datasetId}
+              snapshotId={snapshotId}
+              onDatasetChange={(id) => {
+                setDatasetId(id);
+                setSnapshotId('');
+                setQuestionId(null);
+                setParameters(defaultAnalysisParameters(selectedMethod));
+              }}
+              onSnapshotChange={(id) => {
+                setSnapshotId(id);
+                setQuestionId(null);
+                setParameters(defaultAnalysisParameters(selectedMethod));
+              }}
+              disabled={createJob.isPending}
+            />
+            <ErrorNotice message={fields.error?.message} />
+            <section className="analysis-questions" aria-label={t('analytics.questionsTitle')}>
+              <h2>{t('analytics.questionsTitle')}</h2>
+              <p>{t('analytics.questionsHint')}</p>
+              {fields.isPending && datasetId && snapshotId && <p role="status">{t('loading')}</p>}
+              <div className="analysis-question-grid">
+                {questions.map((question) => (
+                  <div key={question.id}>
+                    <Button
+                      className="button-secondary"
+                      aria-pressed={questionId === question.id}
+                      disabled={
+                        !snapshotId ||
+                        fields.isPending ||
+                        fields.isError ||
+                        Boolean(question.reason) ||
+                        createJob.isPending
+                      }
+                      onClick={() => {
+                        setQuestionId(question.id);
+                        setMethodId(question.methodId);
+                        setParameters(question.parameters);
+                      }}
+                    >
+                      {t(`analytics.questions.${question.id}.title`)}
+                    </Button>
+                    {!question.reason && (
+                      <small>{t(`analytics.questions.${question.id}.hint`)}</small>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {unavailable.size > 0 && (
+                <StatusNotice tone="info">
+                  <span>
+                    {[...unavailable]
+                      .map(
+                        ([reason, titles]) =>
+                          `${t(`analytics.questionReasons.${reason}`)}（${titles.join('、')}）`,
+                      )
+                      .join(' ')}
+                  </span>
+                </StatusNotice>
+              )}
+            </section>
+          </Card>
+          {selectedMethod && (
+            <Card className="analysis-launcher">
+              <h2>{t(selectedMethod.titleKey, { defaultValue: selectedMethod.id })}</h2>
+              <p>{t(selectedMethod.descriptionKey, { defaultValue: selectedMethod.id })}</p>
+              <SchemaForm
+                fields={fields.data?.fields}
+                methodId={selectedMethod.id}
+                supportedFieldTypes={selectedMethod.supportedFieldTypes}
+                schema={selectedMethod.parameterSchema as Record<string, unknown>}
+                value={parameters}
+                onChange={setParameters}
+                disabled={createJob.isPending}
+              />
+              <div className="launcher-actions">
+                <Button
+                  disabled={
+                    !canWrite ||
+                    !datasetId ||
+                    !snapshotId ||
+                    createJob.isPending ||
+                    !validParameters
+                  }
+                  onClick={run}
+                >
+                  {createJob.isPending ? t('analytics.starting') : t('analytics.start')}
+                </Button>
+                <Input
+                  value={recipeName}
+                  placeholder={t('analytics.recipeName')}
+                  aria-label={t('analytics.recipeName')}
+                  onChange={(event) => setRecipeName(event.target.value)}
+                />
+                <Button
+                  className="button-secondary"
+                  disabled={
+                    !canWrite ||
+                    !validParameters ||
+                    !recipeName.trim() ||
+                    !datasetId ||
+                    createRecipe.isPending ||
+                    createJob.isPending
+                  }
+                  onClick={() => createRecipe.mutate()}
+                >
+                  {t('analytics.saveRecipe')}
+                </Button>
+              </div>
+              {snapshotId && !fields.isPending && !validParameters && (
+                <p className="field-help">{t('analytics.invalidParameters')}</p>
+              )}
+            </Card>
+          )}
+          <details className="card method-browser">
+            <summary>{t('analytics.browseMethods', { count: methods.data?.length ?? 0 })}</summary>
             <div className="intent-choices">
               {['all', 'quality', 'comparison', 'time', 'anomaly'].map((key) => (
                 <Button
@@ -147,12 +264,6 @@ export function AnalyticsPage() {
                   {t(`analytics.intent.${key}`)}
                 </Button>
               ))}
-            </div>
-            <div className="section-heading compact">
-              <div>
-                <h2>{t('analytics.methodCatalog')}</h2>
-                <p>{t('analytics.methodCount', { count: methods.data?.length ?? 0 })}</p>
-              </div>
             </div>
             <div className="method-list" role="listbox" aria-label={t('analytics.methodCatalog')}>
               {(methods.data ?? [])
@@ -190,121 +301,7 @@ export function AnalyticsPage() {
                   </button>
                 ))}
             </div>
-          </Card>
-          <Card className="analysis-launcher">
-            <h2>
-              {selectedMethod
-                ? t(selectedMethod.titleKey, { defaultValue: selectedMethod.id })
-                : t('analytics.selectMethod')}
-            </h2>
-            <p>
-              {selectedMethod
-                ? t(selectedMethod.descriptionKey, { defaultValue: selectedMethod.id })
-                : t('analytics.selectMethodHint')}
-            </p>
-            <DatasetVersionPicker
-              datasetId={datasetId}
-              snapshotId={snapshotId}
-              onDatasetChange={(id) => {
-                setDatasetId(id);
-                setSnapshotId('');
-                setQuestionId(null);
-                setParameters(defaultAnalysisParameters(selectedMethod));
-              }}
-              onSnapshotChange={(id) => {
-                setSnapshotId(id);
-                setQuestionId(null);
-                setParameters(defaultAnalysisParameters(selectedMethod));
-              }}
-              disabled={createJob.isPending}
-            />
-            <ErrorNotice message={fields.error?.message} />
-            <section className="analysis-questions" aria-label={t('analytics.questionsTitle')}>
-              <h3>{t('analytics.questionsTitle')}</h3>
-              <p>{t('analytics.questionsHint')}</p>
-              {fields.isPending && datasetId && snapshotId && <p role="status">{t('loading')}</p>}
-              <div className="analysis-question-grid">
-                {questions.map((question) => (
-                  <div key={question.id}>
-                    <Button
-                      className="button-secondary"
-                      aria-pressed={questionId === question.id}
-                      disabled={
-                        !snapshotId ||
-                        fields.isPending ||
-                        fields.isError ||
-                        Boolean(question.reason) ||
-                        createJob.isPending
-                      }
-                      onClick={() => {
-                        setQuestionId(question.id);
-                        setMethodId(question.methodId);
-                        setParameters(question.parameters);
-                      }}
-                    >
-                      {t(`analytics.questions.${question.id}.title`)}
-                    </Button>
-                    <small>
-                      {t(
-                        question.reason
-                          ? `analytics.questionReasons.${question.reason}`
-                          : `analytics.questions.${question.id}.hint`,
-                      )}
-                    </small>
-                  </div>
-                ))}
-              </div>
-            </section>
-            {selectedMethod && (
-              <SchemaForm
-                fields={fields.data?.fields}
-                methodId={selectedMethod.id}
-                supportedFieldTypes={selectedMethod.supportedFieldTypes}
-                schema={selectedMethod.parameterSchema as Record<string, unknown>}
-                value={parameters}
-                onChange={setParameters}
-                disabled={createJob.isPending}
-              />
-            )}
-            <div className="launcher-actions">
-              <Button
-                disabled={
-                  !canWrite ||
-                  !selectedMethod ||
-                  !datasetId ||
-                  !snapshotId ||
-                  createJob.isPending ||
-                  !validParameters
-                }
-                onClick={run}
-              >
-                {createJob.isPending ? t('analytics.starting') : t('analytics.start')}
-              </Button>
-              <Input
-                value={recipeName}
-                placeholder={t('analytics.recipeName')}
-                aria-label={t('analytics.recipeName')}
-                onChange={(event) => setRecipeName(event.target.value)}
-              />
-              <Button
-                className="button-secondary"
-                disabled={
-                  !canWrite ||
-                  !validParameters ||
-                  !recipeName.trim() ||
-                  !datasetId ||
-                  createRecipe.isPending ||
-                  createJob.isPending
-                }
-                onClick={() => createRecipe.mutate()}
-              >
-                {t('analytics.saveRecipe')}
-              </Button>
-            </div>
-            {snapshotId && selectedMethod && !fields.isPending && !validParameters && (
-              <p className="field-help">{t('analytics.invalidParameters')}</p>
-            )}
-          </Card>
+          </details>
         </div>
       )}
       <div className="two-column analytics-sections">

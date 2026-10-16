@@ -1,4 +1,4 @@
-import { Home, Menu, X } from 'lucide-react';
+import { Globe, Home, Menu, X } from 'lucide-react';
 import { useWorkspacePreference } from './workspace-preferences.js';
 import { Skeleton } from '@zhiyun/ui-sdk/components/experience';
 import {
@@ -134,6 +134,7 @@ function ApplicationShell({
   const hasCollection = routes.some(({ id }) => id === 'collection.route');
   const canCreateTasks =
     hasCollection && (!auth.identityEnabled || auth.permissions.includes('task.write'));
+  const zh = i18n.language.startsWith('zh');
   const toggleLanguage = async () => {
     const next = i18n.language === 'en' ? 'zh-CN' : 'en';
     localStorage.setItem('zhiyun-language', next);
@@ -156,21 +157,18 @@ function ApplicationShell({
           </span>
         </Link>
         <nav className="sidebar-navigation" aria-label={t('workspace')}>
-          {hasCollection && (
-            <SidebarGroup label={t('navOverview')}>
+          <section className="sidebar-group">
+            {hasCollection && (
               <NavLink to="/" end onClick={() => setNavOpen(false)}>
                 <Home size={19} aria-hidden="true" />
                 {t('home')}
               </NavLink>
-            </SidebarGroup>
-          )}
-          <SidebarGroup label={t('workspace')}>
+            )}
             {[...navigation]
               .filter(
                 (item) =>
                   !['system'].includes(item.group) &&
-                  (!['/recruitment', '/preferences', '/corpora'].includes(item.to) ||
-                    pins.includes(item.to)),
+                  (!['/recruitment', '/preferences'].includes(item.to) || pins.includes(item.to)),
               )
               .sort((a, b) => a.order - b.order)
               .map((item) => (
@@ -179,7 +177,7 @@ function ApplicationShell({
                   {t(item.labelKey)}
                 </NavLink>
               ))}
-          </SidebarGroup>
+          </section>
         </nav>
         <div className="sidebar-footer">
           {navigation
@@ -210,10 +208,16 @@ function ApplicationShell({
               {auth.logoutError ? <small role="alert">{auth.logoutError}</small> : null}
             </div>
           )}
-          <Button className="button-ghost language-button" onClick={() => void toggleLanguage()}>
-            {t('language')}
+          <Button
+            className="button-ghost language-button"
+            aria-label={t('ux.switchLanguage')}
+            onClick={() => void toggleLanguage()}
+          >
+            <Globe size={16} aria-hidden="true" />
+            <span className={zh ? 'language-current' : ''}>中文</span>
+            <span aria-hidden="true">·</span>
+            <span className={zh ? '' : 'language-current'}>EN</span>
           </Button>
-          <small>{t('footer')}</small>
         </div>
       </aside>
       <div className="workspace-shell">
@@ -289,15 +293,6 @@ function NotFoundPage() {
           {t('ux.backHome')}
         </Link>
       </div>
-    </section>
-  );
-}
-
-function SidebarGroup(props: { label: string; children: ReactNode }) {
-  return (
-    <section className="sidebar-group">
-      <small>{props.label}</small>
-      {props.children}
     </section>
   );
 }

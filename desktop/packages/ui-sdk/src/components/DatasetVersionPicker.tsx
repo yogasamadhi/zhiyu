@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -28,6 +28,8 @@ export function DatasetVersionPicker({
   const [search, setSearch] = useState('');
   const [pending, setPending] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const autoCreated = useRef(new Set<string>());
   const datasets = useInfiniteQuery({
     queryKey: ['dataset-picker', search],
     initialPageParam: undefined as string | undefined,
@@ -70,6 +72,14 @@ export function DatasetVersionPicker({
       if (latest) onSnapshotChange(latest.id);
     }
   }, [versions.data, pending, snapshotId]);
+  useEffect(() => {
+    // A dataset without any version would otherwise block analysis behind a manual step.
+    if (!showVersion || locked || disabled || !datasetId || !versions.isSuccess) return;
+    if (versions.data.length > 0 || autoCreated.current.has(datasetId)) return;
+    autoCreated.current.add(datasetId);
+    create.mutate();
+  }, [versions.data, versions.isSuccess, datasetId, showVersion, locked, disabled]);
+  const selected = versions.data?.find((s) => s.id === snapshotId && s.status === 'ready');
   return (
     <div className="dataset-picker">
       <Field label={zh ? '选择数据集' : 'Choose dataset'}>
@@ -89,6 +99,7 @@ export function DatasetVersionPicker({
             onSnapshotChange('');
             setPending(null);
             setFailed(false);
+            setChanging(false);
           }}
         >
           <option value="">
@@ -120,12 +131,27 @@ export function DatasetVersionPicker({
           {zh ? '加载更多' : 'Load more'}
         </Button>
       )}
-      {showVersion && datasetId && (
+      {showVersion && datasetId && selected && !changing && (
+        <p className="dataset-version-summary">
+          <span>
+            {zh
+              ? `基于 ${new Date(selected.createdAt).toLocaleString(i18n.language)} 的数据 · ${selected.rowCount} 条`
+              : `Data as of ${new Date(selected.createdAt).toLocaleString(i18n.language)} · ${selected.rowCount} rows`}
+          </span>
+          <Button className="button-ghost" disabled={disabled} onClick={() => setChanging(true)}>
+            {zh ? '更换版本' : 'Change version'}
+          </Button>
+        </p>
+      )}
+      {showVersion && datasetId && (!selected || changing) && (
         <Field label={zh ? '数据版本' : 'Data version'}>
           <Select
             disabled={disabled}
             value={snapshotId}
-            onChange={(e) => onSnapshotChange(e.target.value)}
+            onChange={(e) => {
+              onSnapshotChange(e.target.value);
+              if (e.target.value) setChanging(false);
+            }}
           >
             <option value="">{zh ? '选择已准备好的版本' : 'Choose a ready version'}</option>
             {(versions.data ?? [])

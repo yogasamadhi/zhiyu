@@ -21,7 +21,7 @@ export function apply(ctx: Context) {
   ctx.effect(
     () =>
       ctx.slots.registerNavigation({
-        order: 3,
+        order: 4,
         id: 'outputs.navigation',
         requiredPermission: 'output.manage',
         to: '/outputs',

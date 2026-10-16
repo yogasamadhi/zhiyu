@@ -280,9 +280,10 @@ function OverviewSection(props: {
   canWrite: boolean;
   canManageOutput: boolean;
 }) {
+  const succeeded = props.runs.filter((run) => run.status === 'succeeded').length;
   return (
     <>
-      <div className="stats">
+      <div className="stats stats-4">
         <Card>
           <small>{productCopy('状态')}</small>
           <strong>{i18nCopy.t(`ux.state.${props.task.status}`)}</strong>
@@ -294,6 +295,11 @@ function OverviewSection(props: {
         <Card>
           <small>{productCopy('健康度')}</small>
           <strong>{i18nCopy.t(`ux.state.${props.health?.status ?? 'unknown'}`)}</strong>
+          {!props.health?.baselineReady && (
+            <span className="stat-progress">
+              {productCopy('成功运行 {{count}}/3 次后评估', { count: Math.min(succeeded, 3) })}
+            </span>
+          )}
         </Card>
         <Card>
           <small>{productCopy('最近记录数')}</small>

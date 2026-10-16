@@ -55,6 +55,11 @@ export function TaskListPage() {
     setSelected([]);
     setParams({ q: query, status, sort, ...patch });
   };
+  useEffect(() => {
+    if (search.trim() === query) return;
+    const timer = setTimeout(() => changeQuery({ q: search.trim() }), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const perform = async (action: BulkAction, ids = selected) => {
     if (busy) return;
     setBusy(true);
@@ -368,18 +373,24 @@ export function TaskListPage() {
               </tbody>
             </table>
           </div>
-          <div className="pagination">
-            <Button className="button-secondary" disabled={!cursor} onClick={() => changeQuery({})}>
-              {zh ? '首页' : 'First page'}
-            </Button>
-            <Button
-              className="button-secondary"
-              disabled={!tasks.data?.nextCursor}
-              onClick={() => changeQuery({ cursor: tasks.data!.nextCursor! })}
-            >
-              {zh ? '下一页' : 'Next page'}
-            </Button>
-          </div>
+          {(cursor || tasks.data?.nextCursor) && (
+            <div className="pagination">
+              <Button
+                className="button-secondary"
+                disabled={!cursor}
+                onClick={() => changeQuery({})}
+              >
+                {zh ? '第一页' : 'First page'}
+              </Button>
+              <Button
+                className="button-secondary"
+                disabled={!tasks.data?.nextCursor}
+                onClick={() => changeQuery({ cursor: tasks.data!.nextCursor! })}
+              >
+                {zh ? '下一页' : 'Next page'}
+              </Button>
+            </div>
+          )}
         </Card>
       ) : (
         !tasks.isError && (

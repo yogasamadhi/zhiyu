@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   summarizeCollectionPreview,
@@ -6,7 +6,7 @@ import {
   type CrawlPlanDefinition,
 } from '@zhiyun/shared';
 import { Badge, Button } from './ui.js';
-import { StatusNotice } from './experience.js';
+import { StatusNotice, TabPanel, Tabs } from './experience.js';
 
 const valueText = (value: unknown) =>
   (value == null ? '—' : typeof value === 'object' ? JSON.stringify(value) : String(value)).slice(
@@ -25,6 +25,8 @@ export function CollectionPreview({
   const text = (cn: string, en: string) => (i18n.language.startsWith('zh') ? cn : en);
   const [selected, setSelected] = useState(0);
   const [reviewed, setReviewed] = useState<Set<number>>(new Set());
+  const [tab, setTab] = useState<'data' | 'quality' | 'review'>('data');
+  const tabs = useId();
   const fields = summarizeCollectionPreview(plan, records);
   const sample = records[selected];
   const stateText = (status?: string) =>
@@ -96,157 +98,198 @@ export function CollectionPreview({
           )}
         </StatusNotice>
       )}
-      <div className="data-table-scroll">
-        <table aria-label={text('预览记录', 'Preview records')}>
-          <thead>
-            <tr>
-              {fields.map((field) => (
-                <th key={field.name}>{field.name}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {records.map((record, index) => (
-              <tr key={index}>
-                {fields.map((field) => (
-                  <td key={field.name}>{valueText(record.data[field.name])}</td>
+      <Tabs
+        label={text('预览视图', 'Preview views')}
+        idPrefix={tabs}
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: 'data', label: text('数据', 'Data') },
+          { id: 'quality', label: text('字段质量', 'Field quality') },
+          {
+            id: 'review',
+            label: `${text('逐条核对', 'Review samples')} ${reviewed.size}/${records.length}`,
+          },
+        ]}
+      />
+      {tab === 'data' && (
+        <TabPanel idPrefix={tabs} id="data">
+          <div className="data-table-scroll">
+            <table aria-label={text('预览记录', 'Preview records')}>
+              <thead>
+                <tr>
+                  {fields.map((field) => {
+                    const filled = records.length - field.emptyCount;
+                    return (
+                      <th key={field.name}>
+                        {field.name}
+                        {records.length > 0 && (
+                          <small
+                            className={`field-quality-mark ${filled === records.length ? 'ok' : 'warn'}`}
+                            title={text('有值的样本数', 'Samples with a value')}
+                          >
+                            {filled === records.length ? '✓' : '!'} {filled}/{records.length}
+                          </small>
+                        )}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((record, index) => (
+                  <tr key={index}>
+                    {fields.map((field) => (
+                      <td key={field.name}>{valueText(record.data[field.name])}</td>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <h3>{text('字段质量', 'Field quality')}</h3>
-      <p className="muted">
-        {text(
-          '缺失表示规则没有匹配字段；空值比例包含缺失、空白和转换失败后的空值。以下统计仅覆盖本次预览样本。',
-          'Missing means the rule did not match the field. Empty ratio includes missing, blank and failed conversions. These statistics cover only this preview.',
-        )}
-      </p>
-      <div className="data-table-scroll">
-        <table aria-label={text('字段质量', 'Field quality')}>
-          <thead>
-            <tr>
-              {[
-                text('字段与来源', 'Field and source'),
-                text('类型与规则', 'Type and rule'),
-                text('缺失', 'Missing'),
-                text('空值比例', 'Empty ratio'),
-                text('类型异常', 'Type errors'),
-                text('前三条样本值', 'First three samples'),
-              ].map((label) => (
-                <th key={label}>{label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {fields.map((field) => (
-              <tr key={field.name}>
-                <td>
-                  {field.name}
-                  <small>
-                    {field.stage === 'detail'
-                      ? text('详情页', 'Detail page')
-                      : text('列表页', 'List page')}
-                  </small>
-                </td>
-                <td className="field-rule-cell">
-                  <Badge>{t(`ux.fieldType.${field.dataType}`, field.dataType)}</Badge>
-                  <code>{field.selector}</code>
-                </td>
-                <td>
-                  {field.missingCount ?? '—'}/{records.length}
-                </td>
-                <td>
-                  {Math.round(field.emptyRatio * 100)}% ({field.emptyCount}/{records.length})
-                </td>
-                <td>{field.invalidTypeCount ?? '—'}</td>
-                <td className="field-samples-cell">
-                  {field.samples.map((value, index) => (
-                    <code key={index}>
-                      {index + 1}: {valueText(value)}
-                    </code>
-                  ))}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {records.length > 0 && (
-        <>
-          <h3>{text('逐条确认样本', 'Review individual samples')}</h3>
-          <p>
+              </tbody>
+            </table>
+          </div>
+        </TabPanel>
+      )}
+      {tab === 'quality' && (
+        <TabPanel idPrefix={tabs} id="quality">
+          <p className="muted">
             {text(
-              `已检查 ${reviewed.size}/${records.length} 条；列表规则建议至少检查三个不同样本。`,
-              `Reviewed ${reviewed.size}/${records.length}; review at least three different samples for list rules.`,
+              '缺失表示规则没有匹配字段；空值比例包含缺失、空白和转换失败后的空值。以下统计仅覆盖本次预览样本。',
+              'Missing means the rule did not match the field. Empty ratio includes missing, blank and failed conversions. These statistics cover only this preview.',
             )}
           </p>
-          <div
-            className="preview-sample-buttons"
-            role="group"
-            aria-label={text('选择预览样本', 'Choose preview sample')}
-          >
-            {records.map((_, index) => (
-              <Button
-                className="button-secondary"
-                key={index}
-                aria-pressed={selected === index}
-                onClick={() => setSelected(index)}
-              >
-                {text('样本', 'Sample')} {index + 1}
-                {reviewed.has(index) ? ' ✓' : ''}
-              </Button>
-            ))}
-          </div>
-          {sample && (
-            <div className="preview-sample-detail">
-              <p>
-                {text('记录容器', 'Record container')}: <code>{plan.list.rule.container}</code>
-              </p>
-              <p>
-                {text('来源页面', 'Source page')}: <code>{sample.sourceUrl}</code>
-              </p>
-              <dl>
+          <div className="data-table-scroll">
+            <table aria-label={text('字段质量', 'Field quality')}>
+              <thead>
+                <tr>
+                  {[
+                    text('字段与来源', 'Field and source'),
+                    text('类型与规则', 'Type and rule'),
+                    text('缺失', 'Missing'),
+                    text('空值比例', 'Empty ratio'),
+                    text('类型异常', 'Type errors'),
+                    text('前三条样本值', 'First three samples'),
+                  ].map((label) => (
+                    <th key={label}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
                 {fields.map((field) => (
-                  <div key={field.name}>
-                    <dt>
-                      {field.name} · {stateText(sample.inspection?.fields[field.name]?.status)}
-                    </dt>
-                    <dd>
-                      <code>{valueText(sample.data[field.name])}</code>
-                    </dd>
-                  </div>
+                  <tr key={field.name}>
+                    <td>
+                      {field.name}
+                      <small>
+                        {field.stage === 'detail'
+                          ? text('详情页', 'Detail page')
+                          : text('列表页', 'List page')}
+                      </small>
+                    </td>
+                    <td className="field-rule-cell">
+                      <Badge>{t(`ux.fieldType.${field.dataType}`, field.dataType)}</Badge>
+                      <code>{field.selector}</code>
+                    </td>
+                    <td>
+                      {field.missingCount ?? '—'}/{records.length}
+                    </td>
+                    <td>
+                      {Math.round(field.emptyRatio * 100)}% ({field.emptyCount}/{records.length})
+                    </td>
+                    <td>{field.invalidTypeCount ?? '—'}</td>
+                    <td className="field-samples-cell">
+                      {field.samples.map((value, index) => (
+                        <code key={index}>
+                          {index + 1}: {valueText(value)}
+                        </code>
+                      ))}
+                    </td>
+                  </tr>
                 ))}
-              </dl>
-              {plan.detail && (
-                <StatusNotice>
-                  {text('列表 → 详情', 'List → detail')}: {plan.detail.urlField} →{' '}
-                  <code>{plan.detail.rule.container}</code>
-                  <br />
-                  {relationText(sample.inspection?.detail?.status)}
-                  {sample.inspection?.detail && (
-                    <span>
-                      {' '}
-                      ({text('链接匹配', 'Link matches')}: {sample.inspection.detail.linkMatches};{' '}
-                      {text('详情记录匹配', 'Detail record matches')}:{' '}
-                      {sample.inspection.detail.recordMatches ?? '—'})
-                    </span>
-                  )}
-                </StatusNotice>
-              )}
-              <Button
-                className="button-secondary"
-                disabled={reviewed.has(selected)}
-                onClick={() => setReviewed((previous) => new Set([...previous, selected]))}
-              >
-                {reviewed.has(selected)
-                  ? text('此样本已检查', 'Sample reviewed')
-                  : text('确认此样本', 'Confirm this sample')}
-              </Button>
-            </div>
+              </tbody>
+            </table>
+          </div>
+        </TabPanel>
+      )}
+      {tab === 'review' && (
+        <TabPanel idPrefix={tabs} id="review">
+          {records.length === 0 && (
+            <p className="muted">{text('没有可核对的样本。', 'No samples to review.')}</p>
           )}
-        </>
+          {records.length > 0 && (
+            <>
+              <p>
+                {text(
+                  `已检查 ${reviewed.size}/${records.length} 条；列表规则建议至少检查三个不同样本。`,
+                  `Reviewed ${reviewed.size}/${records.length}; review at least three different samples for list rules.`,
+                )}
+              </p>
+              <div
+                className="preview-sample-buttons"
+                role="group"
+                aria-label={text('选择预览样本', 'Choose preview sample')}
+              >
+                {records.map((_, index) => (
+                  <Button
+                    className="button-secondary"
+                    key={index}
+                    aria-pressed={selected === index}
+                    onClick={() => setSelected(index)}
+                  >
+                    {text('样本', 'Sample')} {index + 1}
+                    {reviewed.has(index) ? ' ✓' : ''}
+                  </Button>
+                ))}
+              </div>
+              {sample && (
+                <div className="preview-sample-detail">
+                  <p>
+                    {text('记录容器', 'Record container')}: <code>{plan.list.rule.container}</code>
+                  </p>
+                  <p>
+                    {text('来源页面', 'Source page')}: <code>{sample.sourceUrl}</code>
+                  </p>
+                  <dl>
+                    {fields.map((field) => (
+                      <div key={field.name}>
+                        <dt>
+                          {field.name} · {stateText(sample.inspection?.fields[field.name]?.status)}
+                        </dt>
+                        <dd>
+                          <code>{valueText(sample.data[field.name])}</code>
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {plan.detail && (
+                    <StatusNotice>
+                      {text('列表 → 详情', 'List → detail')}: {plan.detail.urlField} →{' '}
+                      <code>{plan.detail.rule.container}</code>
+                      <br />
+                      {relationText(sample.inspection?.detail?.status)}
+                      {sample.inspection?.detail && (
+                        <span>
+                          {' '}
+                          ({text('链接匹配', 'Link matches')}:{' '}
+                          {sample.inspection.detail.linkMatches};{' '}
+                          {text('详情记录匹配', 'Detail record matches')}:{' '}
+                          {sample.inspection.detail.recordMatches ?? '—'})
+                        </span>
+                      )}
+                    </StatusNotice>
+                  )}
+                  <Button
+                    className="button-secondary"
+                    disabled={reviewed.has(selected)}
+                    onClick={() => setReviewed((previous) => new Set([...previous, selected]))}
+                  >
+                    {reviewed.has(selected)
+                      ? text('此样本已检查', 'Sample reviewed')
+                      : text('确认此样本', 'Confirm this sample')}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </TabPanel>
       )}
     </div>
   );

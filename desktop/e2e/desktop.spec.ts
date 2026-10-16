@@ -131,9 +131,12 @@ test('reviews three local list/detail samples and runs a manual draft into its D
   );
   await network.blur();
   await page.getByRole('button', { name: '预览数据', exact: true }).click();
+  await expect(page.getByRole('table', { name: '预览记录', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '字段质量', exact: true }).click();
   const quality = page.getByRole('table', { name: '字段质量', exact: true });
   await expect(quality).toBeVisible();
   await expect(quality.getByRole('row').filter({ hasText: '描述' })).toContainText('详情页');
+  await page.getByRole('tab', { name: /^逐条核对/ }).click();
   for (let index = 1; index <= 3; index++) {
     await page.getByRole('button', { name: `样本 ${index}`, exact: true }).click();
     await expect(page.getByText('每条列表记录对应一个详情记录', { exact: false })).toBeVisible();
@@ -437,7 +440,7 @@ test('instantiates an official template with an active rule without running it',
   expect(match?.[1]).toBeTruthy();
   const createdTaskId = match![1]!;
   await page.goto(`app://zhiyun/tasks/${createdTaskId}`);
-  await expect(page.getByText(/来源：template · 活动规则 v1/)).toBeVisible();
+  await expect(page.getByText(/来源：场景模板 · 活动规则 v1/)).toBeVisible();
   await expect(page.getByText(`http://127.0.0.1:45100/products`, { exact: true })).toBeVisible();
 });
 

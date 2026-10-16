@@ -77,8 +77,8 @@ describe('UI Contribution Registry', async () => {
       ]),
     );
     expect(resolved.navigation.map(({ id }) => id)).toEqual([
-      'analytics.navigation',
       'corpus.navigation',
+      'analytics.navigation',
     ]);
   });
 

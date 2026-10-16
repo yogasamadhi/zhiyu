@@ -31,7 +31,7 @@ export function apply(ctx: Context) {
   ctx.effect(
     () =>
       ctx.slots.registerNavigation({
-        order: 17,
+        order: 2,
         id: 'corpus.navigation',
         to: '/corpora',
         labelKey: 'corpus.title',

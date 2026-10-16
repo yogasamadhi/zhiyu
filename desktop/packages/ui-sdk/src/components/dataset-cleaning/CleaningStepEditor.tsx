@@ -59,7 +59,7 @@ export function CleaningStepEditor({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{zh ? '添加受限清洗步骤' : 'Add a cleaning step'}</legend>
+        <legend>{zh ? '添加清洗步骤' : 'Add a cleaning step'}</legend>
         <div className="cleaning-form-grid">
           <Field label={zh ? '清洗操作' : 'Operation'}>
             <Select

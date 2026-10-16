@@ -277,6 +277,35 @@ export function DatasetCleaningPanel({
     setMessage('');
   };
 
+  const needsInput =
+    versions.isSuccess &&
+    !inputId &&
+    !pendingSnapshot &&
+    !createSnapshot.isPending &&
+    !versions.data.some((value) => value.status === 'ready');
+  if (needsInput)
+    return (
+      <Card className="dataset-cleaning-panel">
+        <div data-testid="dataset-cleaning-panel" className="cleaning-empty">
+          <h2>{zh ? '清洗与数据版本' : 'Cleaning and data versions'}</h2>
+          <p>
+            {zh
+              ? '清洗基于一个固定的数据版本进行，原始采集记录不会被修改。先从当前采集创建输入版本。'
+              : 'Cleaning works on a fixed data version and never changes the original collection. Create an input version from the current collection first.'}
+          </p>
+          <Button
+            onClick={() => {
+              resetErrors();
+              createSnapshot.mutate();
+            }}
+          >
+            {zh ? '从当前采集创建输入版本' : 'Create input from current collection'}
+          </Button>
+          <ErrorNotice message={failureMessage} />
+        </div>
+      </Card>
+    );
+
   return (
     <Card className="dataset-cleaning-panel">
       <div data-testid="dataset-cleaning-panel">

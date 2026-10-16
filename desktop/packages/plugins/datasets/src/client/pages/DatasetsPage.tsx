@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,11 @@ export function DatasetsPage() {
     queryFn: () =>
       runtimeClient.listDatasets(25, cursor, undefined, { query, sort, direction: 'desc' }),
   });
+  useEffect(() => {
+    if (search.trim() === query) return;
+    const timer = setTimeout(() => setParams({ q: search.trim(), sort }), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   return (
     <>
       <div className="page-heading">
@@ -101,22 +106,24 @@ export function DatasetsPage() {
               </tbody>
             </table>
           </div>
-          <div className="pagination">
-            <Button
-              className="button-secondary"
-              disabled={!cursor}
-              onClick={() => setParams({ q: query, sort })}
-            >
-              {zh ? '返回首页' : 'First page'}
-            </Button>
-            <Button
-              className="button-secondary"
-              disabled={!data.data.nextCursor}
-              onClick={() => setParams({ q: query, sort, cursor: data.data!.nextCursor! })}
-            >
-              {zh ? '下一页' : 'Next page'}
-            </Button>
-          </div>
+          {(cursor || data.data.nextCursor) && (
+            <div className="pagination">
+              <Button
+                className="button-secondary"
+                disabled={!cursor}
+                onClick={() => setParams({ q: query, sort })}
+              >
+                {zh ? '第一页' : 'First page'}
+              </Button>
+              <Button
+                className="button-secondary"
+                disabled={!data.data.nextCursor}
+                onClick={() => setParams({ q: query, sort, cursor: data.data!.nextCursor! })}
+              >
+                {zh ? '下一页' : 'Next page'}
+              </Button>
+            </div>
+          )}
         </Card>
       ) : (
         !data.isError && (

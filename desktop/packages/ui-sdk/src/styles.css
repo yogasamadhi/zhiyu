@@ -3469,3 +3469,213 @@ th button:focus-visible {
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+.language-button {
+  gap: 6px;
+}
+.language-button span {
+  color: #9fb6c6;
+  font-weight: 500;
+}
+.language-button span.language-current {
+  color: #fff;
+  font-weight: 800;
+}
+.scenario-grid .card {
+  text-align: left;
+  align-items: stretch;
+}
+.scenario-grid .heading-actions {
+  justify-content: flex-start;
+}
+.scenario-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.icon-button {
+  min-width: 38px;
+  padding-inline: 8px;
+}
+.onboarding-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.onboarding-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.onboarding-steps li > svg {
+  flex: none;
+  color: var(--muted);
+}
+.onboarding-steps li.done > svg {
+  color: var(--primary);
+}
+.onboarding-steps li > span {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.onboarding-steps li small {
+  color: var(--muted);
+}
+.onboarding-steps li.done strong {
+  color: var(--muted);
+}
+.flow-layout-primary {
+  grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr);
+}
+.flow-layout-primary .flow-help {
+  padding: 18px;
+  font-size: 13px;
+}
+.flow-layout-primary .flow-help h2 {
+  font-size: 16px;
+}
+.flow-layout-primary .flow-help h3 {
+  font-size: 14px;
+}
+.flow-layout-primary .flow-help hr {
+  margin: 14px 0;
+}
+.field-help {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.field-inspection {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  margin: 4px 0 12px;
+  padding: 12px;
+  border: 1px dashed #9cc9c3;
+  border-radius: 10px;
+  background: #f3faf8;
+}
+.field-table {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.field-table-head,
+.field-table-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(120px, 1.4fr) 104px 40px;
+  gap: 8px;
+  align-items: center;
+}
+.field-table-head {
+  padding: 0 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.field-table-new {
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+.notice.notice-info {
+  background: #e8f3fb;
+  color: #1d4f73;
+}
+@media (max-width: 1100px) {
+  .flow-layout-primary {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .field-table-head {
+    display: none;
+  }
+  .field-table-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.field-quality-mark {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.field-quality-mark.ok {
+  color: #17633f;
+}
+.field-quality-mark.warn {
+  color: #8a5a00;
+}
+.tab-panel {
+  min-width: 0;
+}
+.cleaning-empty {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+.dataset-version-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.analytics-flow {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.analytics-flow > .card {
+  min-width: 0;
+}
+.method-browser > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.method-browser[open] > summary {
+  margin-bottom: 12px;
+}
+.method-browser .method-list {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  max-height: 420px;
+}
+.stats.stats-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.stat-progress {
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  .stats.stats-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .stats.stats-4 {
+    grid-template-columns: 1fr;
+  }
+}
+/* Disabled actions must read as unavailable, not as a pale secondary button. */
+.button:disabled,
+.button:disabled:hover {
+  background: #e6ebf0;
+  color: #5f7081;
+  opacity: 1;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.button-ghost:disabled,
+.button-ghost:disabled:hover {
+  background: transparent;
+}

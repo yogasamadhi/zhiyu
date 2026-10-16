@@ -463,7 +463,7 @@ export function CollectionFlowPage() {
         </StatusNotice>
       )}
       {draft.exampleId && (
-        <StatusNotice>
+        <StatusNotice tone="info">
           <FlaskConical size={18} />
           {text(
             '内置商品样例 · 可离线运行 · 不连接外部输出',
@@ -473,7 +473,7 @@ export function CollectionFlowPage() {
       )}
       <fieldset className="flow-fieldset" disabled={busy || draft.status === 'committing'}>
         {draft.step === 1 && (
-          <div className="flow-layout">
+          <div className="flow-layout flow-layout-primary">
             <Card>
               <h2>{text('你想从哪里获取数据？', 'Where is your data?')}</h2>
               <Field label={text('页面网址', 'Page URL')} error={validation.url}>
@@ -498,6 +498,12 @@ export function CollectionFlowPage() {
                   onChange={(e) => edit({ task: { instruction: e.target.value } })}
                 />
               </Field>
+              <p className="field-help">
+                {text(
+                  '不知道怎么描述？填入示例目标：',
+                  'Not sure what to write? Use an example goal:',
+                )}
+              </p>
               <div className="scenario-choices">
                 {[
                   [text('商品价格', 'Product prices'), '商品名称、价格、库存和链接', 'prices'],
@@ -599,6 +605,33 @@ export function CollectionFlowPage() {
                   <h2>{text('要采集的字段', 'Fields to collect')}</h2>
                   <Badge>{fields.length}</Badge>
                 </div>
+                {rule.type === 'css' && (
+                  <div className="field-inspection">
+                    <DraftInspection
+                      flush={flush}
+                      fields={fields.map(([name]) => name)}
+                      disabledReason={
+                        draft.exampleId
+                          ? text(
+                              '内置样例已配置好字段；用自己的网址时可在网页上点选。',
+                              'The built-in example already has fields. Use your own URL to select fields on the page.',
+                            )
+                          : undefined
+                      }
+                      onSelect={(name, selector) => {
+                        if (!name)
+                          setPlan(
+                            normalizeCrawlPlan({
+                              ...plan,
+                              list: { ...plan.list, rule: { ...rule, container: selector } },
+                            }),
+                          );
+                        else
+                          setFields({ ...rule.fields, [name]: { ...rule.fields[name], selector } });
+                      }}
+                    />
+                  </div>
+                )}
                 {rule.type === 'css' ? (
                   <>
                     <Field label={text('列表项选择器', 'List item selector')}>
@@ -612,10 +645,21 @@ export function CollectionFlowPage() {
                         }
                       />
                     </Field>
-                    {fields.map(([name, field]) => (
-                      <div className="field-editor" key={name}>
-                        <Field label={text(productCopy('字段名称'), 'Field name')}>
+                    <div
+                      className="field-table"
+                      role="group"
+                      aria-label={text('字段列表', 'Field list')}
+                    >
+                      <div className="field-table-head" aria-hidden="true">
+                        <span>{text(productCopy('字段名称'), 'Field name')}</span>
+                        <span>{text('提取规则（CSS）', 'Extraction rule (CSS)')}</span>
+                        <span>{text(productCopy('类型'), 'Type')}</span>
+                        <span />
+                      </div>
+                      {fields.map(([name, field]) => (
+                        <div className="field-table-row" key={name}>
                           <Input
+                            aria-label={`${text(productCopy('字段名称'), 'Field name')} ${name}`}
                             defaultValue={name}
                             onBlur={(e) => {
                               const renamed = e.target.value.trim();
@@ -635,9 +679,8 @@ export function CollectionFlowPage() {
                               );
                             }}
                           />
-                        </Field>
-                        <Field label={text('提取规则', 'Extraction selector')}>
                           <Input
+                            aria-label={`${text('提取规则', 'Extraction selector')} ${name}`}
                             value={field.selector}
                             onChange={(e) =>
                               setFields({
@@ -646,9 +689,8 @@ export function CollectionFlowPage() {
                               })
                             }
                           />
-                        </Field>
-                        <Field label={text(productCopy('类型'), 'Type')}>
                           <Select
+                            aria-label={`${text(productCopy('类型'), 'Type')} ${name}`}
                             value={field.dataType}
                             onChange={(e) =>
                               setFields({
@@ -663,63 +705,73 @@ export function CollectionFlowPage() {
                               </option>
                             ))}
                           </Select>
-                        </Field>
-                        <Button
-                          className="button-ghost"
-                          aria-label={`${text('删除字段', 'Remove field')} ${name}`}
-                          onClick={() =>
-                            setFields(Object.fromEntries(fields.filter(([key]) => key !== name)))
-                          }
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    ))}
-                    <div className="field-editor">
-                      <Field label={text('新字段', 'New field')}>
-                        <Input value={fieldName} onChange={(e) => setFieldName(e.target.value)} />
-                      </Field>
-                      <Field label={text('选择器', 'Selector')}>
+                          <Button
+                            className="button-ghost icon-button"
+                            aria-label={`${text('删除字段', 'Remove field')} ${name}`}
+                            onClick={() =>
+                              setFields(Object.fromEntries(fields.filter(([key]) => key !== name)))
+                            }
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      ))}
+                      <div className="field-table-row field-table-new">
                         <Input
+                          aria-label={text('新字段', 'New field')}
+                          placeholder={text('新字段名称', 'New field name')}
+                          value={fieldName}
+                          onChange={(e) => setFieldName(e.target.value)}
+                        />
+                        <Input
+                          aria-label={text('选择器', 'Selector')}
+                          placeholder={text('例如 .price', 'For example .price')}
                           value={fieldSelector}
                           onChange={(e) => setFieldSelector(e.target.value)}
                         />
-                      </Field>
-                      <Select
-                        aria-label={text('新字段类型', 'New field type')}
-                        value={fieldType}
-                        onChange={(e) => setFieldType(e.target.value)}
-                      >
-                        {['string', 'number', 'date', 'url', 'json'].map((type) => (
-                          <option key={type} value={type}>
-                            {t(`ux.fieldType.${type}`)}
-                          </option>
-                        ))}
-                      </Select>
-                      <Button
-                        className="button-secondary"
-                        aria-label={text(productCopy('添加字段'), 'Add field')}
-                        disabled={
-                          !fieldName.trim() ||
-                          !fieldSelector.trim() ||
-                          Boolean(rule.fields[fieldName.trim()])
-                        }
-                        onClick={() => {
-                          setFields({
-                            ...rule.fields,
-                            [fieldName.trim()]: {
-                              selector: fieldSelector,
-                              value: 'text',
-                              dataType: fieldType,
-                            },
-                          });
-                          setFieldName('');
-                          setFieldSelector('');
-                        }}
-                      >
-                        <Plus size={16} />
-                      </Button>
+                        <Select
+                          aria-label={text('新字段类型', 'New field type')}
+                          value={fieldType}
+                          onChange={(e) => setFieldType(e.target.value)}
+                        >
+                          {['string', 'number', 'date', 'url', 'json'].map((type) => (
+                            <option key={type} value={type}>
+                              {t(`ux.fieldType.${type}`)}
+                            </option>
+                          ))}
+                        </Select>
+                        <Button
+                          className="button-secondary icon-button"
+                          aria-label={text(productCopy('添加字段'), 'Add field')}
+                          title={text(productCopy('添加字段'), 'Add field')}
+                          disabled={
+                            !fieldName.trim() ||
+                            !fieldSelector.trim() ||
+                            Boolean(rule.fields[fieldName.trim()])
+                          }
+                          onClick={() => {
+                            setFields({
+                              ...rule.fields,
+                              [fieldName.trim()]: {
+                                selector: fieldSelector,
+                                value: 'text',
+                                dataType: fieldType,
+                              },
+                            });
+                            setFieldName('');
+                            setFieldSelector('');
+                          }}
+                        >
+                          <Plus size={16} />
+                        </Button>
+                      </div>
                     </div>
+                    <p className="field-help">
+                      {text(
+                        '提取规则是 CSS 选择器，用来定位每条记录里的字段。不熟悉时，点“在网页上点选字段”自动生成。',
+                        'Extraction rules are CSS selectors that locate each field inside a record. Use “Select fields on the page” to generate them.',
+                      )}
+                    </p>
                   </>
                 ) : (
                   <p>
@@ -786,22 +838,6 @@ export function CollectionFlowPage() {
             <details className="advanced-section">
               <summary>{text('专业配置', 'Professional settings')}</summary>
               <DraftTemplates onApply={edit} />
-              {rule.type === 'css' && !draft.exampleId && (
-                <DraftInspection
-                  flush={flush}
-                  fields={fields.map(([name]) => name)}
-                  onSelect={(name, selector) => {
-                    if (!name)
-                      setPlan(
-                        normalizeCrawlPlan({
-                          ...plan,
-                          list: { ...plan.list, rule: { ...rule, container: selector } },
-                        }),
-                      );
-                    else setFields({ ...rule.fields, [name]: { ...rule.fields[name], selector } });
-                  }}
-                />
-              )}
               {taskId && (
                 <Link
                   className="button button-secondary"
