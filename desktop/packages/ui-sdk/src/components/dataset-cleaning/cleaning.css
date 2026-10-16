@@ -63,7 +63,7 @@
 .cleaning-report td small {
   display: block;
 }
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .cleaning-form-grid {
     grid-template-columns: minmax(0, 1fr);
   }

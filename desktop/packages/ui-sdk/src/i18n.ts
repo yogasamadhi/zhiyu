@@ -46,7 +46,6 @@ const resources = {
       manualCreate: '手动创建',
       analytics: {
         title: '数据分析',
-        eyebrow: '分析与报告',
         intro: '选择数据版本，找到质量问题、分类差异、时间变化和异常。',
         degraded: '降级运行',
         workerUnavailable: '分析服务暂时不可用',
@@ -85,7 +84,6 @@ const resources = {
       },
       corpus: {
         title: '语料工作台',
-        eyebrow: '语料工作台',
         intro: '选择数据与文本字段，预览清洗、去重和分块结果，再构建语料。',
         create: '创建语料库',
         creating: '正在创建…',
@@ -289,7 +287,6 @@ const resources = {
       manualCreate: 'Create manually',
       analytics: {
         title: 'Analytics',
-        eyebrow: 'Analysis & reports',
         intro: 'Run reproducible statistical, text, and ML methods on immutable Dataset Snapshots.',
         degraded: 'Degraded',
         workerUnavailable: 'Analytics Worker is unavailable',
@@ -328,7 +325,6 @@ const resources = {
       },
       corpus: {
         title: 'Corpus',
-        eyebrow: 'Corpus workbench',
         intro: 'Build cleaned, deduplicated, chunked, and traceable bilingual corpus versions.',
         create: 'Create corpus',
         creating: 'Creating…',

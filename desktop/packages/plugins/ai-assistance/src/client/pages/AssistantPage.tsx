@@ -28,9 +28,6 @@ export function AssistantPage() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">
-            {i18n.language.startsWith('zh') ? '采集 · 学习 · 解决问题' : 'Collect · Learn · Solve'}
-          </span>
           <h1>{i18n.language.startsWith('zh') ? '织云助手' : 'ZhiYun assistant'}</h1>
         </div>
       </div>

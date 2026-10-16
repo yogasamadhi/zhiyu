@@ -73,12 +73,13 @@ export function DatasetVersionPicker({
     }
   }, [versions.data, pending, snapshotId]);
   useEffect(() => {
-    // A dataset without any version would otherwise block analysis behind a manual step.
+    // A dataset without a usable version would otherwise block analysis behind a manual step.
     if (!showVersion || locked || disabled || !datasetId || !versions.isSuccess) return;
-    if (versions.data.length > 0 || autoCreated.current.has(datasetId)) return;
+    const usable = versions.data.some((s) => s.status === 'ready' || s.status === 'preparing');
+    if (usable || pending || autoCreated.current.has(datasetId)) return;
     autoCreated.current.add(datasetId);
     create.mutate();
-  }, [versions.data, versions.isSuccess, datasetId, showVersion, locked, disabled]);
+  }, [versions.data, versions.isSuccess, datasetId, showVersion, locked, disabled, pending]);
   const selected = versions.data?.find((s) => s.id === snapshotId && s.status === 'ready');
   return (
     <div className="dataset-picker">

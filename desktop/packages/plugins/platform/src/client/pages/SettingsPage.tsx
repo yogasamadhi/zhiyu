@@ -16,6 +16,15 @@ import {
 import { useWorkspaceAuth } from '@zhiyun/ui-sdk/auth';
 import { Button, Card, ErrorNotice, Input } from '@zhiyun/ui-sdk/components/ui';
 import { validatePasswordChange } from '@zhiyun/ui-sdk/password-settings';
+import {
+  readThemePreference,
+  setThemePreference,
+  type ThemePreference,
+} from '@zhiyun/ui-sdk/theme';
+import {
+  readRunNotificationsEnabled,
+  setRunNotificationsEnabled,
+} from '@zhiyun/ui-sdk/run-notifications';
 
 export function SettingsPage() {
   const { i18n } = useTranslation();
@@ -169,6 +178,7 @@ export function SettingsPage() {
           </Button>
         </Card>
       )}
+      {section === 'general' && <AppearanceSettings zh={zh} />}
       {section === 'connections' && (
         <Card>
           <h2>{zh ? '连接与凭据' : 'Connections and credentials'}</h2>
@@ -544,4 +554,53 @@ function formatDuration(totalSeconds: number): string {
   return [days ? `${days} 天` : '', hours ? `${hours} 小时` : '', `${minutes} 分钟`]
     .filter(Boolean)
     .join(' ');
+}
+
+function AppearanceSettings({ zh }: { zh: boolean }) {
+  const [theme, setTheme] = useState<ThemePreference>(readThemePreference);
+  const [notify, setNotify] = useState(readRunNotificationsEnabled);
+  const options: [ThemePreference, string, string][] = [
+    ['system', '跟随系统', 'Match system'],
+    ['light', '浅色', 'Light'],
+    ['dark', '深色', 'Dark'],
+  ];
+  return (
+    <Card>
+      <h2>{zh ? '外观与通知' : 'Appearance and notifications'}</h2>
+      <fieldset className="flow-fieldset">
+        <legend className="field-label">{zh ? '外观' : 'Appearance'}</legend>
+        <div className="segmented-control" role="group" aria-label={zh ? '外观' : 'Appearance'}>
+          {options.map(([id, cn, en]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={theme === id}
+              className={theme === id ? 'active' : ''}
+              onClick={() => {
+                setTheme(id);
+                setThemePreference(id);
+              }}
+            >
+              {zh ? cn : en}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={notify}
+          onChange={(event) => {
+            setNotify(event.target.checked);
+            setRunNotificationsEnabled(event.target.checked);
+          }}
+        />
+        <span>
+          {zh
+            ? '应用在后台时，采集完成或失败后发送系统通知'
+            : 'Send a system notification when a collection finishes or fails while the app is in the background'}
+        </span>
+      </label>
+    </Card>
+  );
 }

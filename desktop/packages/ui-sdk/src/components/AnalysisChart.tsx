@@ -6,6 +6,7 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { useTranslation } from 'react-i18next';
 import type { AnalyticsResult } from '@zhiyun/client';
 import { analysisChartOption } from '../analysis-chart.js';
+import { useResolvedTheme } from '../theme.js';
 
 echarts.use([
   BarChart,
@@ -27,6 +28,7 @@ export function AnalysisChart({
   const { t } = useTranslation();
   const element = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
+  const theme = useResolvedTheme();
   const chart = useMemo(() => analysisChartOption(series, context), [series, context]);
   useEffect(() => {
     const container = element.current;
@@ -34,8 +36,10 @@ export function AnalysisChart({
     let instance: echarts.ECharts | undefined;
     let observer: ResizeObserver | undefined;
     try {
-      instance = echarts.init(container, undefined, { renderer: 'canvas' });
-      instance.setOption(chart.option, { notMerge: true });
+      instance = echarts.init(container, theme === 'dark' ? 'dark' : undefined, {
+        renderer: 'canvas',
+      });
+      instance.setOption({ backgroundColor: 'transparent', ...chart.option }, { notMerge: true });
       observer = new ResizeObserver(() => {
         try {
           instance?.resize();
@@ -55,7 +59,7 @@ export function AnalysisChart({
         /* A failed initialization may have disposed itself. */
       }
     };
-  }, [chart]);
+  }, [chart, theme]);
   if (failed) throw new Error('Analysis chart renderer failed');
   if (!chart.option) return <p role="status">{t(`analytics.${chart.reason}`)}</p>;
   return (

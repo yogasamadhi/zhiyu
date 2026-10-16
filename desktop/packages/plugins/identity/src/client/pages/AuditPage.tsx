@@ -30,7 +30,6 @@ export function AuditPage() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">{productCopy('工作区操作记录')}</span>
           <h1>{productCopy('工作区审计')}</h1>
           <p>{productCopy('查看身份、任务、运行、质量、输出与系统操作的最小必要记录。')}</p>
         </div>

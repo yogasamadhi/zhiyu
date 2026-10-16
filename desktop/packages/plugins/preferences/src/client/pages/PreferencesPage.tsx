@@ -223,7 +223,6 @@ export function PreferencesPage() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{t('workspace')}</p>
           <h1>{t('preferencesAndTrends')}</h1>
           <p>{t('preferencesIntro')}</p>
         </div>

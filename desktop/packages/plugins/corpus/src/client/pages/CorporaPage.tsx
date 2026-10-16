@@ -38,7 +38,6 @@ export function CorporaPage() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">{t('corpus.eyebrow')}</span>
           <h1>{t('corpus.title')}</h1>
           <p>{t('corpus.intro')}</p>
         </div>

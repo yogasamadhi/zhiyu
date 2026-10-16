@@ -128,7 +128,6 @@ export function MembersPage() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">{productCopy('工作区访问')}</span>
           <h1>{productCopy('成员与邀请')}</h1>
           <p>{productCopy('单工作区固定使用管理员、编辑者和只读三档角色。')}</p>
         </div>

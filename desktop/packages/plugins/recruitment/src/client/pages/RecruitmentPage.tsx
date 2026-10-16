@@ -337,7 +337,6 @@ export function RecruitmentPage() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{productCopy('职位雷达')}</p>
           <h1>{productCopy('职位雷达')}</h1>
           <p>{productCopy('导入你合法取得的招聘数据，跨来源去重并跟踪求职进度。')}</p>
         </div>

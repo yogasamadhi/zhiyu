@@ -20,6 +20,11 @@ import i18n from './i18n.js';
 import { Button } from '@zhiyun/ui-sdk/components/ui';
 import { useClientRuntime } from './shell/client-runtime.js';
 import { UiContributionsProvider, type UiSnapshot } from '@zhiyun/ui-sdk';
+import { applyThemePreference } from '@zhiyun/ui-sdk/theme';
+import { useRunNotifications } from '@zhiyun/ui-sdk/run-notifications';
+import { CommandPalette } from './shell/CommandPalette.js';
+
+applyThemePreference();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -135,6 +140,13 @@ function ApplicationShell({
   const canCreateTasks =
     hasCollection && (!auth.identityEnabled || auth.permissions.includes('task.write'));
   const zh = i18n.language.startsWith('zh');
+  useRunNotifications(zh);
+  const paletteDestinations = [
+    ...(hasCollection ? [{ to: '/', label: t('home') }] : []),
+    ...[...navigation]
+      .sort((a, b) => a.order - b.order)
+      .map((item) => ({ to: item.to, label: t(item.labelKey) })),
+  ];
   const toggleLanguage = async () => {
     const next = i18n.language === 'en' ? 'zh-CN' : 'en';
     localStorage.setItem('zhiyun-language', next);
@@ -142,6 +154,7 @@ function ApplicationShell({
   };
   return (
     <div className="app-shell">
+      <CommandPalette destinations={paletteDestinations} canCreateTasks={canCreateTasks} zh={zh} />
       <a className="skip-link" href="#main-content">
         {t('ux.skipToContent')}
       </a>
@@ -159,9 +172,9 @@ function ApplicationShell({
         <nav className="sidebar-navigation" aria-label={t('workspace')}>
           <section className="sidebar-group">
             {hasCollection && (
-              <NavLink to="/" end onClick={() => setNavOpen(false)}>
+              <NavLink to="/" end title={t('home')} onClick={() => setNavOpen(false)}>
                 <Home size={19} aria-hidden="true" />
-                {t('home')}
+                <span className="nav-label">{t('home')}</span>
               </NavLink>
             )}
             {[...navigation]
@@ -172,9 +185,14 @@ function ApplicationShell({
               )
               .sort((a, b) => a.order - b.order)
               .map((item) => (
-                <NavLink key={item.id} to={item.to} onClick={() => setNavOpen(false)}>
+                <NavLink
+                  key={item.id}
+                  to={item.to}
+                  title={t(item.labelKey)}
+                  onClick={() => setNavOpen(false)}
+                >
                   <item.icon size={19} aria-hidden="true" />
-                  {t(item.labelKey)}
+                  <span className="nav-label">{t(item.labelKey)}</span>
                 </NavLink>
               ))}
           </section>
@@ -187,10 +205,11 @@ function ApplicationShell({
                 className="footer-link"
                 key={item.id}
                 to={item.to}
+                title={t(item.labelKey)}
                 onClick={() => setNavOpen(false)}
               >
-                <item.icon size={18} />
-                {t(item.labelKey)}
+                <item.icon size={18} aria-hidden="true" />
+                <span className="nav-label">{t(item.labelKey)}</span>
               </NavLink>
             ))}
           {auth.user && (
