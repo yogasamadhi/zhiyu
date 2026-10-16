@@ -341,6 +341,11 @@ describe('ZhiYun Runtime API v2 lifecycle', () => {
     }
     expect(status).toBe('succeeded');
 
+    const listed = await app.inject({ method: 'GET', url: '/api/v2/tasks', headers: headers() });
+    expect(
+      listed.json().items.find((task: { id: string }) => task.id === taskId)?.latestRun,
+    ).toMatchObject({ id: runId, status: 'succeeded', recordCount: 10 });
+
     const records = await app.inject({
       method: 'GET',
       url: `/api/v2/runs/${runId}/records`,

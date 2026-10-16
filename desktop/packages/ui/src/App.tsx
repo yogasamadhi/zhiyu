@@ -265,12 +265,31 @@ function ApplicationShell({
                     );
                   }),
                 )}
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>
           )}
         </main>
       </div>
     </div>
+  );
+}
+
+function NotFoundPage() {
+  const { t } = useTranslation();
+  return (
+    <section className="card empty not-found">
+      <div className="empty-icon" aria-hidden="true">
+        ⌁
+      </div>
+      <h1>{t('ux.notFoundTitle')}</h1>
+      <p>{t('ux.notFoundHint')}</p>
+      <div className="empty-actions">
+        <Link className="button" to="/">
+          {t('ux.backHome')}
+        </Link>
+      </div>
+    </section>
   );
 }
 

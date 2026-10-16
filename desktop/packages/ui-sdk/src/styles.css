@@ -3277,9 +3277,30 @@ th button:focus-visible {
   right: 24px;
   bottom: 22px;
   z-index: 35;
-  display: flex;
+  display: grid;
+  justify-items: end;
   gap: 8px;
   filter: drop-shadow(0 4px 10px #233f6320);
+}
+.assistant-launcher-buttons {
+  display: flex;
+}
+.assistant-launcher-buttons > .button:first-child:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.assistant-launcher-more {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid #ffffff55;
+  padding-inline: 10px;
+}
+.assistant-launcher-menu {
+  display: grid;
+}
+/* Leave room so page-end actions are never covered by the floating assistant launcher. */
+.workspace-shell .content {
+  padding-bottom: 96px;
 }
 .assistant-drawer {
   position: fixed;
@@ -3435,4 +3456,16 @@ th button:focus-visible {
 .monitoring-runs .button {
   white-space: normal;
   word-break: normal;
+}
+
+.field-rule-cell,
+.field-samples-cell {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+.field-rule-cell code,
+.field-samples-cell code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }

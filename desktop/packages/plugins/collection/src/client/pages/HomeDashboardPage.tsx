@@ -174,7 +174,15 @@ export function HomeDashboardPage() {
           <Card>
             <small>{t('recentHealthy')}</small>
             <strong>{health.isPending || health.isError ? '—' : healthy}</strong>
-            <span>{t('recentHealthyHint')}</span>
+            <span>
+              {health.isPending
+                ? t('loading')
+                : health.isError
+                  ? t('ux.state.unassessed')
+                  : healthy
+                    ? t('recentHealthyHint')
+                    : t('recentHealthyNone')}
+            </span>
           </Card>
         </div>
       )}

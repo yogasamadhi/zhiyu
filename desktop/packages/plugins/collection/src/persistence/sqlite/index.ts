@@ -597,6 +597,29 @@ export class SqliteCollectionRepository implements CollectionRepository {
     ).map(runRow);
   }
 
+  async listLatestRuns(taskIds: readonly string[]): Promise<Map<string, CrawlRun>> {
+    const latest = new Map<string, CrawlRun>();
+    const unique = [...new Set(taskIds)];
+    for (let offset = 0; offset < unique.length; offset += 500) {
+      const chunk = unique.slice(offset, offset + 500);
+      const rows = this.sqlite
+        .prepare(
+          `SELECT * FROM (
+             SELECT runs.*,ROW_NUMBER() OVER (
+               PARTITION BY task_id ORDER BY created_at DESC,id DESC
+             ) AS latest_rank
+             FROM runs WHERE task_id IN (${chunk.map(() => '?').join(',')})
+           ) WHERE latest_rank=1`,
+        )
+        .all(...chunk) as SqlRow[];
+      for (const row of rows) {
+        const run = runRow(row);
+        latest.set(run.taskId, run);
+      }
+    }
+    return latest;
+  }
+
   async getRun(id: string): Promise<CrawlRun | null> {
     const row = this.sqlite.prepare('SELECT * FROM runs WHERE id=?').get(id) as SqlRow | undefined;
     return row ? runRow(row) : null;

@@ -5,7 +5,7 @@ import {
   type CollectionPreviewRecord,
   type CrawlPlanDefinition,
 } from '@zhiyun/shared';
-import { Button } from './ui.js';
+import { Badge, Button } from './ui.js';
 import { StatusNotice } from './experience.js';
 
 const valueText = (value: unknown) =>
@@ -21,7 +21,7 @@ export function CollectionPreview({
   plan: CrawlPlanDefinition;
   records: CollectionPreviewRecord[];
 }) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const text = (cn: string, en: string) => (i18n.language.startsWith('zh') ? cn : en);
   const [selected, setSelected] = useState(0);
   const [reviewed, setReviewed] = useState<Set<number>>(new Set());
@@ -150,8 +150,8 @@ export function CollectionPreview({
                       : text('列表页', 'List page')}
                   </small>
                 </td>
-                <td>
-                  {field.dataType}
+                <td className="field-rule-cell">
+                  <Badge>{t(`ux.fieldType.${field.dataType}`, field.dataType)}</Badge>
                   <code>{field.selector}</code>
                 </td>
                 <td>
@@ -161,11 +161,10 @@ export function CollectionPreview({
                   {Math.round(field.emptyRatio * 100)}% ({field.emptyCount}/{records.length})
                 </td>
                 <td>{field.invalidTypeCount ?? '—'}</td>
-                <td>
+                <td className="field-samples-cell">
                   {field.samples.map((value, index) => (
                     <code key={index}>
                       {index + 1}: {valueText(value)}
-                      {index < field.samples.length - 1 ? ' · ' : ''}
                     </code>
                   ))}
                 </td>

@@ -355,6 +355,8 @@ export function registerAnalyticsLabels(instance: i18n) {
                 'time-series': '时间变化',
                 text: '文本分析',
                 'machine-learning': '机器学习',
+                'advanced-statistics': '高级统计',
+                other: '其他',
               }
             : {
                 'data-quality': 'Data quality',
@@ -364,6 +366,8 @@ export function registerAnalyticsLabels(instance: i18n) {
                 'time-series': 'Time series',
                 text: 'Text',
                 'machine-learning': 'Machine learning',
+                'advanced-statistics': 'Advanced statistics',
+                other: 'Other',
               },
           phase: zh
             ? {

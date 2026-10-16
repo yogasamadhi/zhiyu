@@ -325,12 +325,13 @@ function OverviewSection(props: {
           <h2>{productCopy('任务配置')}</h2>
           <p>
             {productCopy('来源：')}
-            {props.task.origin.kind} {productCopy('· 活动规则')}{' '}
+            {productCopy(originLabels[props.task.origin.kind])} {productCopy('· 活动规则')}{' '}
             {props.task.activeRule
               ? `v${props.task.activeRule.version.version}`
               : productCopy('未建立')}{' '}
-            {productCopy('· 输出绑定')}
-            {props.task.outputBindings.length}
+            {productCopy('· 输出目的地 {{count}} 个', {
+              count: props.task.outputBindings.length,
+            })}
           </p>
           <div className="row-actions">
             {props.canWrite && (
@@ -711,3 +712,11 @@ function taskFields(task: Task | null): Array<{ name: string; dataType: string }
     if (!fields.has(name)) fields.set(name, rule.dataType);
   return [...fields].map(([name, dataType]) => ({ name, dataType }));
 }
+
+const originLabels: Record<Task['origin']['kind'], string> = {
+  example: '内置样例',
+  manual: '手动创建',
+  ai: 'AI 生成',
+  template: '场景模板',
+  managed: '应用托管',
+};

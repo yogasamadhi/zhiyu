@@ -310,9 +310,17 @@ export async function registerCollectionHttp(
         ...(query.direction ? { direction: query.direction } : {}),
         ...(query.includeManaged ? { includeManaged: query.includeManaged === 'true' } : {}),
       });
+      const latestRuns = await dependencies.repository.listLatestRuns(
+        page.items.map(({ id }) => id),
+      );
       return {
         ...page,
-        items: await Promise.all(page.items.map((task) => taskView(task, dependencies.bindings))),
+        items: await Promise.all(
+          page.items.map(async (task) => ({
+            ...(await taskView(task, dependencies.bindings)),
+            latestRun: latestRuns.get(task.id) ?? null,
+          })),
+        ),
       };
     }),
   );

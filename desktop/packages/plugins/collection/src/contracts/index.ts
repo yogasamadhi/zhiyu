@@ -166,6 +166,7 @@ export interface CollectionRepository {
   getActiveRule(taskId: string): Promise<ActiveRuleRecord | null>;
   createRun(taskId: string, runId?: string, metadata?: Record<string, unknown>): Promise<CrawlRun>;
   listRuns(taskId: string): Promise<CrawlRun[]>;
+  listLatestRuns(taskIds: readonly string[]): Promise<Map<string, CrawlRun>>;
   getRun(id: string): Promise<CrawlRun | null>;
   startRun(runId: string, taskId: string, allowRecovery?: boolean): Promise<boolean>;
   markRunPersisting(runId: string, taskId: string): Promise<boolean>;

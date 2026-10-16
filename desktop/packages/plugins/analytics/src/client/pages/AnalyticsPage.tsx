@@ -184,7 +184,7 @@ export function AnalyticsPage() {
                     <strong>{t(method.titleKey, { defaultValue: method.id })}</strong>
                     <small>
                       {t(`analytics.categories.${method.category}`, {
-                        defaultValue: method.category,
+                        defaultValue: t('analytics.categories.other'),
                       })}
                     </small>
                   </button>

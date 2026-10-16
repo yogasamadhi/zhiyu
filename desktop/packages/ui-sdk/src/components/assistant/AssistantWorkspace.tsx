@@ -11,6 +11,7 @@ import {
   Sparkles,
   Globe,
   Lightbulb,
+  ChevronUp,
 } from 'lucide-react';
 import {
   runtimeClient,
@@ -136,6 +137,8 @@ export function AssistantHost() {
   const text = useCopy();
   const location = useLocation();
   const panel = useRef<HTMLElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => setMenuOpen(false), [location.pathname]);
   useEffect(() => {
     if (!assistant.open) return;
     const previous = document.activeElement;
@@ -156,28 +159,61 @@ export function AssistantHost() {
       });
     };
   }, [assistant.open]);
-  if (!assistant.capabilities?.enabled || location.pathname === '/assistant') return null;
+  if (
+    !assistant.capabilities?.enabled ||
+    ['/assistant', '/crawler-assistant'].includes(location.pathname)
+  )
+    return null;
   const resource = pageResource(location.pathname, location.search);
   return (
     <>
       {!assistant.open && (
-        <div className="assistant-launcher">
-          <Button
-            onClick={() => assistant.setOpen(true)}
-            aria-label={text('打开织云助手', 'Open ZhiYun assistant')}
-            data-assistant-launcher
-          >
-            <MessageCircle size={18} />
-            {text('织云助手', 'Assistant')}
-          </Button>
-          {resource && (
-            <Button className="button-secondary" onClick={() => void assistant.askHere()}>
-              {text(
-                resource.kind === 'run' ? '帮我检查' : '解释这里',
-                resource.kind === 'run' ? 'Check this' : 'Explain this',
-              )}
-            </Button>
+        <div
+          className="assistant-launcher"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && menuOpen) {
+              event.stopPropagation();
+              setMenuOpen(false);
+            }
+          }}
+        >
+          {resource && menuOpen && (
+            <div className="assistant-launcher-menu" id="assistant-launcher-menu">
+              <Button
+                className="button-secondary"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void assistant.askHere();
+                }}
+              >
+                {text(
+                  resource.kind === 'run' ? '帮我检查这次运行' : '解释当前页面',
+                  resource.kind === 'run' ? 'Check this run' : 'Explain this page',
+                )}
+              </Button>
+            </div>
           )}
+          <div className="assistant-launcher-buttons">
+            <Button
+              onClick={() => assistant.setOpen(true)}
+              aria-label={text('打开织云助手', 'Open ZhiYun assistant')}
+              data-assistant-launcher
+            >
+              <MessageCircle size={18} />
+              {text('织云助手', 'Assistant')}
+            </Button>
+            {resource && (
+              <Button
+                className="assistant-launcher-more"
+                aria-label={text('更多助手操作', 'More assistant actions')}
+                aria-expanded={menuOpen}
+                aria-controls="assistant-launcher-menu"
+                onClick={() => setMenuOpen(!menuOpen)}
+              >
+                <ChevronUp size={16} aria-hidden="true" />
+              </Button>
+            )}
+          </div>
         </div>
       )}
       {assistant.open && (

@@ -313,6 +313,24 @@ function defineCollectionConformance(name: string, create: () => Promise<Fixture
       expect(await fixture.collection.cancelRun(run.id)).toMatchObject({ status: 'canceled' });
     });
 
+    it('batch-loads the latest Run for each Task', async () => {
+      const withRuns = await fixture.collection.createTask(taskInput);
+      const withoutRuns = await fixture.collection.createTask(taskInput);
+      const first = await fixture.collection.createRun(withRuns.id);
+      await fixture.collection.cancelRun(first.id);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const second = await fixture.collection.createRun(withRuns.id);
+      const latest = await fixture.collection.listLatestRuns([
+        withRuns.id,
+        withoutRuns.id,
+        withRuns.id,
+      ]);
+      expect([...latest.keys()]).toEqual([withRuns.id]);
+      expect(latest.get(withRuns.id)).toMatchObject({ id: second.id, status: 'queued' });
+      expect(await fixture.collection.listLatestRuns([])).toEqual(new Map());
+      await fixture.collection.cancelRun(second.id);
+    });
+
     it('persists a successful Run through the Dataset contract', async () => {
       const task = await fixture.collection.createTask(taskInput);
       const run = await fixture.collection.createRun(task.id, undefined, {
