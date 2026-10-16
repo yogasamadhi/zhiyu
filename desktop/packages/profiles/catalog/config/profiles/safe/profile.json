@@ -1,0 +1,6 @@
+{
+  "id": "safe",
+  "version": "1.0.0",
+  "bundles": ["safe-core"],
+  "configuration": {}
+}

@@ -8,3 +8,5 @@ desktop/analytics-worker/uv.lock
 docs/ZhiYun（织云）项目初始化任务书.md
 platform/portal/next-env.d.ts
 tooling/dependency-patches/**/*.js
+desktop/tooling/dependencies/vendor/pi/
+desktop/tooling/dependencies/vendor/deepseek-harness/

@@ -34,12 +34,17 @@ module.exports = {
       // Cross-Plugin test harnesses may compose concrete adapters for conformance and crash tests;
       // production source remains contract-only.
       from: { path: `^desktop/packages/plugins/${plugin}/(?!test/)` },
-      to: { path: `^desktop/packages/plugins/(?!${plugin}/)` },
+      to: {
+        path: `^desktop/packages/plugins/(?!${plugin}/)`,
+        pathNot: '/src/(types\\.ts|manifest\\.ts|policy\\.ts|contracts/)',
+      },
     })),
     {
       name: 'renderer-does-not-import-server-implementation',
       severity: 'error',
-      from: { path: '^(desktop/packages/ui|desktop/src/renderer)/' },
+      from: {
+        path: '^(desktop/packages/(ui|ui-sdk)|desktop/src/renderer|desktop/packages/plugins/[^/]+/src/client)/',
+      },
       to: {
         path: '^(desktop/packages/(runtime|storage|sqlite-storage|scheduler)|desktop/packages/plugins/.+/src/(domain|application|http|persistence|migrations))/',
       },
@@ -53,7 +58,8 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
-    exclude: '(^|/)(node_modules|dist|out|\\.next|\\.forge-app|resources/playwright)/',
+    exclude:
+      '(^|/)(node_modules|dist|out|\\.next|\\.forge-app|resources/playwright)/|^desktop/tooling/dependencies/vendor/',
     tsConfig: { fileName: 'tsconfig.base.json' },
     enhancedResolveOptions: {
       conditionNames: ['development', 'bun', 'types', 'import', 'default'],

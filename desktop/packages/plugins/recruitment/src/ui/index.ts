@@ -1,4 +1,4 @@
-import type { UiContribution } from '@zhiyun/kernel';
+import type { UiContribution } from '@zhiyun/plugin-runtime';
 
 export const recruitmentUiContributions = [
   { id: 'recruitment.route', kind: 'route' },

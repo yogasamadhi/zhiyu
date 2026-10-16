@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { createWriteStream } from 'node:fs';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { RouteContribution } from '@zhiyun/kernel';
+import type { RouteContribution } from '@zhiyun/plugin-runtime';
 import type { ArtifactStore, PlatformRepository } from '@zhiyun/platform-core';
 import { DefaultDataExporter, type ExportOptions } from '@zhiyun/exporters';
 import type { DatasetSnapshotService } from '../application/index.js';

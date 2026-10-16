@@ -1,0 +1,5 @@
+# Packaged Cordis bundle; loaded by the DSH Include patch algorithm.
+- insert:
+    - id: identity
+      name: cordis:identity
+      config: {}

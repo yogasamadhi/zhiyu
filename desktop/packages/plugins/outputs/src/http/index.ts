@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { RouteContribution } from '@zhiyun/kernel';
+import type { RouteContribution } from '@zhiyun/plugin-runtime';
 import { googleServiceAccountClientEmail, outputAdapter } from '@zhiyun/outputs';
 import type { PlatformJobQueue } from '@zhiyun/platform-core';
 import { outputDestinationSchema, stripOutputDestinationConfig } from '@zhiyun/shared';

@@ -17,6 +17,7 @@ export default tseslint.config(
       'desktop/out/**',
       'desktop/.forge-app/**',
       'desktop/resources/playwright/**',
+      'desktop/tooling/dependencies/vendor/**',
       // Retained upstream sources; local changes have dedicated security tests.
       'tooling/dependency-patches/**/*.js',
     ],

@@ -10,6 +10,7 @@ async function run(command: string[], cwd = workspaceRoot): Promise<void> {
   if (exitCode !== 0) throw new Error(`${command.join(' ')} exited with ${exitCode}`);
 }
 
+await run(['bun', 'run', 'vendor:prepare']);
 for (const workspace of ['@zhiyun/shared', '@zhiyun/contracts', '@zhiyun/client', '@zhiyun/ui']) {
   await run(['bun', 'run', '--filter', workspace, 'build']);
 }

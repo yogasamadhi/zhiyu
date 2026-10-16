@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { qualityPolicySchema } from '@zhiyun/contracts';
 import i18n from '../src/i18n.js';
 import { productCopy } from '../src/product-copy.js';
-import { QualityPolicyEditor } from '../src/components/monitoring/QualityPolicyEditor.js';
+import { QualityPolicyEditor } from '../../ui-sdk/src/components/monitoring/QualityPolicyEditor.js';
 import {
   defaultMonitoringRule,
   editableMonitoringPolicy,

@@ -4,7 +4,7 @@ import {
   isSensitiveFillTarget,
   parseBrowserActions,
   updateActionSelector,
-} from '../src/components/BrowserActionEditor.js';
+} from '../../ui-sdk/src/components/BrowserActionEditor.js';
 
 describe('browser action editor helpers', () => {
   it('round-trips every supported action type through the shared schema', () => {

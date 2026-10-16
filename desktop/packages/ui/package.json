@@ -26,7 +26,20 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-i18next": "^16.5.4",
-    "react-router-dom": "^7.12.0"
+    "react-router-dom": "^7.12.0",
+    "@zhiyun/ui-sdk": "workspace:*",
+    "@zhiyun/plugin-runtime": "workspace:*",
+    "@deepseek-ai/cordis": "workspace:*",
+    "@zhiyun/plugin-platform": "workspace:*",
+    "@zhiyun/plugin-datasets": "workspace:*",
+    "@zhiyun/plugin-collection": "workspace:*",
+    "@zhiyun/plugin-outputs": "workspace:*",
+    "@zhiyun/plugin-preferences": "workspace:*",
+    "@zhiyun/plugin-recruitment": "workspace:*",
+    "@zhiyun/plugin-analytics": "workspace:*",
+    "@zhiyun/plugin-corpus": "workspace:*",
+    "@zhiyun/plugin-ai-assistance": "workspace:*",
+    "@zhiyun/plugin-identity": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",

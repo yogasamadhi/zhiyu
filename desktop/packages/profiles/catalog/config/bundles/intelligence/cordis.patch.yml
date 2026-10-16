@@ -1,0 +1,11 @@
+# Packaged Cordis bundle; loaded by the DSH Include patch algorithm.
+- insert:
+    - id: analytics
+      name: cordis:analytics
+      config: {}
+    - id: corpus
+      name: cordis:corpus
+      config: {}
+    - id: ai-assistance
+      name: cordis:ai-assistance
+      config: {}

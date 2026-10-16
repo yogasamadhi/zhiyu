@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= new URL(
   './desktop/resources/playwright/',
@@ -13,6 +13,7 @@ export default defineConfig({
     // resources; serial files make the all-in-one PR gate deterministic across CI runners.
     fileParallelism: false,
     include: ['desktop/**/test/**/*.test.ts'],
+    exclude: [...configDefaults.exclude, 'desktop/tooling/dependencies/vendor/**'],
     coverage: { reporter: ['text', 'html'] },
   },
 });

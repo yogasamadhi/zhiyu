@@ -1,0 +1,19 @@
+# Packaged Cordis bundle; loaded by the DSH Include patch algorithm.
+- insert:
+    - id: timer
+      name: cordis:timer
+    - id: logger
+      name: cordis:logger
+      config: { showTime: '' }
+    - id: platform
+      name: cordis:platform
+      config: {}
+    - id: datasets
+      name: cordis:datasets
+      config: {}
+    - id: collection
+      name: cordis:collection
+      config: {}
+    - id: preferences
+      name: cordis:preferences
+      config: {}

@@ -1,25 +1,7 @@
-import { join } from 'node:path';
-import { createAiProvider, HostedAiProvider } from '@zhiyun/ai-runtime';
 import {
   AnalyticsWorkerClient,
   type AnalyticsWorkerPrivateBootstrap,
 } from '@zhiyun/analytics-worker-client';
-import { LocalArtifactStore } from '@zhiyun/artifact-store';
-import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
-import { HostCredentialStore } from '@zhiyun/platform';
-import { JobHandlerRegistry } from '@zhiyun/platform-core';
-import { SqliteAnalysisRepository } from '@zhiyun/plugin-analytics';
-import { SqliteAiConversationRepository } from '@zhiyun/plugin-ai-assistance';
-import { SqliteCollectionRepository } from '@zhiyun/plugin-collection';
-import { SqliteCorpusRepository } from '@zhiyun/plugin-corpus';
-import { SqliteDatasetRepository } from '@zhiyun/plugin-datasets';
-import { SqliteOutputRepository } from '@zhiyun/plugin-outputs';
-import { SqliteMonitoringRepository } from '@zhiyun/plugin-monitoring';
-import { SqlitePreferencesRepository } from '@zhiyun/plugin-preferences';
-import { SqliteRecruitmentRepository } from '@zhiyun/plugin-recruitment';
-import { resolveProductGraph } from '@zhiyun/product-profiles';
-import { LocalPlatformJobQueue } from '@zhiyun/queue-local-v1';
-import { openSqlitePlatformRepository } from '@zhiyun/storage-sqlite-v1';
 import type {
   ArtifactDescriptor,
   HostCapabilities,
@@ -27,7 +9,7 @@ import type {
   SchedulingEnvironment,
   LocalNotificationResult,
 } from '@zhiyun/contracts';
-import { buildLevel2Runtime, openApiDocument, type Level2Runtime } from './index.js';
+import { buildDesktopRuntime, openApiDocument, type Level2Runtime } from './index.js';
 
 interface BootstrapMessage {
   type: 'bootstrap';
@@ -100,61 +82,13 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
   );
   cloudMode = cloud.mode;
   cloudModel = cloud.model;
-  const hosted = new HostedAiProvider(
-    async (_url, init, context) =>
-      fetch(`${message.hostBaseUrl}/cloud/chat/completions`, {
-        ...init,
-        headers: {
-          authorization: `Bearer ${message.hostToken}`,
-          'content-type': 'application/json',
-          'x-request-id': crypto.randomUUID(),
-          'x-assistant-turn': context?.runId ?? context?.taskId ?? crypto.randomUUID(),
-        },
-      }),
-    () => ({ provider: 'hosted', model: cloudModel, configuration: 'hosted-transport-v1' }),
-  );
-  const databasePath = join(message.dataDirectory, 'zhiyun.sqlite3');
-  const graph = resolveProductGraph('desktop-studio');
-  const platform = await openSqlitePlatformRepository({
-    dataDirectory: message.dataDirectory,
-    filePath: databasePath,
-    graphRevision: graph.revision,
-  });
-  const repositories = {
-    platform,
-    datasets: new SqliteDatasetRepository(databasePath),
-    collection: new SqliteCollectionRepository(databasePath),
-    outputs: new SqliteOutputRepository(databasePath),
-    monitoring: new SqliteMonitoringRepository(databasePath),
-    preferences: new SqlitePreferencesRepository(databasePath),
-    recruitment: new SqliteRecruitmentRepository(databasePath),
-    analytics: new SqliteAnalysisRepository(databasePath),
-    corpus: new SqliteCorpusRepository(databasePath),
-    aiAssistance: new SqliteAiConversationRepository(databasePath),
-  };
-  const handlers = new JobHandlerRegistry();
-  const jobs = new LocalPlatformJobQueue(platform, handlers, {
-    capacities: { 'browser-heavy': 1, 'python-heavy': 1, io: 1, delivery: 1 },
-  });
-  const credentialStore = new HostCredentialStore(message.hostBaseUrl, message.hostToken);
-  let analyticsWorkerStatus = message.analyticsWorkerStatus ?? 'unavailable';
-  if (message.analyticsWorker) {
-    try {
-      analyticsWorkerClient = new AnalyticsWorkerClient(message.analyticsWorker);
-      await analyticsWorkerClient.health();
-      analyticsWorkerStatus = 'ready';
-    } catch {
-      analyticsWorkerClient = undefined;
-      analyticsWorkerStatus = 'degraded';
-    }
-  }
   const metadata: HostCapabilities['metadata'] = {
     runtimeId: crypto.randomUUID(),
     generation: message.generation,
     apiVersion: 'v2',
     mode: 'desktop',
     productVersion: '1.0.0',
-    analyticsWorkerStatus,
+    analyticsWorkerStatus: message.analyticsWorkerStatus ?? 'unavailable',
     startedAt: new Date().toISOString(),
   };
   const capabilities: RuntimeCapabilities = {
@@ -166,37 +100,31 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
     notifications: true,
     tray: true,
   };
-  const ai = createAiProvider({
-    ...(message.ai?.baseUrl && message.ai.model && message.ai.apiKeyRef
-      ? {
-          baseUrl: message.ai.baseUrl,
-          model: message.ai.model,
-          apiKey: () => credentialStore.resolve<string>(message.ai!.apiKeyRef!),
-        }
-      : {}),
-    onUsage: async (usage) => {
-      await platform
-        .appendEvent({
-          type: 'ai.request.completed',
-          producerPluginId: 'ai-assistance',
-          aggregateType: usage.taskId ? 'task' : 'runtime',
-          aggregateId: usage.taskId ?? metadata.runtimeId,
-          payload: { ...usage },
-        })
-        .catch(() => undefined);
-    },
-  });
-  runtime = await buildLevel2Runtime(
+  runtime = await buildDesktopRuntime(
     {
-      repositories,
-      handlers,
-      jobs,
-      crawler: new CrawlerRuntime(),
-      ai,
-      aiOverride: () => (cloudMode === 'hosted' && cloudModel ? hosted : undefined),
-      credentialStore,
-      artifactStore: new LocalArtifactStore(message.dataDirectory),
-      ...(analyticsWorkerClient ? { analyticsWorker: analyticsWorkerClient } : {}),
+      dataDirectory: message.dataDirectory,
+      hostBaseUrl: message.hostBaseUrl,
+      hostToken: message.hostToken,
+      ...(message.analyticsWorker ? { analyticsWorker: message.analyticsWorker } : {}),
+      ...(message.ai ? { ai: message.ai } : {}),
+      hostedAi: {
+        enabled: () => cloudMode === 'hosted' && Boolean(cloudModel),
+        request: async (_url, init, context) =>
+          fetch(`${message.hostBaseUrl}/cloud/chat/completions`, {
+            ...init,
+            headers: {
+              authorization: `Bearer ${message.hostToken}`,
+              'content-type': 'application/json',
+              'x-request-id': crypto.randomUUID(),
+              'x-assistant-turn': context?.runId ?? context?.taskId ?? crypto.randomUUID(),
+            },
+          }),
+        configuration: () => ({
+          provider: 'hosted',
+          model: cloudModel,
+          configuration: 'hosted-transport-v1',
+        }),
+      },
       openApiDocument: openApiDocument('desktop-studio'),
       schedulingEnvironment,
       host: {
@@ -286,7 +214,8 @@ async function bootstrap(message: BootstrapMessage): Promise<void> {
 desktopParentPort.on('message', (event) => {
   const message = event.data;
   if (message.type === 'bootstrap') {
-    void bootstrap(message).catch((error) => {
+    void bootstrap(message).catch(async (error) => {
+      await runtime?.close().catch(() => {});
       desktopParentPort.postMessage({
         type: 'fatal',
         message: error instanceof Error ? error.message : String(error),

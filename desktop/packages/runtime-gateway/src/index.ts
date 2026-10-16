@@ -1,3 +1,5 @@
+import type {} from '@zhiyun/runtime-contracts';
+import { Context } from '@deepseek-ai/cordis';
 import { summarizeExperience } from '@zhiyun/platform-core';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -11,12 +13,7 @@ import {
   type Span,
 } from '@opentelemetry/api';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
-import {
-  activateGraph,
-  type ActiveGraph,
-  type ResolvedGraph,
-  type RouteContribution,
-} from '@zhiyun/kernel';
+import { type ResolvedGraph, type RouteContribution } from '@zhiyun/plugin-runtime';
 import type { ArtifactStore, PlatformJobQueue, PlatformRepository } from '@zhiyun/platform-core';
 import { resolveProductGraph } from '@zhiyun/product-profiles';
 import type { RuntimeCapabilities, RuntimeMetadata } from '@zhiyun/shared';
@@ -94,6 +91,9 @@ interface WorkspaceAuditState {
 }
 
 export interface RuntimeGatewayDependencies {
+  pluginContext?: Context;
+  shutdownPlugins?(): Promise<void>;
+  stopPluginWork?(): Promise<void>;
   platform: PlatformRepository;
   artifactStore: ArtifactStore;
   jobs: PlatformJobQueue;
@@ -175,6 +175,40 @@ export async function buildRuntimeGateway(
   let issuedToken = false;
   let tokenExpiresAt = 0;
   let acceptingMutations = true;
+  const lifecycle = dependencies.pluginContext ?? new Context();
+  const effectClosures = new Map<object, Promise<void>>();
+  const closeEffect = (effect: { close(): Promise<void> }) => {
+    let task = effectClosures.get(effect);
+    if (!task) {
+      task = Promise.resolve().then(() => effect.close());
+      effectClosures.set(effect, task);
+    }
+    return task;
+  };
+  for (const effect of dependencies.effects ?? [])
+    lifecycle.effect(() => () => closeEffect(effect), 'gateway-effect');
+  app.addHook('preClose', async () => {
+    acceptingMutations = false;
+    if (dependencies.stopPluginWork) await dependencies.stopPluginWork();
+    else await Promise.allSettled([...(dependencies.effects ?? [])].reverse().map(closeEffect));
+  });
+  app.addHook('onClose', async () => {
+    acceptingMutations = false;
+    if (dependencies.shutdownPlugins) return dependencies.shutdownPlugins();
+    try {
+      const results = await Promise.allSettled(
+        [...(dependencies.effects ?? [])].reverse().map(closeEffect),
+      );
+      await dependencies.jobs.close();
+      const failures = results
+        .filter((item): item is PromiseRejectedResult => item.status === 'rejected')
+        .map((item) => item.reason as unknown);
+      if (failures.length) throw new AggregateError(failures, 'Gateway background cleanup failed');
+    } finally {
+      await lifecycle.fiber.dispose();
+    }
+  });
+
   const pluginIds = graph.plugins.map(({ descriptor }) => descriptor.id);
   const runtimeMetadata: RuntimeMetadata = {
     ...dependencies.metadata,
@@ -398,32 +432,33 @@ export async function buildRuntimeGateway(
     },
   });
 
-  const activeGraph: ActiveGraph = await activateGraph(graph, {
-    async preflightMigrations(resolved) {
-      validateMigrations(resolved, dependencies.migrations);
-    },
-    async applyMigrations(resolved) {
-      await dependencies.platform.initialize(resolved.revision);
+  try {
+    if (!dependencies.pluginContext) {
+      validateMigrations(graph, dependencies.migrations);
+      lifecycle.effect(() => () => dependencies.platform.close(), 'platform-storage');
+      await dependencies.platform.initialize(graph.revision);
+      lifecycle.effect(() => () => dependencies.artifactStore.close(), 'artifact-store');
       await dependencies.artifactStore.initialize();
-      for (const { descriptor } of resolved.plugins) {
-        const migration = dependencies.migrations.find(
-          ({ pluginId }) => pluginId === descriptor.id,
-        );
-        if (migration) await migration.migrate();
+      for (const migration of dependencies.migrations) {
+        lifecycle.effect(() => () => migration.close(), `migration:${migration.pluginId}`);
+        if (pluginIds.includes(migration.pluginId)) await migration.migrate();
       }
-    },
-    async stageContributions() {
-      await dependencies.registerPluginHttp(app);
-    },
-    async validateStaged(resolved) {
-      validateRoutes(app, resolved, stagedApiRoutes);
-      validateOpenApi(dependencies.openApiDocument, resolved);
-    },
-  });
-  await dependencies.platform.recoverExpiredJobs();
-  await dependencies.beforeJobsStart?.();
-  dependencies.jobs.start();
-  for (const effect of dependencies.effects ?? []) await effect.start();
+    }
+    await dependencies.registerPluginHttp(app);
+    validateRoutes(app, graph, stagedApiRoutes);
+    validateOpenApi(dependencies.openApiDocument, graph);
+    await dependencies.platform.recoverExpiredJobs();
+    await lifecycle.parallel('runtime/before-jobs');
+    await dependencies.beforeJobsStart?.();
+    dependencies.jobs.start();
+    await lifecycle.parallel('runtime/start');
+    for (const effect of dependencies.effects ?? []) await effect.start();
+  } catch (cause) {
+    await app
+      .close()
+      .catch((error: unknown) => app.log.error({ err: error }, 'Startup cleanup failed'));
+    throw cause;
+  }
 
   app.addHook('preHandler', async (request, reply) => {
     const permissions = workspacePermissions.get(request);
@@ -441,25 +476,6 @@ export async function buildRuntimeGateway(
         'FORBIDDEN',
         'Running a collection requires run.execute permission',
       );
-  });
-  app.addHook('onClose', async () => {
-    acceptingMutations = false;
-    const failures: unknown[] = [];
-    for (const action of [
-      ...[...(dependencies.effects ?? [])].reverse().map((effect) => () => effect.close()),
-      () => dependencies.jobs.close(),
-      () => activeGraph.dispose(),
-      ...[...dependencies.migrations].reverse().map((migration) => () => migration.close()),
-      () => dependencies.artifactStore.close(),
-      () => dependencies.platform.close(),
-    ]) {
-      try {
-        await action();
-      } catch (error) {
-        failures.push(error);
-      }
-    }
-    if (failures.length) throw new AggregateError(failures, 'Runtime Gateway cleanup failed');
   });
 
   return {

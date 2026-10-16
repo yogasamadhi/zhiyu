@@ -9,8 +9,8 @@ import {
   type RunDiagnostics as Report,
 } from '@zhiyun/contracts';
 import i18n from '../src/i18n.js';
-import { RunDiagnostics } from '../src/components/RunDiagnostics.js';
-import { ActionCacheSummary } from '../src/components/RuleCacheNotice.js';
+import { RunDiagnostics } from '../../ui-sdk/src/components/RunDiagnostics.js';
+import { ActionCacheSummary } from '../../ui-sdk/src/components/RuleCacheNotice.js';
 beforeAll(async () => {
   await i18n.changeLanguage('zh-CN');
 });

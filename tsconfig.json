@@ -11,5 +11,6 @@
     "tooling/scripts/**/*.ts",
     "desktop/tooling/**/*.ts",
     "platform/tooling/**/*.ts"
-  ]
+  ],
+  "exclude": ["desktop/tooling/dependencies/vendor"]
 }

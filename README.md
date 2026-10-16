@@ -28,7 +28,7 @@ ZhiYun 1.0 是一个 Local-first 的 Web 数据采集、数据分析与语料构
 Electron Renderer
   → @zhiyun/client
   → Fastify Product API /api/v2
-  → Minimal Kernel + immutable ProductProfile graph
+  → DSH vendored Cordis + packaged YAML ProductProfile
   → first-party Plugins
   → typed Repository / Job / Artifact capabilities
 
@@ -157,6 +157,8 @@ run-platform.ts           Platform 开发启动器
 ```
 
 `node_modules/` 是安装依赖；`.data/` 保存开发数据及迁出的旧数据，`.artifacts/` 保存日志、截图、测试报告和许可证清单。各应用自己的 `dist/`、`.next/`、`out/` 继续位于应用内部。目录说明见 [仓库布局](docs/architecture/REPOSITORY_LAYOUT.md)。
+
+Desktop 在 `desktop/tooling/dependencies/vendor/` 中通过 Git submodule 保留 Pi 和 DeepSeek Harness 上游源码，提交由父仓库固定。克隆时使用 `git clone --recurse-submodules`，已有 checkout 执行 `git submodule update --init --recursive`。初始化、更新和工程边界见 [Vendor 说明](desktop/tooling/dependencies/vendor/README.md)。
 
 1.0 不建设 Level 3 Extension Host、第三方插件/SDK/Marketplace、热加载、独立 Analytics 微服务、Celery/Kafka/NATS、向量数据库、Embedding 或 RAG。
 

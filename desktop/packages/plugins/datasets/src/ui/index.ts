@@ -1,4 +1,4 @@
-import type { UiContribution } from '@zhiyun/kernel';
+import type { UiContribution } from '@zhiyun/plugin-runtime';
 
 export const datasetsUiContributions = [
   { id: 'datasets.navigation', kind: 'navigation' },

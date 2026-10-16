@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { RouteContribution } from '@zhiyun/kernel';
+import type { RouteContribution } from '@zhiyun/plugin-runtime';
 import { qualityPolicySchema } from '@zhiyun/shared';
 import { MonitoringCursorError, type MonitoringRepository } from '../contracts/index.js';
 

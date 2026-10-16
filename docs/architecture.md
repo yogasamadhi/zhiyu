@@ -16,11 +16,11 @@ flowchart LR
 
   subgraph Control[TypeScript Product Control Plane]
     Gateway[Fastify /api/v2]
-    Kernel[Minimal Kernel]
+    Cordis[DSH vendored Cordis]
     Graph[Immutable Profile Graph]
     Plugins[First-party Plugins]
     Jobs[Platform Job/Event]
-    Gateway --> Kernel --> Graph --> Plugins
+    Gateway --> Cordis --> Graph --> Plugins
     Plugins --> Jobs
   end
 
@@ -48,25 +48,25 @@ flowchart LR
 
 架构是 Local-first 模块化单体，不是微服务集合。Worker 与 Runtime 同机，由 Electron Host 监督；Worker 失败不阻止 Collection、Dataset 和 Outputs。
 
-## 2. Kernel 与 Profile
+## 2. Cordis 与 Profile
 
-Kernel 只负责依赖图、Service Token、贡献 staging、Effect 生命周期和原子发布。固定启动顺序：
+Runtime 与 Renderer 分别创建独立的 DSH Cordis Context。版本来自固定提交的 `desktop/tooling/dependencies/vendor/deepseek-harness/vendor`；仅将 cosmokit、schemastery、cordis、loader、include、group、timer 和 logger-console 加入 workspace。主仓库构建运行产物和声明，不修改子模块源码。实现决策见 [ADR 0012](adr/0012-dsh-cordis-plugins.md)。
+
+`@zhiyun/plugin-runtime` 负责启动审计和宿主适配，静态 catalog 保留所有权检查；服务提供、依赖等待、插件激活和资源释放直接由 Cordis 负责。业务插件通过 `apply(ctx, config)` 注册服务、路由和 Job Handler，通过 `inject` 消费公开服务契约，通过 Schemastery 校验配置。注册的 disposer、后台循环和资源关闭属于 `ctx.effect()`。`@zhiyun/runtime-contracts` 提供宿主契约和分阶段后台生命周期事件。
+
+Profile 使用 `cordis.yml`，Bundle 使用 `cordis.patch.yml`。Runtime Include 与离线目录生成共同使用 DSH 的 YAML schema 和 `applyEntryPatches()`，包括整项替换 config 的语义。生产只能解析 builtin 映射中的 `cordis:` 模块；配置只读，不写回安装目录。
 
 ```text
-Resolve Graph → Validate DAG → Preflight/Apply Migrations
-→ Stage Services/Routes/Events/UI → Activate
-→ Validate OpenAPI/Catalog → Atomic Publish → Ready
+配置预检 → Include 装配及迁移 → loader.await() → ACTIVE 状态审计
+→ 路由/OpenAPI 校验 → 恢复任务 → 启动后台循环 → 监听并报告 ready
+关闭：停止产生任务 → 等待执行中的任务 → 释放插件树和底层资源
 ```
 
-Graph 发布后不可修改。Profile 变化要求重启 Runtime。产品 Profile 与内部测试配置分别为：
+业务 profile 保留 `desktop-studio`、`safe`、`test`、`e2e`、`identity-test`。timer、logger 和宿主资源提供者为内部基础设施，不进入公开业务插件列表。Profile 变化要求重启 Runtime，`buildLevel2Runtime()` 的注入适配器调用接口和数据库迁移标识保持兼容。
 
-- `desktop-studio`
-- `safe`
-- `test`
-- `e2e`
-- `identity-test`（仅验证共享身份/权限能力，无独立应用或部署入口）
+UI 壳使用同一配置生成的纯数据客户端清单，通过独立 Loader 装配业务插件的 `/client` 入口。路由、导航和面板注册在 `@zhiyun/ui-sdk` 的 slots 服务中，插件释放时撤销注册。页面留在业务插件内，共享组件与客户端契约位于 ui-sdk。Runtime 重启会撤销请求、清空缓存、释放旧 Context 并重建客户端插件树。
 
-Legacy Plugin 和 `level2-preview` 已从 1.0 活动 Catalog 删除。所有 timer、SSE、scheduler、queue consumer、inspection browser 与 Supervisor 都必须作为 Effect 逆序关闭。
+Renderer 的 Loader 构建适配记录于 `desktop/tooling/dependencies/cordis/browser-adapter.json`。构建时验证 vendor 提交及源文件哈希，移除 Node 内部模块探测和表达式求值；主进程侧保留 DSH 的表达式机制。Electron sandbox 和原有 CSP 保持启用。
 
 ## 3. Plugin 所有权
 

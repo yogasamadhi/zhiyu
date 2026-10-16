@@ -7,7 +7,7 @@ import {
   cleaningSelectInputSchema,
 } from '@zhiyun/shared';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { RouteContribution } from '@zhiyun/kernel';
+import type { RouteContribution } from '@zhiyun/plugin-runtime';
 import type { PlatformRepository } from '@zhiyun/platform-core';
 import { DatasetCleaningError, type DatasetCleaningService } from '../application/cleaning.js';
 import { DatasetCleaningConflictError } from '../contracts/cleaning.js';

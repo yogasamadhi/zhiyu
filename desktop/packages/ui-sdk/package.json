@@ -1,0 +1,253 @@
+{
+  "name": "@zhiyun/ui-sdk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "browser": "./src/index.ts",
+      "development": "./src/index.ts",
+      "bun": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./src/styles.css",
+    "./*": {
+      "types": "./src/*.ts",
+      "browser": "./src/*.ts",
+      "development": "./src/*.ts",
+      "bun": "./src/*.ts",
+      "default": "./dist/*.js"
+    },
+    "./auth": {
+      "types": "./src/auth.tsx",
+      "browser": "./src/auth.tsx",
+      "development": "./src/auth.tsx",
+      "bun": "./src/auth.tsx",
+      "default": "./dist/auth.js"
+    },
+    "./components/experience": {
+      "types": "./src/components/experience.tsx",
+      "browser": "./src/components/experience.tsx",
+      "development": "./src/components/experience.tsx",
+      "bun": "./src/components/experience.tsx",
+      "default": "./dist/components/experience.js"
+    },
+    "./components/TaskTabs": {
+      "types": "./src/components/TaskTabs.tsx",
+      "browser": "./src/components/TaskTabs.tsx",
+      "development": "./src/components/TaskTabs.tsx",
+      "bun": "./src/components/TaskTabs.tsx",
+      "default": "./dist/components/TaskTabs.js"
+    },
+    "./components/BrowserActionEditor": {
+      "types": "./src/components/BrowserActionEditor.tsx",
+      "browser": "./src/components/BrowserActionEditor.tsx",
+      "development": "./src/components/BrowserActionEditor.tsx",
+      "bun": "./src/components/BrowserActionEditor.tsx",
+      "default": "./dist/components/BrowserActionEditor.js"
+    },
+    "./components/ScheduleBuilder": {
+      "types": "./src/components/ScheduleBuilder.tsx",
+      "browser": "./src/components/ScheduleBuilder.tsx",
+      "development": "./src/components/ScheduleBuilder.tsx",
+      "bun": "./src/components/ScheduleBuilder.tsx",
+      "default": "./dist/components/ScheduleBuilder.js"
+    },
+    "./components/SchemaForm": {
+      "types": "./src/components/SchemaForm.tsx",
+      "browser": "./src/components/SchemaForm.tsx",
+      "development": "./src/components/SchemaForm.tsx",
+      "bun": "./src/components/SchemaForm.tsx",
+      "default": "./dist/components/SchemaForm.js"
+    },
+    "./components/ExperienceSettings": {
+      "types": "./src/components/ExperienceSettings.tsx",
+      "browser": "./src/components/ExperienceSettings.tsx",
+      "development": "./src/components/ExperienceSettings.tsx",
+      "bun": "./src/components/ExperienceSettings.tsx",
+      "default": "./dist/components/ExperienceSettings.js"
+    },
+    "./components/DraftTools": {
+      "types": "./src/components/DraftTools.tsx",
+      "browser": "./src/components/DraftTools.tsx",
+      "development": "./src/components/DraftTools.tsx",
+      "bun": "./src/components/DraftTools.tsx",
+      "default": "./dist/components/DraftTools.js"
+    },
+    "./components/AnalysisChart": {
+      "types": "./src/components/AnalysisChart.tsx",
+      "browser": "./src/components/AnalysisChart.tsx",
+      "development": "./src/components/AnalysisChart.tsx",
+      "bun": "./src/components/AnalysisChart.tsx",
+      "default": "./dist/components/AnalysisChart.js"
+    },
+    "./components/DatasetVersionPicker": {
+      "types": "./src/components/DatasetVersionPicker.tsx",
+      "browser": "./src/components/DatasetVersionPicker.tsx",
+      "development": "./src/components/DatasetVersionPicker.tsx",
+      "bun": "./src/components/DatasetVersionPicker.tsx",
+      "default": "./dist/components/DatasetVersionPicker.js"
+    },
+    "./components/ConfirmAction": {
+      "types": "./src/components/ConfirmAction.tsx",
+      "browser": "./src/components/ConfirmAction.tsx",
+      "development": "./src/components/ConfirmAction.tsx",
+      "bun": "./src/components/ConfirmAction.tsx",
+      "default": "./dist/components/ConfirmAction.js"
+    },
+    "./components/CollectionPreview": {
+      "types": "./src/components/CollectionPreview.tsx",
+      "browser": "./src/components/CollectionPreview.tsx",
+      "development": "./src/components/CollectionPreview.tsx",
+      "bun": "./src/components/CollectionPreview.tsx",
+      "default": "./dist/components/CollectionPreview.js"
+    },
+    "./components/CloudAccountSettings": {
+      "types": "./src/components/CloudAccountSettings.tsx",
+      "browser": "./src/components/CloudAccountSettings.tsx",
+      "development": "./src/components/CloudAccountSettings.tsx",
+      "bun": "./src/components/CloudAccountSettings.tsx",
+      "default": "./dist/components/CloudAccountSettings.js"
+    },
+    "./components/RunDiagnostics": {
+      "types": "./src/components/RunDiagnostics.tsx",
+      "browser": "./src/components/RunDiagnostics.tsx",
+      "development": "./src/components/RunDiagnostics.tsx",
+      "bun": "./src/components/RunDiagnostics.tsx",
+      "default": "./dist/components/RunDiagnostics.js"
+    },
+    "./components/RuleCacheNotice": {
+      "types": "./src/components/RuleCacheNotice.tsx",
+      "browser": "./src/components/RuleCacheNotice.tsx",
+      "development": "./src/components/RuleCacheNotice.tsx",
+      "bun": "./src/components/RuleCacheNotice.tsx",
+      "default": "./dist/components/RuleCacheNotice.js"
+    },
+    "./components/ui": {
+      "types": "./src/components/ui.tsx",
+      "browser": "./src/components/ui.tsx",
+      "development": "./src/components/ui.tsx",
+      "bun": "./src/components/ui.tsx",
+      "default": "./dist/components/ui.js"
+    },
+    "./components/assistant/AssistantWorkspace": {
+      "types": "./src/components/assistant/AssistantWorkspace.tsx",
+      "browser": "./src/components/assistant/AssistantWorkspace.tsx",
+      "development": "./src/components/assistant/AssistantWorkspace.tsx",
+      "bun": "./src/components/assistant/AssistantWorkspace.tsx",
+      "default": "./dist/components/assistant/AssistantWorkspace.js"
+    },
+    "./components/assistant/AssistantCostPanel": {
+      "types": "./src/components/assistant/AssistantCostPanel.tsx",
+      "browser": "./src/components/assistant/AssistantCostPanel.tsx",
+      "development": "./src/components/assistant/AssistantCostPanel.tsx",
+      "bun": "./src/components/assistant/AssistantCostPanel.tsx",
+      "default": "./dist/components/assistant/AssistantCostPanel.js"
+    },
+    "./components/assistant/AssistantProvider": {
+      "types": "./src/components/assistant/AssistantProvider.tsx",
+      "browser": "./src/components/assistant/AssistantProvider.tsx",
+      "development": "./src/components/assistant/AssistantProvider.tsx",
+      "bun": "./src/components/assistant/AssistantProvider.tsx",
+      "default": "./dist/components/assistant/AssistantProvider.js"
+    },
+    "./components/task-editor/RuleHistory": {
+      "types": "./src/components/task-editor/RuleHistory.tsx",
+      "browser": "./src/components/task-editor/RuleHistory.tsx",
+      "development": "./src/components/task-editor/RuleHistory.tsx",
+      "bun": "./src/components/task-editor/RuleHistory.tsx",
+      "default": "./dist/components/task-editor/RuleHistory.js"
+    },
+    "./components/analysis/ResultChart": {
+      "types": "./src/components/analysis/ResultChart.tsx",
+      "browser": "./src/components/analysis/ResultChart.tsx",
+      "development": "./src/components/analysis/ResultChart.tsx",
+      "bun": "./src/components/analysis/ResultChart.tsx",
+      "default": "./dist/components/analysis/ResultChart.js"
+    },
+    "./components/analysis/ResultCollection": {
+      "types": "./src/components/analysis/ResultCollection.tsx",
+      "browser": "./src/components/analysis/ResultCollection.tsx",
+      "development": "./src/components/analysis/ResultCollection.tsx",
+      "bun": "./src/components/analysis/ResultCollection.tsx",
+      "default": "./dist/components/analysis/ResultCollection.js"
+    },
+    "./components/analysis/FrozenInput": {
+      "types": "./src/components/analysis/FrozenInput.tsx",
+      "browser": "./src/components/analysis/FrozenInput.tsx",
+      "development": "./src/components/analysis/FrozenInput.tsx",
+      "bun": "./src/components/analysis/FrozenInput.tsx",
+      "default": "./dist/components/analysis/FrozenInput.js"
+    },
+    "./components/analysis/ResultActions": {
+      "types": "./src/components/analysis/ResultActions.tsx",
+      "browser": "./src/components/analysis/ResultActions.tsx",
+      "development": "./src/components/analysis/ResultActions.tsx",
+      "bun": "./src/components/analysis/ResultActions.tsx",
+      "default": "./dist/components/analysis/ResultActions.js"
+    },
+    "./components/dataset-cleaning/CleaningStepEditor": {
+      "types": "./src/components/dataset-cleaning/CleaningStepEditor.tsx",
+      "browser": "./src/components/dataset-cleaning/CleaningStepEditor.tsx",
+      "development": "./src/components/dataset-cleaning/CleaningStepEditor.tsx",
+      "bun": "./src/components/dataset-cleaning/CleaningStepEditor.tsx",
+      "default": "./dist/components/dataset-cleaning/CleaningStepEditor.js"
+    },
+    "./components/dataset-cleaning/CleaningReport": {
+      "types": "./src/components/dataset-cleaning/CleaningReport.tsx",
+      "browser": "./src/components/dataset-cleaning/CleaningReport.tsx",
+      "development": "./src/components/dataset-cleaning/CleaningReport.tsx",
+      "bun": "./src/components/dataset-cleaning/CleaningReport.tsx",
+      "default": "./dist/components/dataset-cleaning/CleaningReport.js"
+    },
+    "./components/dataset-cleaning/DatasetCleaningPanel": {
+      "types": "./src/components/dataset-cleaning/DatasetCleaningPanel.tsx",
+      "browser": "./src/components/dataset-cleaning/DatasetCleaningPanel.tsx",
+      "development": "./src/components/dataset-cleaning/DatasetCleaningPanel.tsx",
+      "bun": "./src/components/dataset-cleaning/DatasetCleaningPanel.tsx",
+      "default": "./dist/components/dataset-cleaning/DatasetCleaningPanel.js"
+    },
+    "./components/monitoring/MonitoringAlerts": {
+      "types": "./src/components/monitoring/MonitoringAlerts.tsx",
+      "browser": "./src/components/monitoring/MonitoringAlerts.tsx",
+      "development": "./src/components/monitoring/MonitoringAlerts.tsx",
+      "bun": "./src/components/monitoring/MonitoringAlerts.tsx",
+      "default": "./dist/components/monitoring/MonitoringAlerts.js"
+    },
+    "./components/monitoring/QualityPolicyEditor": {
+      "types": "./src/components/monitoring/QualityPolicyEditor.tsx",
+      "browser": "./src/components/monitoring/QualityPolicyEditor.tsx",
+      "development": "./src/components/monitoring/QualityPolicyEditor.tsx",
+      "bun": "./src/components/monitoring/QualityPolicyEditor.tsx",
+      "default": "./dist/components/monitoring/QualityPolicyEditor.js"
+    },
+    "./components/analysis/analysis.css": "./src/components/analysis/analysis.css",
+    "./components/dataset-cleaning/cleaning.css": "./src/components/dataset-cleaning/cleaning.css"
+  },
+  "scripts": {
+    "build": "bun ../../tooling/scripts/build-ui-sdk.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.102.8",
+    "@zhiyun/client": "workspace:*",
+    "@zhiyun/contracts": "workspace:*",
+    "@zhiyun/shared": "workspace:*",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.6",
+    "i18next": "^25.7.4",
+    "lucide-react": "^1.43.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-i18next": "^16.5.4",
+    "react-router-dom": "^7.12.0",
+    "@deepseek-ai/cordis": "workspace:*",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:*",
+    "@zhiyun/plugin-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3"
+  }
+}

@@ -1,23 +1,25 @@
-import { createHash } from 'node:crypto';
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { PluginDescriptor, RouteContribution } from '@zhiyun/kernel';
+export { templatesPlugin } from './manifest.js';
+export { apply, Config, default, inject } from './plugin.js';
 import type { PlatformRepository } from '@zhiyun/platform-core';
+import type { RouteContribution } from '@zhiyun/plugin-runtime';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { createHash } from 'node:crypto';
 
 import {
   normalizeCrawlPlan,
   taskCreateSchema,
-  type QualityPolicy,
-  type TaskCreate,
   type CrawlPlanDefinition,
   type GeneratedBy,
+  type QualityPolicy,
+  type TaskCreate,
   type TaskOrigin,
   type TaskTemplate,
 } from '@zhiyun/shared';
-import { getTaskTemplate, taskTemplateCatalog } from './catalog.js';
 import {
   instantiateTaskTemplateDefinition,
   resolveTaskTemplateParameters,
 } from './catalog-validation.js';
+import { getTaskTemplate, taskTemplateCatalog } from './catalog.js';
 
 export const templateRoutes = [
   {
@@ -39,14 +41,6 @@ export const templateRoutes = [
     requiredPermission: 'task.write',
   },
 ] as const satisfies readonly RouteContribution[];
-
-export const templatesPlugin: PluginDescriptor = {
-  id: 'templates',
-  version: '1.0.0',
-  dependencies: [{ id: 'collection', range: '^1.0.0' }],
-  routes: templateRoutes,
-  activate() {},
-};
 
 export interface TemplatesHttpDependencies {
   collection: {
@@ -254,9 +248,9 @@ function problem(reply: FastifyReply, status: number, code: string, detail: stri
     });
 }
 
-export { getTaskTemplate, taskTemplateCatalog } from './catalog.js';
 export {
   instantiateTaskTemplateDefinition,
   resolveTaskTemplateParameters,
   validateTaskTemplateCatalog,
 } from './catalog-validation.js';
+export { getTaskTemplate, taskTemplateCatalog } from './catalog.js';

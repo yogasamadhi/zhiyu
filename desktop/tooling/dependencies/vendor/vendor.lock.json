@@ -1,4 +1,19 @@
 {
   "version": 1,
-  "vendors": []
+  "vendors": [
+    {
+      "name": "pi",
+      "path": "desktop/tooling/dependencies/vendor/pi",
+      "url": "https://github.com/earendil-works/pi.git",
+      "revision": "5b6c792b424e73edefbfa558b901bcd64788dad2",
+      "license": "MIT"
+    },
+    {
+      "name": "deepseek-harness",
+      "path": "desktop/tooling/dependencies/vendor/deepseek-harness",
+      "url": "https://github.com/deepseek-ai/deepseek-harness.git",
+      "revision": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+      "license": "MIT"
+    }
+  ]
 }

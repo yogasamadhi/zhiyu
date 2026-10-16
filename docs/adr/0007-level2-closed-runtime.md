@@ -8,7 +8,7 @@ Accepted
 
 ZhiYun 1.0 在现有 Client / Runtime / Host 边界内升级为 Level 2 大型封闭项目架构。Core Runtime 使用第一方 Internal Plugin Runtime 组织稳定 Bounded Context 和可替换 Platform Capability，正式组合模型为 Plugin → Bundle → Product Profile → Effective Core Graph Revision。
 
-Kernel 只负责 Graph 解析、生命周期、Effect、Typed Service、迁移、Contribution staging 和诊断。生产 Graph 启动后不可变；所有代码均由 ZhiYun 构建、签名并随产品发布，不支持第三方插件、公共 SDK、Marketplace 或运行期热加载。
+插件装配实现已由 [ADR 0012](0012-dsh-cordis-plugins.md) 更新为 DSH vendored Cordis；静态 Graph/Catalog 继续承担贡献和所有权检查。生产 Graph 启动后不可变；所有代码均由 ZhiYun 构建、签名并随产品发布，不支持第三方插件、公共 SDK、Marketplace 或运行期热加载。
 
 ## Consequence
 

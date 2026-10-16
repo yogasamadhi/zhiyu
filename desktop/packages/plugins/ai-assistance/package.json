@@ -4,13 +4,46 @@
   "private": true,
   "type": "module",
   "exports": {
-    "development": "./src/index.ts",
-    "bun": "./src/index.ts",
-    "types": "./src/index.ts",
-    "default": "./dist/index.js"
+    ".": {
+      "development": "./src/index.ts",
+      "bun": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./assistant-business": {
+      "types": "./src/assistant-business.ts",
+      "development": "./src/assistant-business.ts",
+      "bun": "./src/assistant-business.ts",
+      "default": "./dist/assistant-business.js"
+    },
+    "./ai-conversation-retention": {
+      "types": "./src/ai-conversation-retention.ts",
+      "development": "./src/ai-conversation-retention.ts",
+      "bun": "./src/ai-conversation-retention.ts",
+      "default": "./dist/ai-conversation-retention.js"
+    },
+    "./manifest": {
+      "types": "./src/manifest.ts",
+      "development": "./src/manifest.ts",
+      "bun": "./src/manifest.ts",
+      "default": "./dist/manifest.js"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "development": "./src/types.ts",
+      "bun": "./src/types.ts",
+      "default": "./dist/types.js"
+    },
+    "./client": {
+      "types": "./src/client/index.tsx",
+      "browser": "./src/client/index.tsx",
+      "development": "./src/client/index.tsx",
+      "bun": "./src/client/index.tsx",
+      "default": "./dist/client/index.js"
+    }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external",
+    "build": "bun build ./src/ai-conversation-retention.ts ./src/assistant-business.ts ./src/client/index.tsx ./src/index.ts ./src/manifest.ts ./src/types.ts --root src --outdir dist --target node --format esm --packages external",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -21,15 +54,43 @@
     "@zhiyun/contracts": "workspace:*",
     "@zhiyun/crawler-runtime": "workspace:*",
     "@zhiyun/extraction": "workspace:*",
-    "@zhiyun/kernel": "workspace:*",
+    "@zhiyun/plugin-runtime": "workspace:*",
     "@zhiyun/platform-core": "workspace:*",
     "better-sqlite3": "13.0.3",
     "cheerio": "^1.1.2",
     "fastify": "^5.12.2",
-    "zod": "^4.1.13"
+    "zod": "^4.1.13",
+    "@deepseek-ai/cordis": "workspace:*",
+    "@deepseek-ai/schemastery": "workspace:*",
+    "@zhiyun/runtime-contracts": "workspace:*",
+    "@zhiyun/analytics-worker-client": "workspace:*",
+    "@zhiyun/artifact-store": "workspace:*",
+    "@zhiyun/platform": "workspace:*",
+    "@zhiyun/preferences": "workspace:*",
+    "@zhiyun/product-profiles": "workspace:*",
+    "@zhiyun/runtime-gateway": "workspace:*",
+    "@zhiyun/queue-local-v1": "workspace:*",
+    "@zhiyun/storage-sqlite-v1": "workspace:*",
+    "playwright": "1.62.1",
+    "@zhiyun/plugin-identity": "workspace:*",
+    "@zhiyun/ui-sdk": "workspace:*",
+    "@zhiyun/client": "workspace:*",
+    "react": "^19.2.3",
+    "react-i18next": "^16.5.4",
+    "react-router-dom": "^7.12.0",
+    "@tanstack/react-query": "^5.102.8",
+    "lucide-react": "^1.43.0",
+    "@zhiyun/shared": "workspace:*",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.6",
+    "i18next": "^25.7.4",
+    "react-dom": "^19.2.3",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
-    "@zhiyun/storage-sqlite-v1": "workspace:*"
+    "@zhiyun/storage-sqlite-v1": "workspace:*",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3"
   }
 }

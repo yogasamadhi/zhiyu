@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { validateCrawlPlan } from '@zhiyun/extraction';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { RouteContribution } from '@zhiyun/kernel';
+import type { RouteContribution } from '@zhiyun/plugin-runtime';
 import {
   normalizeCrawlPlan,
   taskCreateSchema,

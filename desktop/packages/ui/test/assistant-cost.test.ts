@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AssistantDetail, AiTurnAccounting } from '@zhiyun/shared';
-import { AssistantCostPanel } from '../src/components/assistant/AssistantCostPanel.js';
+import { AssistantCostPanel } from '../../ui-sdk/src/components/assistant/AssistantCostPanel.js';
 let started = 0;
 beforeEach(() => {
   started = performance.now();

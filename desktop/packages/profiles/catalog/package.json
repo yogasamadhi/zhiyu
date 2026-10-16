@@ -10,13 +10,13 @@
     "default": "./dist/index.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external",
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external && bun ../../../tooling/scripts/prepare-runtime-config.ts",
     "typecheck": "tsc --noEmit",
     "architecture:generate": "bun scripts/generate.ts",
     "architecture:check": "bun scripts/generate.ts --check"
   },
   "dependencies": {
-    "@zhiyun/kernel": "workspace:*",
+    "@zhiyun/plugin-runtime": "workspace:*",
     "@zhiyun/plugin-ai-assistance": "workspace:*",
     "@zhiyun/plugin-analytics": "workspace:*",
     "@zhiyun/plugin-collection": "workspace:*",
@@ -28,9 +28,13 @@
     "@zhiyun/plugin-platform": "workspace:*",
     "@zhiyun/plugin-preferences": "workspace:*",
     "@zhiyun/plugin-recruitment": "workspace:*",
-    "@zhiyun/plugin-templates": "workspace:*"
+    "@zhiyun/plugin-templates": "workspace:*",
+    "@deepseek-ai/cordis-plugin-include": "workspace:*",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:*",
+    "js-yaml": "^4.3.2"
   },
   "devDependencies": {
-    "prettier": "^3.8.2"
+    "prettier": "^3.8.2",
+    "@types/js-yaml": "^4.0.9"
   }
 }

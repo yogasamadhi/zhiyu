@@ -1,0 +1,9 @@
+{
+  "id": "e2e",
+  "version": "1.0.0",
+  "bundles": ["core-data", "intelligence"],
+  "configuration": {
+    "deterministic": true,
+    "fixtures": true
+  }
+}

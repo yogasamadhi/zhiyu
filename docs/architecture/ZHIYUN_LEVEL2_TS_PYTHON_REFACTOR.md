@@ -1,5 +1,7 @@
 # ZhiYun Level 2 TS/Python 大重构架构方案
 
+> 插件体系的实现已更新为 DSH vendored Cordis；当前实现以 `docs/architecture.md` 与 ADR 0012 为准。本文保留原始设计背景，其中自研 Kernel、Service Token 和中央激活调度已移除。
+
 > 2026-09-10 更新：本文中的浏览器工作台、Headless 启动和独立发行内容属于历史方案，已由 [应用入口收敛决策](../adr/0011-desktop-cloud-apps.md) 替代；本地 Runtime、SQLite、插件与 Worker 的边界继续保留。
 
 > 后续调整（2026-09-10）：数据库与队列现已统一 SQLite；本文保留历史决策，当前部署以 [SQLite 统一存储记录](../adr/0010-unified-sqlite.md) 为准。

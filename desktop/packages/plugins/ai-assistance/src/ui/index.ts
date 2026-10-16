@@ -1,4 +1,4 @@
-import type { UiContribution } from '@zhiyun/kernel';
+import type { UiContribution } from '@zhiyun/plugin-runtime';
 
 export const aiAssistanceUiContributions = [
   { id: 'ai-assistance.crawler-assistant-route', kind: 'route' },

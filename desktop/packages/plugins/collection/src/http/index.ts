@@ -3,7 +3,7 @@ import { validateCrawlPlan } from '@zhiyun/extraction';
 import { draftRoutes, registerDraftHttp } from './drafts.js';
 import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { RouteContribution } from '@zhiyun/kernel';
+import type { RouteContribution } from '@zhiyun/plugin-runtime';
 import type { PlatformJobQueue, PlatformRepository } from '@zhiyun/platform-core';
 import type { CredentialStore, HostCapabilities } from '@zhiyun/contracts';
 import {

@@ -370,7 +370,9 @@ describe('Level 2 Runtime composition', () => {
           headers: { ...authorization, 'idempotency-key': crypto.randomUUID() },
           payload: { useAi: true, forceBrowser: false },
         });
-      expect((await analyzeTask()).json().cache).toMatchObject({
+      const analyzedTask = await analyzeTask();
+      if (analyzedTask.statusCode !== 200) throw new Error(analyzedTask.body);
+      expect(analyzedTask.json().cache).toMatchObject({
         status: 'stored',
         providerCalls: 2,
       });

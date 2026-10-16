@@ -1,0 +1,53 @@
+{
+  "desktop-studio": [
+    { "id": "platform", "name": "cordis:platform", "config": {} },
+    { "id": "datasets", "name": "cordis:datasets", "config": {} },
+    { "id": "collection", "name": "cordis:collection", "config": {} },
+    { "id": "outputs", "name": "cordis:outputs", "config": {} },
+    { "id": "preferences", "name": "cordis:preferences", "config": {} },
+    { "id": "recruitment", "name": "cordis:recruitment", "config": {} },
+    { "id": "analytics", "name": "cordis:analytics", "config": {} },
+    { "id": "corpus", "name": "cordis:corpus", "config": {} },
+    { "id": "ai-assistance", "name": "cordis:ai-assistance", "config": {} }
+  ],
+  "identity-test": [
+    { "id": "platform", "name": "cordis:platform", "config": {} },
+    { "id": "datasets", "name": "cordis:datasets", "config": {} },
+    { "id": "collection", "name": "cordis:collection", "config": {} },
+    { "id": "outputs", "name": "cordis:outputs", "config": {} },
+    { "id": "preferences", "name": "cordis:preferences", "config": {} },
+    { "id": "recruitment", "name": "cordis:recruitment", "config": {} },
+    { "id": "analytics", "name": "cordis:analytics", "config": {} },
+    { "id": "corpus", "name": "cordis:corpus", "config": {} },
+    { "id": "ai-assistance", "name": "cordis:ai-assistance", "config": {} },
+    { "id": "identity", "name": "cordis:identity", "config": {} }
+  ],
+  "safe": [
+    { "id": "platform", "name": "cordis:platform", "config": {} },
+    { "id": "datasets", "name": "cordis:datasets", "config": {} },
+    { "id": "collection", "name": "cordis:collection", "config": {} },
+    { "id": "preferences", "name": "cordis:preferences", "config": {} }
+  ],
+  "test": [
+    { "id": "platform", "name": "cordis:platform", "config": {} },
+    { "id": "datasets", "name": "cordis:datasets", "config": {} },
+    { "id": "collection", "name": "cordis:collection", "config": {} },
+    { "id": "outputs", "name": "cordis:outputs", "config": {} },
+    { "id": "preferences", "name": "cordis:preferences", "config": {} },
+    { "id": "recruitment", "name": "cordis:recruitment", "config": {} },
+    { "id": "analytics", "name": "cordis:analytics", "config": {} },
+    { "id": "corpus", "name": "cordis:corpus", "config": {} },
+    { "id": "ai-assistance", "name": "cordis:ai-assistance", "config": {} }
+  ],
+  "e2e": [
+    { "id": "platform", "name": "cordis:platform", "config": {} },
+    { "id": "datasets", "name": "cordis:datasets", "config": {} },
+    { "id": "collection", "name": "cordis:collection", "config": {} },
+    { "id": "outputs", "name": "cordis:outputs", "config": {} },
+    { "id": "preferences", "name": "cordis:preferences", "config": {} },
+    { "id": "recruitment", "name": "cordis:recruitment", "config": {} },
+    { "id": "analytics", "name": "cordis:analytics", "config": {} },
+    { "id": "corpus", "name": "cordis:corpus", "config": {} },
+    { "id": "ai-assistance", "name": "cordis:ai-assistance", "config": {} }
+  ]
+}

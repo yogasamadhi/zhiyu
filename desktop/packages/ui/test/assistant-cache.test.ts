@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { assistantMessageBlockSchema, type AssistantMessageBlock } from '@zhiyun/shared';
 import i18n from '../src/i18n.js';
-import { AssistantCacheNotice } from '../src/components/RuleCacheNotice.js';
+import { AssistantCacheNotice } from '../../ui-sdk/src/components/RuleCacheNotice.js';
 
 type Fields = Extract<AssistantMessageBlock, { type: 'fields' }>;
 const base: Fields = {

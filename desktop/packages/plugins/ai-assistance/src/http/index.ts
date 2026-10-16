@@ -3,7 +3,7 @@ import { z } from 'zod';
 export * from './assistant.js';
 import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { RouteContribution } from '@zhiyun/kernel';
+import type { RouteContribution } from '@zhiyun/plugin-runtime';
 import type { PlatformRepository } from '@zhiyun/platform-core';
 import { normalizeCrawlPlan, taskCreateSchema } from '@zhiyun/contracts';
 import type { AiAssistanceServiceContract } from '../contracts/index.js';

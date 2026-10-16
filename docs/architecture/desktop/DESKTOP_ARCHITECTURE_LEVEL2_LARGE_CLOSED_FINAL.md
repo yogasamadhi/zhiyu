@@ -1,5 +1,7 @@
 # 通用桌面软件架构：Level 2 大型封闭项目版
 
+> 插件体系的实现已更新为 DSH vendored Cordis；当前实现以 `docs/architecture.md` 与 ADR 0012 为准。本文保留原始设计背景，其中自研 Kernel、Service Token 和中央激活调度已移除。
+
 > 文档类型：Normative Level Profile
 >
 > 架构版本：2.0

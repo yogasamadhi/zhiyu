@@ -1,8 +1,6 @@
-import { AssistantProvider } from './components/assistant/AssistantProvider.js';
-import { AssistantHost } from './components/assistant/AssistantWorkspace.js';
 import { Home, Menu, X } from 'lucide-react';
 import { useWorkspacePreference } from './workspace-preferences.js';
-import { Skeleton } from './components/experience.js';
+import { Skeleton } from '@zhiyun/ui-sdk/components/experience';
 import {
   Component,
   Suspense,
@@ -16,11 +14,12 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { Link, NavLink, Route, Routes } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { runtimeClient } from '@zhiyun/client';
-import './styles.css';
+import '@zhiyun/ui-sdk/styles.css';
 import { AuthGate, useWorkspaceAuth } from './auth.js';
 import i18n from './i18n.js';
-import { Button } from './components/ui.js';
-import { resolveUiContributions } from './shell/contributions.js';
+import { Button } from '@zhiyun/ui-sdk/components/ui';
+import { useClientRuntime } from './shell/client-runtime.js';
+import { UiContributionsProvider, type UiSnapshot } from '@zhiyun/ui-sdk';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,10 +34,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <ApplicationErrorBoundary>
         <AuthGate>
-          <AssistantProvider>
-            <ApplicationShell />
-            <AssistantHost />
-          </AssistantProvider>
+          <PluginApplication />
         </AuthGate>
       </ApplicationErrorBoundary>
     </QueryClientProvider>
@@ -88,7 +84,15 @@ class ApplicationErrorBoundary extends Component<
   }
 }
 
-function ApplicationShell() {
+function ApplicationShell({
+  activeContributions,
+  pluginPending,
+  pluginError,
+}: {
+  activeContributions: UiSnapshot;
+  pluginPending: boolean;
+  pluginError: Error | undefined;
+}) {
   const { t } = useTranslation();
   const auth = useWorkspaceAuth();
   const [navOpen, setNavOpen] = useState(false);
@@ -120,22 +124,12 @@ function ApplicationShell() {
     queryKey: ['runtime', 'graph'],
     queryFn: () => runtimeClient.getRuntimeGraph(),
   });
-  const activeContributions = resolveUiContributions(
-    graph.data?.uiContributions.map(({ id }) => id) ?? [],
+  const navigation = activeContributions.navigation.filter(
+    (item) =>
+      !auth.identityEnabled ||
+      !item.requiredPermission ||
+      auth.permissions.includes(item.requiredPermission),
   );
-  const navigation = activeContributions.navigation.filter((item) => {
-    if (
-      auth.identityEnabled &&
-      ['outputs.navigation', 'platform.settings-navigation'].includes(item.id)
-    ) {
-      return auth.permissions.includes('output.manage');
-    }
-    if (item.id === 'identity.members-navigation') {
-      return auth.permissions.includes('member.manage');
-    }
-    if (item.id === 'identity.audit-navigation') return auth.permissions.includes('audit.read');
-    return true;
-  });
   const routes = activeContributions.routes;
   const hasCollection = routes.some(({ id }) => id === 'collection.route');
   const canCreateTasks =
@@ -178,7 +172,7 @@ function ApplicationShell() {
                   (!['/recruitment', '/preferences', '/corpora'].includes(item.to) ||
                     pins.includes(item.to)),
               )
-              .sort((a, b) => navigationOrder(a.to) - navigationOrder(b.to))
+              .sort((a, b) => a.order - b.order)
               .map((item) => (
                 <NavLink key={item.id} to={item.to} onClick={() => setNavOpen(false)}>
                   <item.icon size={19} aria-hidden="true" />
@@ -246,12 +240,15 @@ function ApplicationShell() {
           )}
         </header>
         <main className="content" id="main-content">
-          {graph.isPending ? (
+          {graph.isPending || pluginPending ? (
             <Skeleton />
-          ) : graph.isError ? (
+          ) : graph.isError || pluginError ? (
             <section role="alert">
               <h1>Runtime degraded</h1>
-              <p>{graph.error instanceof Error ? graph.error.message : String(graph.error)}</p>
+              <p>
+                {pluginError?.message ??
+                  (graph.error instanceof Error ? graph.error.message : String(graph.error))}
+              </p>
             </section>
           ) : (
             <Suspense fallback={<Skeleton />}>
@@ -286,7 +283,25 @@ function SidebarGroup(props: { label: string; children: ReactNode }) {
   );
 }
 
-function navigationOrder(path: string) {
-  const index = ['/tasks', '/datasets', '/analytics', '/outputs', '/scenarios'].indexOf(path);
-  return index < 0 ? 10 : index;
+function PluginApplication() {
+  const graph = useQuery({
+    queryKey: ['runtime', 'graph'],
+    queryFn: () => runtimeClient.getRuntimeGraph(),
+  });
+  const runtime = useClientRuntime(graph.data, queryClient);
+  let content: ReactNode = (
+    <>
+      <ApplicationShell
+        activeContributions={runtime.snapshot}
+        pluginPending={runtime.pending}
+        pluginError={runtime.error}
+      />
+      {runtime.snapshot.panels.map(({ id, component: Panel }) => (
+        <Panel key={id} />
+      ))}
+    </>
+  );
+  for (const { id, component: Wrapper } of [...runtime.snapshot.wrappers].reverse())
+    content = <Wrapper key={id}>{content}</Wrapper>;
+  return <UiContributionsProvider value={runtime.snapshot}>{content}</UiContributionsProvider>;
 }

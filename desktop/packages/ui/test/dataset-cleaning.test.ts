@@ -8,7 +8,7 @@ import {
   newCleaningStepDraft,
   projectedCleaningFields,
 } from '../src/dataset-cleaning.js';
-import { CleaningReport } from '../src/components/dataset-cleaning/CleaningReport.js';
+import { CleaningReport } from '../../ui-sdk/src/components/dataset-cleaning/CleaningReport.js';
 
 describe('cleaning forms and bounded report presentation', () => {
   it('keeps source type expectations while later steps use newly derived columns', () => {

@@ -3,6 +3,15 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  resolve: {
+    dedupe: ['react', 'react-dom', '@deepseek-ai/cordis', '@deepseek-ai/cosmokit'],
+    alias: [
+      {
+        find: /^@deepseek-ai\/cordis-plugin-loader$/,
+        replacement: resolve(import.meta.dirname, '../.artifacts/cordis/loader-browser.js'),
+      },
+    ],
+  },
   root: resolve(import.meta.dirname, 'src/renderer'),
   plugins: [react()],
   server: {

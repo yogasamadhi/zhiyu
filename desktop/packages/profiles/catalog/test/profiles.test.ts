@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createArchitectureCatalog } from '@zhiyun/kernel';
+import { createArchitectureCatalog } from '@zhiyun/plugin-runtime';
 import {
   rolePermissions,
   type IdentityPermission,

@@ -10,8 +10,8 @@ import {
   recommendAnalysisQuestions,
 } from '../src/analysis-questions.js';
 import { analysisChartOption } from '../src/analysis-chart.js';
-import { ResultTable } from '../src/components/analysis/ResultCollection.js';
-import { ResultProvenance } from '../src/components/analysis/ResultActions.js';
+import { ResultTable } from '../../ui-sdk/src/components/analysis/ResultCollection.js';
+import { ResultProvenance } from '../../ui-sdk/src/components/analysis/ResultActions.js';
 import '../src/i18n.js';
 
 const field = (name: string, type: DatasetFieldDescription['type']): DatasetFieldDescription => ({

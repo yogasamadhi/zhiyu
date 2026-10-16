@@ -1,9 +1,38 @@
-import { describe, expect, it } from 'vitest';
-import { resolveUiContributions } from '../src/shell/contributions.js';
+import { describe, expect, it, vi } from 'vitest';
+import { createClientRuntime } from '../src/shell/client-runtime.js';
+import profiles from '../src/generated/client-profiles.json';
+import { Context } from '@deepseek-ai/cordis';
+import { UiSlots } from '@zhiyun/ui-sdk';
+import { QueryClient } from '@tanstack/react-query';
+async function resolveUiContributions(enabledIds: readonly string[]) {
+  const ctx = await createClientRuntime(
+    {
+      profileId: 'identity-test',
+      graphRevision: 'test',
+      plugins: profiles['identity-test'].map(({ id }) => ({
+        id,
+        version: '1.0.0',
+        dependencies: [],
+      })),
+      routes: [],
+      uiContributions: enabledIds.map((id) => ({
+        id,
+        kind: id.endsWith('route') ? ('route' as const) : ('navigation' as const),
+        ownerPluginId: id.split('.')[0]!,
+      })),
+    },
+    new QueryClient(),
+  );
+  try {
+    return ctx.slots.getSnapshot();
+  } finally {
+    await ctx.fiber.dispose();
+  }
+}
 
-describe('UI Contribution Registry', () => {
-  it('intersects Runtime IDs with the signed build-time registry', () => {
-    const resolved = resolveUiContributions([
+describe('UI Contribution Registry', async () => {
+  it('intersects Runtime IDs with the signed build-time registry', async () => {
+    const resolved = await resolveUiContributions([
       'collection.route',
       'collection.navigation',
       'unknown.remote-code',
@@ -29,8 +58,8 @@ describe('UI Contribution Registry', () => {
     });
   });
 
-  it('loads Analytics and Corpus routes only for their signed contribution IDs', () => {
-    const resolved = resolveUiContributions([
+  it('loads Analytics and Corpus routes only for their signed contribution IDs', async () => {
+    const resolved = await resolveUiContributions([
       'analytics.route',
       'analytics.navigation',
       'corpus.route',
@@ -53,8 +82,8 @@ describe('UI Contribution Registry', () => {
     ]);
   });
 
-  it('registers the recruitment radar inside the Collection navigation group', () => {
-    const resolved = resolveUiContributions(['recruitment.route', 'recruitment.navigation']);
+  it('registers the recruitment radar inside the Collection navigation group', async () => {
+    const resolved = await resolveUiContributions(['recruitment.route', 'recruitment.navigation']);
     expect(resolved.routes[0]?.routes.map(({ path }) => path)).toEqual([
       '/recruitment',
       '/recruitment/job-clusters/:clusterId',
@@ -68,8 +97,8 @@ describe('UI Contribution Registry', () => {
     ]);
   });
 
-  it('registers the stable identity member and audit contribution IDs', () => {
-    const resolved = resolveUiContributions([
+  it('registers the stable identity member and audit contribution IDs', async () => {
+    const resolved = await resolveUiContributions([
       'identity.members-route',
       'identity.members-navigation',
       'identity.audit-route',
@@ -87,5 +116,45 @@ describe('UI Contribution Registry', () => {
       'identity.members-navigation',
       'identity.audit-navigation',
     ]);
+  });
+  it('releases registrations and subscribers before a new client tree starts', async () => {
+    const ctx = new Context();
+    await ctx.plugin(UiSlots, new Set(['fixture.navigation'])).await();
+    const listener = vi.fn();
+    const slots = ctx.slots;
+    ctx.effect(() => slots.subscribe(listener));
+    const entry = {
+      id: 'fixture.navigation',
+      order: 1,
+      to: '/fixture',
+      labelKey: 'fixture',
+      group: 'data' as const,
+      icon: (() => null) as never,
+    };
+    const unregister = slots.registerNavigation(entry);
+    expect(() => slots.registerNavigation(entry)).toThrow(/Duplicate UI contribution/);
+    unregister();
+    expect(slots.getSnapshot().navigation).toEqual([]);
+    slots.registerNavigation(entry);
+    await ctx.fiber.dispose();
+    expect(slots.getSnapshot().navigation).toEqual([]);
+    const calls = listener.mock.calls.length;
+    slots.subscribe(() => {});
+    expect(listener.mock.calls.length).toBe(calls);
+  });
+
+  it('reports an unsupported runtime profile with its identifier', async () => {
+    await expect(
+      createClientRuntime(
+        {
+          profileId: 'unknown',
+          graphRevision: 'test',
+          plugins: [],
+          routes: [],
+          uiContributions: [],
+        },
+        new QueryClient(),
+      ),
+    ).rejects.toThrow('unknown');
   });
 });
