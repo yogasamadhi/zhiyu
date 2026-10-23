@@ -468,7 +468,7 @@ Dataset Snapshot
 - Electron + `utilityProcess`：Desktop Host 和独立 Runtime；
 - Fastify：Runtime Gateway；
 - Zod + OpenAPI + 生成式 Client：产品 HTTP Contract；
-- React 19 + Vite + React Router：共享 UI；
+- React 18 + Vite + React Router：共享 UI；
 - TanStack Query：HTTP Server State；
 - 现有 Connection Manager：generation、重连和 SSE；
 - ECharts：分析图表；

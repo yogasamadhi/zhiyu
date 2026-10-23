@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@zhiyun/cloud-client": "workspace:*",
-    "react": "^19.2.3",
+    "react": "19.3.0",
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -22,6 +22,6 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@types/react": "^19.2.7"
+    "@types/react": "19.3.0"
   }
 }

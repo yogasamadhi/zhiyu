@@ -9,16 +9,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "@zhiyun/cloud-ui": "workspace:*",
     "@zhiyun/cloud-client": "workspace:*",
     "@zhiyun/cloud-contracts": "workspace:*",
     "lucide-react": "^0.577.0"
   },
   "devDependencies": {
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "tailwindcss": "^4.3.3",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^5.1.2",
