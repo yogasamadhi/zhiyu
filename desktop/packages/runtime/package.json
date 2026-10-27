@@ -9,7 +9,7 @@
     "default": "./dist/index.js"
   },
   "scripts": {
-    "build": "node ../../../tooling/scripts/build-package.ts src/utility-entry.ts --outfile dist/utility-entry.js --target node --format esm --packages bundle --external better-sqlite3 --external playwright && node ../../../tooling/scripts/build-package.ts src/index.ts --outfile dist/index.js --target node --format esm --packages external && node ../../tooling/scripts/prepare-runtime-config.ts",
+    "build": "node ../../../tooling/scripts/build-package.ts src/utility-entry.ts --outfile dist/utility-entry.js --target node --format esm --packages bundle --external better-sqlite3 --external playwright --node-runtime && node ../../../tooling/scripts/build-package.ts src/index.ts --outfile dist/index.js --target node --format esm --packages external && node ../../tooling/scripts/prepare-runtime-config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

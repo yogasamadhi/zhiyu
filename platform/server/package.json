@@ -8,7 +8,7 @@
     "worker": "tsx src/worker.ts",
     "migrate": "tsx src/migrate.ts",
     "admin:create": "tsx src/bootstrap-admin.ts",
-    "build": "node ../../tooling/scripts/build-package.ts src/start.ts src/worker.ts src/migrate.ts src/bootstrap-admin.ts --outdir dist --target node",
+    "build": "node ../../tooling/scripts/build-package.ts src/start.ts src/worker.ts src/migrate.ts src/bootstrap-admin.ts --outdir dist --target node --node-runtime",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ../../vitest.platform.config.ts"
   },
