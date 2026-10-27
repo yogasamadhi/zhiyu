@@ -1,37 +1,32 @@
-# 通用桌面软件架构：Level 2 大型封闭项目版
+# 基于 DSH 的应用架构：Level 2 大型封闭项目
 
-> 插件体系的实现已更新为 DSH vendored Cordis；当前实现以 `docs/architecture.md` 与 ADR 0012 为准。本文保留原始设计背景，其中自研 Kernel、Service Token 和中央激活调度已移除。
-
-> 文档类型：Normative Level Profile
+> 文档类型：Normative Architecture
 >
-> 架构版本：2.0
+> 共享基线：[基于 DSH 的应用架构](./DESKTOP_ARCHITECTURE_BASELINE.md)
 >
-> 更新时间：2026-08-23
+> 前一层级：[Level 1 小型项目](./DESKTOP_ARCHITECTURE_LEVEL1_SMALL_FINAL.md)
 >
-> 适用对象：多业务域、多团队、长期维护，但不加载第三方代码的专业桌面软件
->
-> 共享基线：[DESKTOP_ARCHITECTURE_BASELINE.md](./DESKTOP_ARCHITECTURE_BASELINE.md)
->
-> 第三方插件：不支持
+> 升级目标：[Level 3 大型开放项目](./DESKTOP_ARCHITECTURE_LEVEL3_LARGE_OPEN_FINAL.md)
 
 ---
 
 # 1. 定位
 
-Level 2 在共享 C/S 基线上增加第一方 Internal Plugin Runtime，用于防止大型 Core Runtime 演化为 God Server。
+Level 2 把应用自有代码拆为多个第一方 Cordis 插件，按组合包与 Profile 组装出多个产品形态，用于防止单个应用插件演化为承载所有业务的巨型服务。
 
 ```text
 Clients
-   │ HTTP
+   │ HTTP / Remote
    ▼
-Core Runtime
-├── Runtime Gateway
-├── Minimal Kernel
-├── Effective Core Graph
-└── First-party Plugins
+Host 进程（一棵 Cordis 树）
+├── Cordis 框架包 + 基础设施组件
+├── 第一方业务插件（每个业务域一个，Host face + Client face）
+├── 第一方能力 seam（Service Definition / Provider / Consumer）
+├── Engine seam 与第一方 Engine 插件
+└── 浏览器侧：各插件的 Client face 经 Slots 组合
 ```
 
-插件在本 Level 中是内部软件工程机制，不是用户生态。用户不能安装任意代码，平台不承担公共 SDK、Permission、Trust、Marketplace 或第三方兼容承诺。
+插件在本层级是内部工程机制，不是用户生态。用户不能安装代码，应用不承担公开扩展点、第三方兼容或分发承诺。
 
 ---
 
@@ -39,423 +34,160 @@ Core Runtime
 
 适合：
 
-- 多个稳定 Bounded Context；
+- 多个稳定的业务域；
 - 多团队并行维护；
-- 需要 safe/test/e2e/enterprise 等产品形态；
-- 路由、服务、事件、迁移和 UI Contribution 需要统一生命周期；
-- 需要清晰的数据所有权；
-- 所有运行代码均由同一官方信任域构建和签名。
+- 需要多个产品形态，例如完整版、受限版、测试与端到端组合；
+- 路由、服务、事件、存储领域与 UI 贡献需要统一生命周期与所有权；
+- 所有运行代码由同一官方信任域构建和签名。
 
-不适合仅因为“插件听起来先进”而使用。业务规模不足时应选择 Level 1。
+不应只因为“插件听起来先进”而选择 Level 2；业务规模不足时选择 Level 1。
 
 ---
 
 # 3. 组合模型
 
-正式组合层级：
+## 3.1 插件
 
-```text
-Plugin
-  ↓
-Bundle
-  ↓
-Product Profile
-  ↓
-Effective Core Graph Revision
-```
+- 应用包位于 `packages/<group>/<pkg>/`，包名为 `@<scope>/<group>-<pkg>`；每个业务域一个插件包，必要时按 Service Definition / Provider / Consumer 拆分。
+- 每个插件声明 `inject`，只经 `ctx.<key>` 服务、类型化事件与公开只读投影与其他插件协作，不导入同级插件的实现。
+- 每个插件是它的服务、存储领域、路由、Remote namespace、controller 与 UI 贡献的唯一所有者。
 
-## 3.1 Plugin
+## 3.2 组合包
 
-插件粒度是：
+| 组合包               | 内容                                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `bundle-base`        | 存储、凭据、设置与配置编辑器、子进程、Remote 注册表、网关与访问控制、HMR 默认值、Engine seam 与核心业务插件 |
+| `bundle-web`         | Web 运行与静态页面、HTTP 载体、客户端模块、连接认证、Remote 客户端桥接与 UI 基座                            |
+| `bundle-headless`    | 一次性运行入口                                                                                              |
+| `bundle-<domain>`    | 一个可选业务域的插件条目                                                                                    |
+| `bundle-engine-<id>` | 一个第一方 Engine 插件及其依赖条目                                                                          |
 
-```text
-Bounded Context
-或
-Replaceable Platform Capability
-```
+## 3.3 Profile
 
-插件可以贡献：
-
-```text
-stable contracts
-typed services
-HTTP routes
-domain / realtime events
-UI metadata
-migrations
-background work
-diagnostics
-```
-
-普通 Entity、React Component、Utility 或单个按钮不是插件。
-
-## 3.2 Bundle
-
-Bundle 只负责：
-
-```text
-composition
-dependency declaration
-configuration defaults
-product-oriented grouping
-```
-
-Bundle 不拥有表、迁移、业务状态、事件或领域逻辑。
-
-## 3.3 Product Profile
-
-Profile 只引用 Bundle 和少量显式配置，不复制长插件列表。
-
-```text
-studio
-server
-safe
-test
-e2e
-enterprise
-```
-
-Profile 是官方发布的产品形态，不是用户扩展集合。
+- 每个产品形态是一个 Profile 模板，列出有序的组合包；`desktop` 由 `web` 模板初始化。
+- 受限能力、测试与端到端组合用 `--patch` overlay，不另设 Profile。
+- 业务插件的启停由 Profile patch 中条目的 `disabled` 表达；可选业务域与 Engine 通过 Profile 选择组合包。
+- 每个 Profile 的 `--dump-config` 结果纳入快照测试，组合变化在评审中可见。
 
 ---
 
-# 4. Minimal Kernel
+# 4. 生命周期
 
-Kernel 只负责平台机制：
-
-```text
-graph resolution and validation
-lifecycle
-effect tracking
-typed services and capabilities
-event infrastructure
-migration coordination
-contribution staging
-diagnostics
-```
-
-Kernel 不负责具体业务域，也不应成为跨插件万能 Service Locator。
-
-Cordis 或类似 microkernel 可以作为私有 composition root，但属于实现选择，不是架构公共契约。插件不得依赖其私有 Context，未来替换 Kernel 实现不应破坏插件 Contract。
+- 插件激活由 `inject` 驱动：所需服务就绪才启动，服务消失时依赖方随之卸载。
+- 插件激活失败只让它自己的 Fiber 进入 `FAILED`，依赖它的插件保持等待；失败可见地报告，不静默跳过。
+- 每个路由、Remote 方法、监听、定时器、子进程与 UI 贡献经 effect 注册；配置 HMR 重新组合时，变化的条目卸载并撤销全部贡献后重新激活。
+- 有先后依赖的资源放进同一个 effect 并逐步 await；独立资源并发释放。
 
 ---
 
-# 5. Plugin Contract 与依赖
+# 5. 能力 seam
 
-插件禁止导入其他插件实现。
-
-允许：
-
-```text
-versioned stable contract
-typed service
-capability
-public domain event
-explicit read-only projection
-```
-
-依赖图必须是 DAG。启动前验证：
-
-```text
-unknown plugin
-missing dependency
-cycle
-version conflict
-duplicate contribution
-missing required capability
-```
-
-业务跨域协作优先通过 Service 或 Event。确需跨域查询时，只能通过 owner 提供的只读 projection contract，不能直接访问其他插件 Repository。
+- 一项可替换能力的三个角色完整存在；Provider 可替换而 Consumer 不变。
+- 基础设施组件提供的 seam（存储、凭据、子进程、设置）直接使用；业务插件只为基础设施没有的能力定义自己的 Service Definition。
+- 包边界上的默认值是显式 `resolve(request): Spec`；随部署变化的选择是 `Config` 字段。
 
 ---
 
-# 6. Typed Services
+# 6. Controller 与 UI
 
-Service Registry 应使用有约束的 API：
-
-```ts
-ctx.services.provide<T>(contract, implementation);
-ctx.services.require<T>(contract);
-ctx.services.optional<T>(contract);
-```
-
-Contract 至少描述：
-
-```text
-id
-version
-capabilities
-input / output type
-error type
-owner
-```
-
-`require()` 缺失在 Graph 激活阶段失败；`optional()` 只用于真正可降级或环境相关能力。禁止字符串随意取任意对象的全局 Service Locator。
+- 每个业务插件的 API 由它自己的 controller 包提供，Host face 与 Client face 配对，Client model 不复制业务真相。
+- 每个插件的 Client face 声明 `<app>.client`，经客户端模块组件下发，在浏览器侧 Cordis 树中激活；UI 经 Slots 注册，只有渲染器包挂载 React 根。
+- 每个插件拥有自己的类型化语言字典；跨插件复用的控件只放在 UI 基座包。
 
 ---
 
-# 7. Graph Revision 与原子激活
+# 7. 数据所有权
 
-每次有效组合必须拥有不可混淆的 revision：
-
-```text
-profile
-bundle versions
-plugin versions
-contract versions
-configuration fingerprint
-```
-
-标准启动流程：
-
-```text
-Resolve
-→ Validate
-→ Migrate
-→ Stage Routes / Services / Events / UI
-→ Activate Plugins
-→ Validate Effective OpenAPI and Graph
-→ Atomic Publish Revision
-→ Ready
-```
-
-任何阶段失败都必须撤销本次 staging，不得暴露半激活 Runtime。
-
-Level 2 默认允许采用更简单、更安全的生产策略：
-
-```text
-first-party graph is immutable after boot
-profile change requires Runtime restart
-```
-
-只有存在真实需求时才开放运行期 reload。
+- 每个存储领域由唯一插件以 `defineDomain` 声明并写入；其他插件只经该插件的服务或只读投影读取。
+- 跨插件的状态变化经 `DomainChanged` 或插件自己的类型化事件传递。
+- 格式以版本与兼容列表演进，已提交代际不移动、覆盖或删除。
 
 ---
 
-# 8. Reversible Effects
+# 8. Engine
 
-每个长期副作用必须有 owner、plugin version、graph revision 和 label。
-
-推荐 acquisition API：
-
-```ts
-await ctx.effect('route:workspace.projects', () => ctx.http.register(route));
-
-await ctx.effect('timer:automation.scheduler', () => {
-  const timer = setInterval(tick, interval);
-  return () => clearInterval(timer);
-});
-```
-
-平台负责 acquire 和登记，避免插件先创建资源、后登记 cleanup 时发生泄漏。
-
-要求：
-
-- activation 失败清理当前 revision；
-- 同一 owner 逆序释放；
-- unload/restart 清理所有长期资源；
-- diagnostics 可列出活跃 effect；
-- 测试结束 effect 数量归零；
-- 禁止未登记 timer、listener、watcher、stream、worker 和 child process。
+- 每个 Engine 是一个第一方 Provider 插件，以 `bundle-engine-<id>` 分发，由 Profile 选择。
+- 同一 Profile 可以同时挂载多个 Engine；Consumer 按 Engine id 选择，缺失时显式失败。
+- Engine 自己的服务（如模型调用、工具注册）挂在该 Engine 的插件子树中，不占用其他插件的服务键。
 
 ---
 
-# 9. HTTP Route 生命周期
+# 9. 不开放安装
 
-从 Registry 删除 route metadata 不等于从底层 Router 删除已安装 handler。
-
-安全策略二选一：
-
-## 9.1 Immutable Router
-
-生产 Graph 启动后不可动态 unload，Profile 切换通过 Runtime restart 完成。
-
-## 9.2 Atomic Router Swap
-
-```text
-Active Router A
-     │
-build and validate Router B
-     │
-atomic swap
-     ▼
-dispose Router A effects
-```
-
-不得依赖修改 Hono、Express 或其他框架的私有路由表实现卸载。
+- 不挂载插件管理组件，启动器不提供 `plugin` 命令。
+- Profile 只安装签名发布物中携带的包；原生恢复不提供“禁用第三方插件”。
+- 扩展点只对第一方开放，可以随应用版本自由调整，不承担第三方兼容承诺。
 
 ---
 
-# 10. 数据所有权与迁移
+# 10. 架构门禁
 
-每张业务表必须有唯一插件 owner。插件导出：
-
-```text
-migrations
-owned tables / indexes
-event schemas
-retention policy
-read-only projections
-```
-
-迁移账本至少记录：
-
-```text
-plugin id
-migration id
-plugin version
-dependency
-checksum
-executedAt
-duration / result
-```
-
-迁移 forward-only，并支持 preflight、backup、integrity check、timeout 和失败诊断。
-
-业务状态和 Domain Event 在同一事务提交。commit 后唤醒 durable dispatcher；消费者使用 checkpoint、幂等 handler、retry/backoff 和 dead-letter/degraded diagnostics。
+- 每条路由、每个 Remote namespace、每个存储领域与每个 Slot 贡献有唯一所有插件，重复即失败。
+- 插件不导入同级插件的实现，不写其他插件的存储领域。
+- `cordis.yml` 与组合包中的裸插件名必须出现在其解析清单的 `dependencies` 中。
+- 每个包 bin 与根脚本归入显式类别，拒绝绕过启动器的 Node 应用路径。
+- 门禁接入顶层检查，每个门禁至少有一个证明它会拒绝违规输入的用例。
 
 ---
 
-# 11. UI Contribution
+# 11. 测试
 
-Runtime 只返回启用的 Contribution ID 和 metadata。Renderer 使用构建期生成、随应用签名的 loader registry：
-
-```text
-Runtime enabled IDs
-       ∩
-signed builtin loader registry
-       ↓
-actual routes / panels / commands
-```
-
-未知 ID 不执行任何代码。
-
-UI Shell 只负责：
-
-```text
-bootstrap
-runtime connection
-global navigation host
-route outlet
-error boundary
-contribution registry
-```
-
-具体页面按领域拆分和 lazy load。Level 2 没有第三方 UI Sandbox。
+- 每个插件有覆盖激活、卸载撤销贡献与激活失败的测试。
+- 每个 Profile 有 `--dump-config` 快照与启动冒烟测试。
+- 每个 Engine 插件有注册、卸载排空、不支持操作与进程失败的测试。
+- Controller 有 Host face 与 Client face 的配对测试，覆盖 baseline、增量与重连。
 
 ---
 
-# 12. Architecture Catalog 与门禁
+# 12. MUST
 
-建议生成以下可审计快照：
+1. MUST 遵守共享基线的全部 MUST。
+2. MUST 按业务域拆分第一方插件，每个插件是其贡献的唯一所有者。
+3. MUST 只经服务、类型化事件与只读投影在插件之间协作。
+4. MUST 用组合包与 Profile 表达产品形态，用 overlay 表达测试与受限组合。
+5. MUST 让每个插件的 Client face 经客户端模块组件与 Slots 接入浏览器。
+6. MUST 让 Engine 作为第一方 Provider 插件，以组合包按 Profile 选择。
+7. MUST 把所有权与启动入口规则接入架构门禁。
+
+---
+
+# 13. MUST NOT
+
+1. MUST NOT 挂载插件管理组件、提供 `plugin` 命令或安装签名发布物以外的代码。
+2. MUST NOT 让插件导入同级插件的实现或写其他插件拥有的领域。
+3. MUST NOT 为了测试或受限组合另设 Profile。
+4. MUST NOT 建立在所有插件之上做集中编排的业务服务。
+5. MUST NOT 为基础设施组件已提供的能力另建平行 seam。
+
+---
+
+# 14. 升级到 Level 3 的触发条件
+
+只有出现真实的第三方插件或 Engine 生态需求，并愿意承担以下长期成本时升级：
 
 ```text
-table owners
-route and operation owners
-event owners
-UI contribution owners
-service contracts
-capability contracts
+公开扩展点的兼容承诺与升级指南
+外部插件的版本兼容检查
+注册表、插件市场与分发
+安装、删除、升级与恢复的用户流程
+外部插件故障的诊断与支持
 ```
 
-这些文件应由 Plugin Descriptor、Migration、OpenAPI 和 Contribution 源生成并在 CI 检查漂移，不能成为第二套手写真相源。
-
-门禁至少拒绝：
-
-```text
-cross-plugin implementation import
-unowned table / route / event
-duplicate operationId
-Renderer business IPC / direct fetch / server implementation import
-Electron Main domain implementation import
-untracked long-lived resource
-profile / bundle / graph invalid
-migration / OpenAPI drift
-```
+升级时编写并挂载插件管理组件，并把选定的 Service、事件、Slot 与 Remote namespace 声明为公开扩展点；第一方插件结构不变。
 
 ---
 
-# 13. 测试
-
-除共享基线外增加：
-
-```text
-plugin unit / integration
-dependency graph
-profile and bundle
-activation rollback
-effect leak
-route revision
-migration ownership
-domain event replay
-optional capability degradation
-effective OpenAPI
-UI contribution resolution
-```
-
-故障测试必须覆盖 critical/optional plugin 失败、迁移 checksum 错误、Graph staging 失败和 Runtime 重启。
-
----
-
-# 14. MUST
-
-1. MUST 遵守共享架构基线。
-2. MUST 使用第一方 Internal Plugin Kernel 组织复杂 Runtime。
-3. MUST 保持 Kernel 不包含领域业务。
-4. MUST 使用 Plugin → Bundle → Profile → Graph Revision。
-5. MUST 验证插件依赖 DAG。
-6. MUST 禁止跨插件实现 import。
-7. MUST 跟踪并逆序释放全部长期 effect。
-8. MUST 原子发布有效 Graph，不能暴露半激活状态。
-9. MUST 为表、迁移、路由和事件声明唯一 owner。
-10. MUST 区分 Domain Event 与 Realtime Event。
-11. MUST 使用受签名的内置 UI loader registry。
-12. MUST 保持所有运行代码处于官方信任域。
-
----
-
-# 15. MUST NOT
-
-1. MUST NOT 加载第三方代码。
-2. MUST NOT 为假设中的生态提前建设 Permission、Trust 或 Marketplace。
-3. MUST NOT 让 Kernel 变成 God Server。
-4. MUST NOT Plugin Everything。
-5. MUST NOT 让 Bundle 拥有业务状态。
-6. MUST NOT 给插件万能 Context、Raw SQLite 或其他插件 Repository。
-7. MUST NOT 在没有真实需求时承诺生产 HMR。
-8. MUST NOT 通过修改 HTTP 框架私有状态伪造路由卸载。
-
----
-
-# 16. 升级到 Level 3 的触发条件
-
-只有出现真实第三方生态需求，并愿意承担以下长期成本时升级：
-
-```text
-Public SDK compatibility
-manifest and identity
-permission UX and enforcement
-process / OS isolation
-plugin data lifecycle
-update and rollback
-malicious plugin testing
-distribution and signing
-```
-
-升级增加独立 Extension Host；第三方代码不得因此进入 Level 2 的 Core Runtime 和主 Renderer。
-
----
-
-# 17. 最终模型
+# 15. 最终模型
 
 ```text
 Clients
-   │ HTTP
+   │ HTTP / Remote
    ▼
-Core Runtime
-├── Minimal Kernel
-└── Effective Core Graph
-    └── First-party Plugins
+Host（Cordis 树）
+├── Cordis 框架包 + 基础设施组件
+├── 第一方业务插件 × N
+├── 第一方能力 seam
+└── 第一方 Engine 插件 × N
 ```
 
-Level 2 的目标是让大型封闭产品拥有可靠的内部组合、生命周期和所有权，而不是提前模拟一个尚不存在的插件市场。
+Level 2 的目标是让大型封闭产品拥有可靠的组合、生命周期与所有权，而不是提前模拟一个尚不存在的插件生态。

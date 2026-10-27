@@ -1,6 +1,6 @@
 # 织云云端本地运行与交付
 
-本目录为独立商业平台，服务 Portal、Admin 和 Electron 的云账户/托管 AI。本地 `/api/v2` 继续由 Electron 运行时提供。规则与接口见 [架构规范](../../docs/architecture/ZHIYUN_CLOUD_COMMERCIAL_ARCHITECTURE.md)。
+本目录为独立商业平台，服务 Portal、Admin 和 Electron 的云账户/托管 AI。本地 `/api/v2` 继续由 Electron 运行时提供。
 
 云端源码位于 `platform/server/`，页面应用位于 `platform/portal/` 和 `platform/admin/`。`desktop/analytics-worker/` 随桌面端交付，在用户本机运行；与 `platform/server/src/worker.ts` 的云端后台任务是两个独立进程。
 
@@ -65,4 +65,4 @@ Server 镜像包含 Node.js 24 与打包的 Server/Worker/迁移/管理员命令
 
 ## 验证
 
-`pnpm run cloud:test` 只使用以 `_test` 结尾的隔离数据库；`pnpm run cloud:e2e` 使用 `_e2e_test` 数据库及独立端口，不会清空开发库。E2E 测试账户只在显式测试命令中创建。验收命令和结果见 [验收记录](../../docs/verification/zhiyun-cloud-acceptance.md)。
+`pnpm run cloud:test` 只使用以 `_test` 结尾的隔离数据库；`pnpm run cloud:e2e` 使用 `_e2e_test` 数据库及独立端口，不会清空开发库。E2E 测试账户只在显式测试命令中创建。

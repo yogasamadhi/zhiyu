@@ -41,7 +41,7 @@ Analytics / Corpus Plugin
 
 Python Worker 不访问产品数据库、不持有产品凭据、不接受任意 SQL/Python/公式或绝对路径。Worker 不可用时采集和 Dataset 继续工作，Analytics/Corpus 显示 degraded 并返回 503。
 
-详细边界见 [当前架构](docs/architecture.md)，完整重构决策见 [Level 2 TS/Python 方案](docs/architecture/ZHIYUN_LEVEL2_TS_PYTHON_REFACTOR.md)。
+架构规范见 [桌面端架构文档](docs/architecture/desktop/README.md)，重构执行计划见 [Level 2 架构重构执行计划](desktop/docs/ARCHITECTURE_LEVEL2_REFACTOR_PLAN.md)。
 
 ## 桌面开发
 
@@ -90,7 +90,7 @@ pnpm run platform:dev -- --infra
 
 商品默认未发布，需通过部署命令创建首位管理员，再配置模型、费率、价格和每月积分。支付、签约、续费与退款全部模拟。非 AI 本地功能以及自带 API Key 的 AI 使用免费。
 
-旧浏览器工作台和 Headless 自托管应用已移除，原有业务实现继续由 `desktop/packages/runtime`、`desktop/packages/ui`、`desktop/packages/plugins/` 和本地 Python Worker 提供。详见 [应用入口收敛决策](docs/adr/0011-desktop-cloud-apps.md)、[商业架构](docs/architecture/ZHIYUN_CLOUD_COMMERCIAL_ARCHITECTURE.md) 和 [云端运行手册](platform/deploy/README.md)。
+旧浏览器工作台和 Headless 自托管应用已移除，原有业务实现继续由 `desktop/packages/runtime`、`desktop/packages/ui`、`desktop/packages/plugins/` 和本地 Python Worker 提供。云端见 [云端运行手册](platform/deploy/README.md)。
 
 ## 数据与 1.0 Reset
 
@@ -159,7 +159,7 @@ run_desktop.py            Desktop 开发启动器（Python）
 run_platform.py           Platform 开发启动器（Python）
 ```
 
-`node_modules/` 是安装依赖；`.data/` 保存开发数据及迁出的旧数据，`.artifacts/` 保存日志、截图、测试报告和许可证清单。各应用自己的 `dist/`、`.next/`、`out/` 继续位于应用内部。目录说明见 [仓库布局](docs/architecture/REPOSITORY_LAYOUT.md)。
+`node_modules/` 是安装依赖；`.data/` 保存开发数据及迁出的旧数据，`.artifacts/` 保存日志、截图、测试报告和许可证清单。各应用自己的 `dist/`、`.next/`、`out/` 继续位于应用内部。
 
 Desktop 在 `vendor/` 中通过 Git submodule 保留 Pi 和 DeepSeek Harness 上游源码，提交由父仓库固定。克隆时使用 `git clone --recurse-submodules`，已有 checkout 执行 `git submodule update --init --recursive`。初始化、更新和工程边界见 [Vendor 说明](vendor/README.md)。
 
@@ -172,11 +172,3 @@ Apache-2.0
 ## 产品工作台与用户路径
 
 当前体验以“选择页面 → 确认字段与预览 → 保存运行”为主流程，Desktop 使用统一草稿、数据工作台、分析、语料和场景入口。内置商品样例无需模型或外网。
-
-- [产品说明与用户路径](docs/product/user-journeys.md)
-- [接口增量与兼容性](docs/product/api-experience.md)
-- [实施与验收记录](docs/product/experience-implementation.md)
-- [真实用户测试脚本](docs/product/usability-test-script.md)
-- [无需外部凭据的优化计划与目标模式指令](docs/product/zhiyun-no-credentials-optimization-plan.md)
-- [优化执行记录](docs/verification/zhiyun-no-credentials-optimization.md)
-- [无需外部凭据的本地样例与验证指南](docs/examples/no-credentials-workflows.md)

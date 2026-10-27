@@ -1,55 +1,38 @@
-# 通用桌面软件架构：Level 3 大型开放项目版
+# 基于 DSH 的应用架构：Level 3 大型开放项目
 
-> DramaIP 实现状态（2026-08-23）：本文定义的 Level 3 v1 已以每 revision 独立
-> Extension Host process、QuickJS/WASM、Capability Broker、Ed25519 静态 Registry、
-> Marketplace 与严格声明式 UI 落地。isolated interactive UI 和远程发布者后台仍为 future。
-
-> 文档类型：Normative Level Profile
+> 文档类型：Normative Architecture
 >
-> 架构版本：2.0
+> 共享基线：[基于 DSH 的应用架构](./DESKTOP_ARCHITECTURE_BASELINE.md)
 >
-> 更新时间：2026-08-23
+> 前一层级：[Level 2 大型封闭项目](./DESKTOP_ARCHITECTURE_LEVEL2_LARGE_CLOSED_FINAL.md)
 >
-> 适用对象：有真实第三方扩展需求并承担平台治理责任的大型桌面产品
->
-> 共享基线：[DESKTOP_ARCHITECTURE_BASELINE.md](./DESKTOP_ARCHITECTURE_BASELINE.md)
->
-> Level 2 基础：[DESKTOP_ARCHITECTURE_LEVEL2_LARGE_CLOSED_FINAL.md](./DESKTOP_ARCHITECTURE_LEVEL2_LARGE_CLOSED_FINAL.md)
+> DSH 参照：DSH 仓库的 `packages/boot/plugin-manager/README.zh.md` 与 `packages/boot/plugin-market/README.zh.md`
 
 ---
 
 # 1. 定位
 
-Level 3 在 Level 2 的第一方 Internal Plugin Runtime 之外增加公共插件平台。
+Level 3 在 Level 2 之上开放插件生态：用户可以把外部 npm 插件、组合包与 Engine 安装进 Profile。外部插件按 DSH 的模型运行，与第一方插件在同一个 Host 进程、同一棵 Cordis 树中，拥有相同的能力；带客户端部分的插件在同一页面的浏览器侧 Cordis 树中激活。
 
 ```text
 Clients
-   │ HTTP
+   │ HTTP / Remote
    ▼
-Core Runtime
-├── Effective Core Graph
-│   └── Built-in / trusted first-party plugins
-│
-├── Capability Broker
-│
-└── Extension Host boundary
-        │
-        ▼
-   Effective Extension Graph
-        └── Official isolated / third-party plugins
+Host（Cordis 树）
+├── Cordis 框架包 + 基础设施组件 + 插件管理（+ 插件市场）
+├── 第一方业务插件、能力 seam 与 Engine
+├── 公开扩展点：公开的 Service、事件、Slot 与 Remote namespace
+└── 外部插件、外部组合包与外部 Engine（安装在 Profile 中）
 ```
 
-最大变化不是“多一个插件目录”，而是平台开始承担：
+最大变化不是多一个插件目录，而是应用开始承担：
 
 ```text
-public API compatibility
-plugin identity
-permission and consent
-trust and signature
-isolation and resource limits
-data ownership and uninstall
-update / rollback / quarantine
-developer tooling and distribution
+公开扩展点的兼容承诺
+外部插件的版本兼容
+注册表、插件市场与分发
+安装、删除、升级与恢复
+外部插件故障的诊断与支持
 ```
 
 ---
@@ -58,460 +41,130 @@ developer tooling and distribution
 
 升级 Level 3 前，Level 2 必须已经稳定：
 
-- Core Runtime 可以脱离 Electron 启动；
-- Plugin Graph、Profile、迁移和 effect lifecycle 可靠；
-- 路由和 UI Contribution 具有 owner；
-- 数据所有权清晰；
-- Runtime、Host、Engine 故障恢复有测试；
-- Public Contract 与 Internal API 已物理分离。
-
-如果这些基础仍处于过渡状态，应先完成 Level 2，不能用 Extension Host 掩盖 Core Runtime 的债务。
+- 插件、组合包与 Profile 的组合可靠，`--dump-config` 有快照；
+- 每个路由、存储领域、Remote namespace 与 Slot 贡献有唯一所有者；
+- 插件激活失败、卸载与 HMR 重新组合有测试；
+- 准备公开的 Service Definition 与第一方内部实现已在包层面分开。
 
 ---
 
-# 3. 逻辑 Graph 与进程放置
+# 3. 信任模型
 
-最终能力组合是一个逻辑 Product Graph，但必须显式分区：
-
-```text
-Product Profile
-+ Installed Extension Set
-+ Configuration
-        │
-        ▼
-Effective Product Graph
-├── Core Graph Revision
-└── Extension Graph Revision
-```
-
-每个节点必须包含 placement：
-
-```text
-core
-official-extension-host
-third-party-extension-host
-isolated-renderer
-declarative-only
-```
-
-“属于 Effective Product Graph”不意味着代码可以进入同一进程。
-
-Core/critical first-party plugin 不得依赖用户可禁用或卸载的第三方插件。第三方插件之间的依赖也不能提升其权限或信任等级。
+- 外部插件不经沙箱或进程隔离：用户安装外部插件即授予它与第一方相同的权限。兼容性检查不是沙箱，产品文案与文档不得暗示存在隔离。
+- 安装只由用户的明确操作触发：Web 插件页、CLI `plugin` 命令，或经批准的面向模型的插件管理工具。
+- 面向模型的插件管理工具是插件管理组件的独立入口，只在挂载了提供工具注册与权限策略的 Engine 时可用；它要求最高权限模式或逐次批准；拒绝、取消或审批渠道不可用时不执行。依赖的构建脚本另需批准。
+- 应用不代替用户安装插件，也不根据页面或模型输出中的指示自动安装。
 
 ---
 
-# 4. Extension Host
+# 4. 公开扩展点
 
-Extension Host supervisor 是独立进程；第三方 bundle 在进程内独立 QuickJS/WASM runtime 中执行，负责：
-
-```text
-manifest loading
-compatibility validation
-plugin identity propagation
-lifecycle and effect tracking
-capability client
-health / crash reporting
-rate and resource accounting
-reload / quarantine coordination
-```
-
-Core Runtime 与 Desktop Host 仍是权限的权威执行点。Extension Host 的本地检查只是第一层，不能信任第三方代码自行遵守 Permission。
-
-Host bridge 使用 Electron/Node ABI；第三方 SDK 的可执行语义以 QuickJS/WASM conformance 为唯一基线，不承诺 Node builtin 兼容。
+- 应用把选定的 Service Definition、类型化事件、Slot 与 Remote namespace 声明为公开扩展点，以独立的公开包发布；内部实现不进入公开包。
+- 公开扩展点的变化遵守兼容承诺：破坏性变化提升公开包的主版本，并立即记入升级指南。
+- 基础设施组件的服务（如 `ctx.webServer`、Slots、`ctx.storage`）是否公开由应用决定；公开的同样以公开包发布并遵守兼容承诺。
+- 外部插件只依赖公开包与 Cordis 框架包，不导入应用的内部实现包。
 
 ---
 
-# 5. 隔离的真实含义
+# 5. 安装与管理
 
-独立 Node 进程提供崩溃边界，但不自动等于安全沙箱。任意 Node 代码仍可能尝试访问文件、网络、环境变量、子进程和 native addon。
+插件管理组件（参照 DSH 的 `dsh-plugin-manager`）提供 `ctx.pluginManager`，管理当前 Profile：
 
-平台必须根据 Trust Level 组合使用：
+- 启停单个插件条目：只更新 Profile `cordis.patch.yml` 中最后一条匹配覆盖项的 `disabled`，Profile patch 只记录与组合包不同的设置。
+- 安装、删除或选择组合包使用应用内置 pnpm；注册表按配置顺序询问，私有源不回落到公共源。
+- `inspect(spec)` 在安装前读出 spec 指向的包、版本与是否声明组合包。
+- 已选择但无法加载的组合包仍列出并携带错误；损坏的组合包不能启用。
+- 启用 HMR 的 Profile 中安装与启停立即生效，否则保留到重启。
+- Desktop 中插件管理走 Web 应用已认证的 HTTP API；内置 CLI 在 Desktop 退出后用 `<app> plugin --profile desktop add|list|remove` 管理同一 Profile。
 
-```text
-restricted module loader
-no native addon by default
-sanitized environment
-working-directory isolation
-filesystem / network policy
-CPU / memory / request quotas
-child-process prohibition
-per-plugin or per-trust-group process
-OS sandbox where available
-```
+外部 Engine 与其他外部插件走同一条安装路径，注册到 `ctx.engines` 后即可被选择。
 
-需要强隔离的插件不能仅依赖同一 Extension Host 中的 JavaScript “fiber”。Fiber 是生命周期隔离，不是安全隔离。
+## 5.1 应用自己的目录与注册表
 
----
+DSH 的插件管理写死了 DSH 产品的组合包目录与默认值。从 DSH 复制插件管理时（基线 §1.3），换成应用自己的：
 
-# 6. Plugin 类型与 Trust
-
-## 6.1 Built-in
-
-随产品签名发布，可进入 Core Graph，并可标记 critical。
-
-## 6.2 Official Isolated
-
-官方维护但不需要 Core 权限，优先运行在 Extension Host，以验证公共 SDK 和隔离边界。
-
-## 6.3 Verified Third-party
-
-签名和发布者身份已验证，但仍按 least privilege 隔离。
-
-## 6.4 Unverified / Development
-
-默认更严格的权限、警告、资源限制和更新策略；生产环境可以完全禁止。
-
-Trust 影响默认策略，不绕过显式 capability enforcement。
+- 官方组合包目录（DSH 为 `OPTIONAL_BUNDLES` 与 `OFFICIAL_ON_DEMAND_CATALOG`）由应用定义，只列出应用发布的组合包。
+- Profile 没有 manifest 时，以应用自己的 Profile 模板初始化（DSH 为 `PROFILE_TEMPLATES` / `DEFAULT_PROFILE_BUNDLES`），与启动器（基线 §4.1）使用同一份模板。
+- 注册表与备用注册表（DSH 默认备用 `https://registry.npmmirror.com/`）在组合包中显式配置。
 
 ---
 
-# 7. Manifest
+# 6. 版本兼容
 
-最低 Manifest：
-
-```json
-{
-  "id": "vendor.plugin",
-  "version": "1.0.0",
-  "pluginApi": "^1",
-  "product": ">=3 <4",
-  "entrypoint": "dist/index.js",
-  "activation": "lazy",
-  "reloadPolicy": "restart-extension-host",
-  "permissions": [],
-  "capabilities": [],
-  "serverContributions": [],
-  "uiContributions": []
-}
-```
-
-安装和启用前验证：
-
-```text
-identity and version
-content hash / signature
-plugin API and product compatibility
-dependencies
-permission delta
-entrypoints and module policy
-contribution schemas
-storage declaration
-resource policy
-```
-
-Manifest 是声明，不是授权。最终 grant 由用户/管理员策略和 Capability Broker 决定。
+- 安装前比较插件声明的版本要求：声明了 `engines.<app>` 时只由该范围对照应用运行时版本决定，否则检查它对应用公开包与 Cordis 框架包的 peer 范围；未满足时在 pnpm 运行前失败，不下载、不运行构建脚本。
+- 精确版本豁免保存在 Profile 的 `compatibility.json`，把 `package@version` 映射到精确运行时版本列表；插件升级与运行时升级都不继承授权。
 
 ---
 
-# 8. Public Plugin SDK
+# 7. 分发与插件市场
 
-第三方只能依赖：
-
-```text
-@product/plugin-api public exports
-@product/contracts public exports
-Web/ECMAScript standard APIs explicitly allowed by the host
-```
-
-禁止：
-
-```text
-Core Runtime internals
-private Kernel / Cordis Context
-Raw SQLite / Drizzle internals
-Electron Main
-Desktop Host implementation
-Vendor engine native object
-main Renderer React internals
-```
-
-Public API 必须区分：
-
-```text
-Public       = compatibility promise
-Experimental = opt-in, no stable promise
-Internal     = first-party implementation only
-```
-
-公共兼容承诺应从 Extension Host beta/conformance 开始明确计时，不能仅因为仓库里存在一个 package 就宣称生态已经稳定。
+- 外部插件以 npm 包分发，组合包在 `package.json` 的 `<app>.bundle.patch` 声明自己的 patch。
+- 插件市场组件（参照 DSH 的 `dsh-plugin-market`）读取用户配置的市场索引，标注安装状态、兼容性与安装参数；安装本身仍经插件管理器执行。
+- 应用发布的官方插件与第三方插件走同一安装路径与同一兼容检查。
 
 ---
 
-# 9. Capability 与 Permission
+# 8. 第三方 UI
 
-PluginContext 是 capability client，不是万能对象。
-
-例如：
-
-```text
-projects.read / write
-documents.read / write
-assets.read / write
-ai.invoke
-network.request
-storage.read / write
-commands.register
-events.subscribe
-ui.contribute
-notification.show
-```
-
-权限必须：
-
-```text
-declared
-displayed
-granted
-revocable
-enforced at authoritative boundary
-audited without secrets
-```
-
-Capability 请求携带不可伪造的 plugin identity、grant revision、调用范围和 trace ID。权限收回后旧 grant 必须失效。
-
-Credential 默认只通过受限 Provider/Network Capability 注入，第三方插件不直接获得明文 secret。
+- 带客户端部分的外部插件声明 `<app>.client`，经客户端模块组件下发，在浏览器侧 Cordis 树中激活。
+- 外部 UI 只经公开的 Slot 与 UI 基座接入，使用主题 token 与控件组件，文案经类型化语言字典。
+- 外部 UI 不挂载自己的 React 根。
 
 ---
 
-# 10. Lifecycle、Effect 与 Reload
+# 9. 故障与恢复
 
-Extension Host 使用与 Level 2 一致的 acquisition/effect 语义，但第三方 effect 只能作用于 Extension Host 或通过 capability 创建平台可撤销的远程资源。
-
-每个已安装 revision 至少包含：
-
-```text
-plugin id
-version
-content hash
-publisher / signature
-manifest hash
-granted permissions revision
-```
-
-更新流程：
-
-```text
-download to staging
-→ integrity / signature
-→ manifest and compatibility
-→ permission review
-→ dependency-aware stop plan
-→ activate staged revision
-→ health check
-→ atomic switch
-→ dispose old revision
-```
-
-失败时回滚上一可用 revision。重复崩溃进入：
-
-```text
-degraded → disabled → quarantined
-```
-
-插件可以声明：
-
-```text
-hot
-restart-extension-host
-restart-runtime
-```
-
-平台不承诺所有插件零停机热更新。`restart-runtime` 必须经过平台审核，不能成为第三方默认权限。
+- 插件激活失败只让它自己的 Fiber 进入 `FAILED`，错误在插件页与日志中可见。
+- 启动时被跳过的组合包逐个报告原因。
+- Host 无法启动时，原生恢复提供禁用第三方插件，并把 Profile `cordis.patch.yml` 重命名为带时间戳的备份；已安装的包和已有备份保留。
+- 删除插件不静默删除它已写入的数据；数据保留与清理由插件文档说明。
 
 ---
 
-# 11. 第三方存储
+# 10. 测试
 
-第三方不得提交任意 SQL、修改 Core Table 或获得数据库连接。
-
-优先提供：
-
-```text
-namespaced key/value or document storage
-blob / artifact storage
-declarative indexed schema capability
-public domain capability
-```
-
-如果未来支持声明式表结构，Runtime 负责生成和执行安全迁移；插件不能直接执行 DDL/DML。
-
-卸载必须显式选择：
-
-```text
-keep
-export
-delete after confirmation
-```
-
-插件更新失败不能破坏 Core 数据库的可启动性。
+- 安装、删除、启停与升级的端到端测试，覆盖 HMR 启用与禁用的 Profile。
+- 版本不兼容在 pnpm 运行前被拒绝，豁免只对精确版本生效。
+- 损坏的外部组合包不能启用，Host 启动失败进入原生恢复，恢复后可以重新启动。
+- 外部 Engine 注册、选择、卸载排空与不支持操作。
+- 公开扩展点的类型与行为有兼容测试，破坏性变化必须伴随主版本提升。
 
 ---
 
-# 12. Server Contribution 与 OpenAPI
+# 11. MUST
 
-第三方 Server Contribution 通过 Runtime 中稳定的 namespace proxy 暴露，例如：
-
-```text
-/api/{version}/extensions/{pluginId}/...
-```
-
-第三方不能直接向 Core Hono/Express Router 安装 handler。Runtime 根据经过验证的声明将请求代理给 Extension Host，并在代理边界执行 identity、permission、limit、timeout 和 schema 校验。
-
-必须区分：
-
-```text
-Platform OpenAPI
-= stable official API
-= generates @product/client
-
-Instance Effective OpenAPI
-= Platform OpenAPI
-+ currently installed extension proxy contracts
-= discovery / tooling / plugin-specific clients
-```
-
-通用生成 Client 不假设编译期知道用户未来安装的任意插件。
+1. MUST 遵守共享基线与 Level 2 的全部 MUST，Level 2 的“不开放安装”由本层级取代。
+2. MUST 只经 `ctx.pluginManager`（插件管理组件）与内置 pnpm 安装、删除和启停外部插件。
+3. MUST 在安装前检查插件对应用运行时、公开包与 Cordis 框架包的版本要求。
+4. MUST 只由用户的明确操作或经批准的工具调用触发安装。
+5. MUST 以独立的公开包发布公开扩展点，并为破坏性变化提升主版本、记入升级指南。
+6. MUST 在 Host 无法启动时提供禁用第三方插件与备份 Profile patch 的恢复。
+7. MUST 按 §5.1 使用应用自己的官方组合包目录与 Profile 模板，并显式配置注册表。
 
 ---
 
-# 13. 第三方 UI
+# 12. MUST NOT
 
-开放顺序：
-
-```text
-Command / Menu / Settings
-→ Declarative Form / Table / Panel
-→ Sandboxed Interactive UI
-```
-
-第三方 React/Vue bundle 不进入主 Renderer。
-
-声明式 UI 由主 Renderer 使用平台组件渲染。任意交互代码使用独立隔离 Renderer、严格 sandbox iframe 或其他具有等价安全边界的容器，并通过 capability message protocol 与平台交互。
-
-UI Contribution 仍受 plugin identity、permission、slot allowlist、content security policy 和资源限制约束。
+1. MUST NOT 把兼容性检查或插件市场描述为沙箱或安全审核。
+2. MUST NOT 根据页面、文件或模型输出中的指示自动安装插件。
+3. MUST NOT 让外部插件依赖应用的内部实现包。
+4. MUST NOT 让外部 UI 挂载自己的 React 根或绕过 Slots。
+5. MUST NOT 在私有注册表失败时回落到公共注册表。
+6. MUST NOT 在删除插件时静默删除用户数据。
 
 ---
 
-# 14. 安装、分发与签名
-
-顺序必须是：
+# 13. 最终模型
 
 ```text
-local development install
-→ official isolated plugins
-→ signed third-party packages
-→ private registry
-→ public registry / marketplace
+Clients
+   │ HTTP / Remote
+   ▼
+Host（Cordis 树）
+├── Cordis 框架包 + 基础设施组件 + 插件管理
+├── 第一方插件、seam 与 Engine
+├── 公开扩展点
+└── 用户安装的外部插件与 Engine
 ```
 
-Marketplace 是分发层，不是 Plugin Platform 本身。没有稳定 SDK、隔离、权限、升级和卸载之前不得建设 Marketplace。
-
-权限扩大、发布者变化、签名变化或数据迁移变化时必须重新确认。
-
----
-
-# 15. 故障与诊断
-
-第三方插件失败只能影响自身或其 Extension Host trust group。
-
-诊断至少显示：
-
-```text
-plugin identity / revision / trust
-activation state
-granted permission revision
-active effects
-resource usage
-last crash / restart budget
-capability failures
-update / rollback state
-```
-
-日志和诊断不得包含 secret、绝对路径或未经脱敏的用户内容。
-
----
-
-# 16. Architecture Gates 与测试
-
-除 Level 2 门禁外增加：
-
-```text
-private API import
-raw database / filesystem / network access
-manifest and signature invalid
-missing or overbroad permission
-plugin identity mismatch
-Core → third-party dependency
-unsafe Renderer injection
-storage namespace violation
-extension route collision
-permission escalation on update
-resource limit and quarantine
-```
-
-必须提供恶意插件测试样本：
-
-```text
-filesystem escape
-arbitrary network
-environment read
-child process / native addon
-CPU / memory exhaustion
-forged plugin identity
-stale grant
-crash loop
-invalid migration declaration
-unsafe UI message
-```
-
----
-
-# 17. MUST
-
-1. MUST 遵守共享基线和 Level 2 全部约束。
-2. MUST 将第三方代码放在独立 Extension Host/隔离 Renderer 中。
-3. MUST 物理区分 Core Graph 与 Extension Graph。
-4. MUST 提供版本化 Public Plugin SDK。
-5. MUST 验证 Manifest、Compatibility、Identity、Permission 和 Trust。
-6. MUST 在 Core/Host 权威边界执行 Capability Policy。
-7. MUST 禁止第三方 Raw SQLite、Electron Main 和 Runtime internals。
-8. MUST 为第三方数据定义安装、升级和卸载生命周期。
-9. MUST 对第三方 UI 建立隔离边界。
-10. MUST 支持 revision、rollback、disable 和 quarantine。
-11. MUST 保持 Core critical 功能不依赖第三方插件。
-12. MUST 将安全隔离与普通 lifecycle fiber 明确区分。
-
----
-
-# 18. MUST NOT
-
-1. MUST NOT 把内部 Plugin API 原样发布给第三方。
-2. MUST NOT 因为代码位于独立 Node 进程就宣称已经安全沙箱化。
-3. MUST NOT 让第三方代码进入 Core Runtime 或主 Renderer。
-4. MUST NOT 给第三方万能 Context、任意 SQL、文件系统、网络或 child process。
-5. MUST NOT 让 Bundle 绕过单插件 Permission、Trust 或 Compatibility。
-6. MUST NOT 强迫所有插件支持 Hot Reload。
-7. MUST NOT 先建设 Marketplace 再补安全模型。
-8. MUST NOT 用用户安装插件改变官方 Product Profile。
-
----
-
-# 19. 最终模型
-
-```text
-                    Clients
-                       │ HTTP
-                       ▼
-                  Core Runtime
-          ┌────────────┴────────────┐
-          ▼                         ▼
-  Effective Core Graph       Capability Broker
-                                    │
-                                    ▼
-                              Extension Hosts
-                                    │
-                                    ▼
-                         Effective Extension Graph
-```
-
-Level 3 的价值来自可治理、可撤销、可兼容的开放能力，而不是“可以执行第三方 JavaScript”本身。
+Level 3 的目标是在 DSH 的同进程插件模型上开放生态，并由应用清楚地承担兼容、分发与恢复责任，而不是假装提供了不存在的隔离。
