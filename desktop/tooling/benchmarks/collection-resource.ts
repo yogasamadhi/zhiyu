@@ -4,6 +4,8 @@ import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir, platform, arch, cpus, totalmem } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { build } from 'esbuild';
 import { testEnvironment } from '../../../tooling/scripts/test-environment.js';
 
 const [directoryArg, mode = 'baseline', instrumentation] = process.argv.slice(2);
@@ -14,7 +16,7 @@ if (
   (mode === 'pipeline' && instrumentation !== undefined)
 )
   throw new Error(
-    'Usage: bun --no-env-file collection-resource.ts <run-artifact-directory> baseline|stream [profile], or pipeline',
+    'Usage: node collection-resource.ts <run-artifact-directory> baseline|stream [profile], or pipeline',
   );
 const profiling = instrumentation === 'profile';
 const label = `${mode}${profiling ? '-profile' : ''}`;
@@ -35,26 +37,26 @@ for (const [name, hash] of Object.entries(manifest.sourceHashes))
 for (const name of ['shared', 'extraction', 'browser-runtime', 'crawler-runtime']) {
   const packageRoot =
     mode === 'baseline' ? join(baseline, name) : resolve('desktop/packages', name);
-  const built = await Bun.build({
-    entrypoints: [join(packageRoot, 'src/index.ts')],
+  await build({
+    entryPoints: [join(packageRoot, 'src/index.ts')],
     outdir: join(packageRoot, 'dist'),
-    target: 'node',
+    platform: 'node',
     format: 'esm',
+    bundle: true,
     packages: 'external',
+    logLevel: 'warning',
   });
-  if (!built.success)
-    throw new Error(`Unable to compile baseline ${name}: ${built.logs.map(String).join('\n')}`);
 }
 const worker = join(resultsDirectory, 'worker.mjs');
-const built = await Bun.build({
-  entrypoints: [resolve(import.meta.dirname, 'collection-resource-worker.ts')],
-  outdir: resultsDirectory,
-  naming: 'worker.mjs',
-  target: 'node',
+await build({
+  entryPoints: [resolve(import.meta.dirname, 'collection-resource-worker.ts')],
+  outfile: worker,
+  platform: 'node',
   format: 'esm',
+  bundle: true,
   packages: 'external',
+  logLevel: 'warning',
 });
-if (!built.success) throw new Error('Unable to compile benchmark worker');
 let total = 0;
 let actualRequests = 0;
 async function serveFixture(request: IncomingMessage, response: ServerResponse) {
@@ -86,7 +88,7 @@ const address = server.address();
 if (!address || typeof address === 'string') throw new Error('Fixture did not bind');
 const origin = `http://127.0.0.1:${address.port}`;
 const measurements: Record<string, number | string>[] = [];
-let liveChild: ReturnType<typeof Bun.spawn> | undefined;
+let liveChild: ChildProcess | undefined;
 const interrupt = () => {
   liveChild?.kill('SIGTERM');
   server.closeAllConnections();
@@ -133,20 +135,24 @@ try {
                 ? [join(resultsDirectory, `${label}-${count}-${iteration}.cpuprofile`)]
                 : []),
             ];
-      const child = Bun.spawn(command, {
+      const child = spawn(command[0]!, command.slice(1), {
         env: { ...testEnvironment(process.env), CRAWLEE_STORAGE_DIR: storage },
-        stdin: 'pipe',
-        stdout: 'pipe',
-        stderr: 'pipe',
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
       liveChild = child;
       const timer = setInterval(() => {
         if (!started) return;
-        const sample = Bun.spawnSync(['ps', '-p', String(child.pid), '-o', 'rss=']);
-        if (sample.exitCode === 0)
-          externalPeak = Math.max(externalPeak, Number(sample.stdout.toString().trim()) * 1024);
+        const sample = spawnSync('ps', ['-p', String(child.pid), '-o', 'rss='], {
+          encoding: 'utf8',
+        });
+        if (sample.status === 0)
+          externalPeak = Math.max(externalPeak, Number(sample.stdout.trim()) * 1024);
       }, 25);
-      const stderr = new Response(child.stderr).text();
+      const stderr = (async () => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of child.stderr ?? []) chunks.push(Buffer.from(chunk));
+        return Buffer.concat(chunks).toString('utf8');
+      })();
       try {
         let pending = '';
         for await (const chunk of child.stdout) {
@@ -168,7 +174,9 @@ try {
             if (message.complete) report = message;
           }
         }
-        const code = await child.exited;
+        const code = await new Promise<number>((done) => {
+          child.once('exit', (value) => done(value ?? 0));
+        });
         log += await stderr;
         await writeFile(join(resultsDirectory, `${label}-${count}-${iteration}.txt`), log);
         if (code !== 0 || !report)
@@ -229,7 +237,9 @@ try {
         }
         if (child.exitCode === null) {
           child.kill('SIGTERM');
-          await child.exited;
+          await new Promise<void>((done) => {
+            child.once('exit', () => done());
+          });
         }
         liveChild = undefined;
         await rm(storage, { recursive: true, force: true });

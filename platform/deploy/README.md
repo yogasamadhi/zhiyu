@@ -6,13 +6,13 @@
 
 ## 开发启动
 
-仓库根目录执行 `bun run-platform.ts --infra`。它检查 Bun 依赖、启动 Compose 基础设施、应用迁移并启动 API、后台任务、Portal 和 Admin。基础设施已运行时省略 `--infra`。也可使用 `bun run platform:dev` / `bun run cloud:dev`；`--skip-install` 和 `--skip-migrate` 用于已准备好的环境。依赖 Bun 1.4、Node 24、Docker；PostgreSQL 17、Redis 7.4 由 Compose 提供。
+仓库根目录执行 `pnpm run platform:dev --infra`。它检查 pnpm 依赖、启动 Compose 基础设施、应用迁移并启动 API、后台任务、Portal 和 Admin。基础设施已运行时省略 `--infra`。也可使用 `pnpm run platform:dev` / `pnpm run cloud:dev`；`--skip-install` 和 `--skip-migrate` 用于已准备好的环境。依赖 pnpm 11、Node 24、Docker；PostgreSQL 17、Redis 7.4 由 Compose 提供。
 
 平台启动器固定使用 `CLOUD_PORT`、`CLOUD_PORTAL_PORT`、`CLOUD_ADMIN_PORT`（默认 3200、3100、3101）。启动应用前会结束占用这些 TCP 监听端口的进程；请勿将它们配置为其他项目正在使用的端口。Ctrl+C 会清理本次启动的 Server、Worker、Portal、Admin 进程树，不会停止 PostgreSQL/Redis 容器。
 
 默认数据库为 `postgres://zhiyun:zhiyun-local@127.0.0.1:55432/zhiyun_cloud`，仅用于本机开发。已有 Postgres volume 的密码不会因修改 Compose 环境变量而自动改变。
 
-首次管理员从终端环境注入 `CLOUD_BOOTSTRAP_EMAIL` / `CLOUD_BOOTSTRAP_PASSWORD`，执行 `bun run --filter @zhiyun/cloud-server admin:create`，导入输出的 TOTP URI。不要把正式密码写进 Git、共享截图或日志。
+首次管理员从终端环境注入 `CLOUD_BOOTSTRAP_EMAIL` / `CLOUD_BOOTSTRAP_PASSWORD`，执行 `pnpm run --filter @zhiyun/cloud-server admin:create`，导入输出的 TOTP URI。不要把正式密码写进 Git、共享截图或日志。
 
 默认验证码不会向外发送。在 Admin 的测试收件箱查看短期验证码。商品、模型均由 Admin 配置；没有隐藏的自动售卖价格或试用额度。
 
@@ -44,13 +44,13 @@ docker compose --env-file platform/deploy/.env -f platform/deploy/compose.yml -f
 docker compose --env-file platform/deploy/.env -f platform/deploy/compose.yml -f platform/deploy/compose.apps.yml up -d
 ```
 
-Server 镜像包含 Bun 与打包的 Server/Worker/迁移/管理员命令；Portal 使用 Next standalone；Admin 使用 Caddy 静态文件服务。同一 Server 镜像启动两个进程角色。迁移容器完成后才启动 API/Worker。
+Server 镜像包含 Node.js 24 与打包的 Server/Worker/迁移/管理员命令；Portal 使用 Next standalone；Admin 使用 Caddy 静态文件服务。同一 Server 镜像启动两个进程角色。迁移容器完成后才启动 API/Worker。
 
 测试入口为 `https://portal.localhost:8443`、`https://admin.localhost:8443`、`https://api.localhost:8443`。本地 Caddy 内部证书需要在测试客户端建立信任；API/数据库不会自动暴露到公网。公网部署需自行提供受控域名及证书，本轮未执行。
 
 生产配置必须 `NODE_ENV=production` 且 `CLOUD_MOCK_PAYMENTS=false`。本轮没有生产支付和生产模型池，不能通过关闭模拟开关获得真实收费能力。
 
-管理员容器命令：`bun dist/bootstrap-admin.js`；迁移：`bun dist/migrate.js`；Worker：`bun dist/worker.js`。管理员口令应以安全的环境注入方式提供。
+管理员容器命令：`node dist/bootstrap-admin.js`；迁移：`node dist/migrate.js`；Worker：`node dist/worker.js`。管理员口令应以安全的环境注入方式提供。
 
 ## 备份、恢复与故障处理
 
@@ -65,4 +65,4 @@ Server 镜像包含 Bun 与打包的 Server/Worker/迁移/管理员命令；Port
 
 ## 验证
 
-`bun run cloud:test` 只使用以 `_test` 结尾的隔离数据库；`bun run cloud:e2e` 使用 `_e2e_test` 数据库及独立端口，不会清空开发库。E2E 测试账户只在显式测试命令中创建。验收命令和结果见 [验收记录](../../docs/verification/zhiyun-cloud-acceptance.md)。
+`pnpm run cloud:test` 只使用以 `_test` 结尾的隔离数据库；`pnpm run cloud:e2e` 使用 `_e2e_test` 数据库及独立端口，不会清空开发库。E2E 测试账户只在显式测试命令中创建。验收命令和结果见 [验收记录](../../docs/verification/zhiyun-cloud-acceptance.md)。

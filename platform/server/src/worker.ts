@@ -18,6 +18,8 @@ while (!stopping) {
       }),
     );
   }
-  await Bun.sleep(1000);
+  await new Promise((done) => {
+    setTimeout(done, 1000);
+  });
 }
 await cloud.close();

@@ -10,6 +10,16 @@
     { "id": "corpus", "name": "cordis:corpus", "config": {} },
     { "id": "ai-assistance", "name": "cordis:ai-assistance", "config": {} }
   ],
+  "dsh-studio": [
+    { "id": "platform", "name": "cordis:platform", "config": {} },
+    { "id": "datasets", "name": "cordis:datasets", "config": {} },
+    { "id": "collection", "name": "cordis:collection", "config": {} },
+    { "id": "outputs", "name": "cordis:outputs", "config": {} },
+    { "id": "preferences", "name": "cordis:preferences", "config": {} },
+    { "id": "analytics", "name": "cordis:analytics", "config": {} },
+    { "id": "corpus", "name": "cordis:corpus", "config": {} },
+    { "id": "ai-assistance", "name": "cordis:ai-assistance", "config": {} }
+  ],
   "identity-test": [
     { "id": "platform", "name": "cordis:platform", "config": {} },
     { "id": "datasets", "name": "cordis:datasets", "config": {} },

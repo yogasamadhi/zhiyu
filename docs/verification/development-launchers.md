@@ -4,15 +4,15 @@
 
 ## 启动入口
 
-| 入口                          | 作用                                                                                   |
-| ----------------------------- | -------------------------------------------------------------------------------------- |
-| `bun run-desktop.ts`          | 检查 Bun 依赖、同步 Python 环境、构建桌面应用，启动测试站点、Vite Renderer 和 Electron |
-| `bun run-platform.ts`         | 检查 Bun 依赖、执行数据库迁移，启动 Server API、后台任务、Portal 和 Admin              |
-| `bun run-platform.ts --infra` | 在启动平台之前，通过 Compose 启动本地 PostgreSQL/Redis 并等待就绪                      |
+| 入口                            | 作用                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| `pnpm run dev`                  | 检查 pnpm 依赖、同步 Python 环境、构建桌面应用，启动测试站点、Vite Renderer 和 Electron |
+| `pnpm run platform:dev`         | 检查 pnpm 依赖、执行数据库迁移，启动 Server API、后台任务、Portal 和 Admin              |
+| `pnpm run platform:dev --infra` | 在启动平台之前，通过 Compose 启动本地 PostgreSQL/Redis 并等待就绪                       |
 
-桌面首次开发需执行 `bun run desktop:browser` 准备 Chromium。两个入口的 `--skip-install` 跳过依赖同步，平台的 `--skip-migrate` 跳过迁移。`--help` 提供完整说明。
+桌面首次开发需执行 `pnpm run desktop:browser` 准备 Chromium。两个入口的 `--skip-install` 跳过依赖同步，平台的 `--skip-migrate` 跳过迁移。`--help` 提供完整说明。
 
-`bun run dev`、`desktop:dev` 指向桌面入口；`platform:dev`、`cloud:dev` 指向平台入口。`platform/tooling/scripts/dev.ts` 保留为平台兼容入口。云端 Playwright 配置使用标准平台脚本，复用已初始化的隔离测试库。
+`pnpm run dev`、`desktop:dev` 指向桌面入口；`platform:dev`、`cloud:dev` 指向平台入口。`platform/tooling/scripts/dev.ts` 保留为平台兼容入口。云端 Playwright 配置使用标准平台脚本，复用已初始化的隔离测试库。
 
 共享实现位于 `tooling/scripts/development.ts`，从脚本位置解析仓库路径、读取根环境文件，检查端口并等待 HTTP 就绪。桌面启动器在默认端口占用时选择邻近端口。平台启动器固定使用配置端口，启动前通过监听进程 PID 清理占用；先请求正常退出，3 秒后仍占用则强制结束，无法释放时中止启动。平台默认代理和 Origin 随端口同步，用户显式配置仍保留。
 
@@ -30,6 +30,6 @@
 - 初始实现于 2026-09-10 从 `/tmp` 执行当时的 `run-platform.ts --infra`，实际完成依赖检查、基础设施就绪等待、迁移与四个应用进程启动。当时的自动选端口行为选择 API 3201、Portal 3101、Admin 3102；API 健康检查、两个页面与两个同源代理共 5 项 HTTP 检查通过。该次平台接收 SIGTERM 后返回 0，本次进程树的 7 个进程全部退出。2026-09-12 已按需求将自动选端口改为清理占用后使用固定端口，增量验证结果见上文。
 - 从 `/tmp` 执行当时的 `run-desktop.ts`，实际完成 Bun/Python 依赖检查、桌面构建、Renderer 和 Electron 启动，Python Worker 报告 ready。测试故意配置不可用的云数据库/Redis 地址，桌面启动仍然完成；两个本地 HTTP 检查通过。
 - 桌面接收 SIGINT 后返回 0，本次进程树的 9 个进程全部退出，Renderer 和夹具端口释放。
-- `bun run cloud:e2e`：2 项通过，覆盖 Admin 发布、Portal 模拟购买、订阅积分和取消续费，以及网页响应式检查；默认跳过的打包桌面专项未在本轮重跑。
+- `pnpm run cloud:e2e`：2 项通过，覆盖 Admin 发布、Portal 模拟购买、订阅积分和取消续费，以及网页响应式检查；默认跳过的打包桌面专项未在本轮重跑。
 
 本轮没有重跑与启动脚本无关的全量业务测试，也没有执行远程部署或 Windows 启动验证。日志和用于验证退出行为的临时测试脚本保存在忽略提交的 `.artifacts/development-launchers/`。

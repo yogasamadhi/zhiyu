@@ -58,11 +58,10 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
-    exclude:
-      '(^|/)(node_modules|dist|out|\\.next|\\.forge-app|resources/playwright)/|^desktop/tooling/dependencies/vendor/',
+    exclude: '(^|/)(node_modules|dist|out|\\.next|\\.forge-app|resources/playwright)/|^vendor/',
     tsConfig: { fileName: 'tsconfig.base.json' },
     enhancedResolveOptions: {
-      conditionNames: ['development', 'bun', 'types', 'import', 'default'],
+      conditionNames: ['development', 'node', 'types', 'import', 'default'],
       exportsFields: ['exports'],
     },
   },

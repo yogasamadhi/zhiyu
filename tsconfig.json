@@ -2,15 +2,15 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node", "bun"]
+    "types": ["node"]
   },
   "include": [
     "vitest.config.ts",
-    "run-desktop.ts",
-    "run-platform.ts",
+    "vitest.platform.config.ts",
+    "vitest.dsh.config.ts",
     "tooling/scripts/**/*.ts",
     "desktop/tooling/**/*.ts",
     "platform/tooling/**/*.ts"
   ],
-  "exclude": ["desktop/tooling/dependencies/vendor"]
+  "exclude": ["vendor"]
 }

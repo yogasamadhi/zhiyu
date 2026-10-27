@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import type { Database, Tx } from './db.js';
 import { DomainError, requireValue, type Clock, type Config } from './config.js';
 import { hash, secret, decrypt, totp } from './security.js';
+import { hashPassword, verifyPassword } from './password.js';
 import { deliver } from './messages.js';
 export interface Principal {
   sessionId: string;
@@ -87,9 +88,7 @@ export class Auth {
     password: string | undefined,
     principal?: Principal,
   ) {
-    const passwordHash = password
-      ? await Bun.password.hash(password, { algorithm: 'argon2id' })
-      : null;
+    const passwordHash = password ? await hashPassword(password) : null;
     // Commit failed attempts as well; throwing inside the transaction would roll them back.
     const result = await this.db.sql.begin(async (tx) => {
       const [c] = await tx`select * from cloud_challenges where id=${challengeId} for update`;
@@ -141,7 +140,7 @@ export class Auth {
           .sql`select i.*, u.status from cloud_identities i join cloud_users u on u.id=i.user_id where target=${email} and verified=true`;
     if (
       !identity?.password_hash ||
-      !(await Bun.password.verify(password, identity.password_hash as string)) ||
+      !(await verifyPassword(password, identity.password_hash as string)) ||
       identity.disabled ||
       identity.status === 'disabled'
     )

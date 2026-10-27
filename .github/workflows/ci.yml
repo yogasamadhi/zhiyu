@@ -12,31 +12,33 @@ jobs:
         with: { submodules: recursive }
       - uses: actions/setup-node@v4
         with: { node-version: '24' }
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 1.4.0 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.22.0 }
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: python -m pip install uv==0.11.14
-      - run: bun install --frozen-lockfile
-      - run: bun run worker:sync
-      - run: bun run lint
-      - run: bun run format:check
-      - run: bun run client:check
-      - run: bun run worker:client:check
-      - run: bun run architecture:check
-      - run: bun run architecture:deps
-      - run: bun run dependency:audit
-      - run: bun run compliance:licenses
-      - run: bun run typecheck
-      - run: bun run test:unit
-      - run: bun run test:platform
-      - run: bun run test:worker-client
-      - run: bun run test:integration
-      - run: bun run test:conformance
-      - run: bun run test:security
-      - run: bun run worker:test
-      - run: bun run build
-      - run: bun run browser:install
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run worker:sync
+      - run: pnpm run lint
+      - run: pnpm run python:lint
+      - run: pnpm run format:check
+      - run: pnpm run python:format:check
+      - run: pnpm run client:check
+      - run: pnpm run worker:client:check
+      - run: pnpm run architecture:check
+      - run: pnpm run architecture:deps
+      - run: pnpm run dependency:audit
+      - run: pnpm run compliance:licenses
+      - run: pnpm run typecheck
+      - run: pnpm run test:unit
+      - run: pnpm run test:platform
+      - run: pnpm run test:worker-client
+      - run: pnpm run test:integration
+      - run: pnpm run test:conformance
+      - run: pnpm run test:security
+      - run: pnpm run worker:test
+      - run: pnpm run build
+      - run: pnpm run browser:install
 
   desktop-installers:
     strategy:
@@ -55,20 +57,20 @@ jobs:
         with: { submodules: recursive }
       - uses: actions/setup-node@v4
         with: { node-version: '24' }
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 1.4.0 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.22.0 }
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: python -m pip install uv==0.11.14
-      - run: bun install --frozen-lockfile
-      - run: bun run worker:sync
-      - run: bun run worker:build
-      - run: bun run worker:smoke
-      - run: bun run desktop:browser
-      - run: bun run desktop:test
-      - run: bun run desktop:package -- --arch=${{ matrix.arch }}
-      - run: bun run --filter @zhiyun/desktop test:packaged
-      - run: bun run desktop:make -- --arch=${{ matrix.arch }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run worker:sync
+      - run: pnpm run worker:build
+      - run: pnpm run worker:smoke
+      - run: pnpm run desktop:browser
+      - run: pnpm run desktop:test
+      - run: pnpm run desktop:package -- --arch=${{ matrix.arch }}
+      - run: pnpm --filter @zhiyun/desktop test:packaged
+      - run: pnpm run desktop:make -- --arch=${{ matrix.arch }}
         env:
           MAC_CODESIGN_IDENTITY: ${{ secrets.MAC_CODESIGN_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}

@@ -79,12 +79,12 @@
 可复现入口：
 
 ```bash
-bun --no-env-file run cloud:test:isolation
-bun --no-env-file run cloud:test
-bun --no-env-file run cloud:e2e
-bun --no-env-file run test
-bun --no-env-file run desktop:test
-bun --no-env-file run test:smoke:desktop-package
+tsx run cloud:test:isolation
+tsx run cloud:test
+tsx run cloud:e2e
+tsx run test
+tsx run desktop:test
+tsx run test:smoke:desktop-package
 ```
 
 最后两个入口的环境过滤已经落地，完整桌面 E2E 和未签名包运行验收仍由 OPT11 完成，本节没有宣称已运行它们。
@@ -106,7 +106,7 @@ bun --no-env-file run test:smoke:desktop-package
 
 2026-10-03 完成。初始 `dependency:audit` 返回 1，复现 27 项漏洞（1 critical、26 high），见 `audit-before.txt`。修复后原 high 阈值审计及补充安全检查均返回 0。当前仍有 8 项低于 high 阈值的公告，以及一项原有构建期 ICNS 例外；不宣称全部漏洞归零。
 
-直接依赖采用最小安全版本下限：Portal Next.js 16.3.6、Fastify ^5.12.2（锁定 5.12.5）、Nodemailer ^10.0.6（锁定 10.0.13）。同时锁定 adm-zip、brace-expansion、fast-uri、undici 的安全版本，保留原 Electron 等兼容覆盖。`bun.lock` 使用 Bun 1.4 支持的 version-scoped overrides 和 lockfileVersion 3。
+直接依赖采用最小安全版本下限：Portal Next.js 16.3.6、Fastify ^5.12.2（锁定 5.12.5）、Nodemailer ^10.0.6（锁定 10.0.13）。同时锁定 adm-zip、brace-expansion、fast-uri、undici 的安全版本，保留原 Electron 等兼容覆盖。`pnpm-lock.yaml` 使用 Bun 1.4 支持的 version-scoped overrides 和 lockfileVersion 3。
 
 braces 3.0.3 与 http-cache-semantics 4.2.0 的公告尚无上游发布修复，采用 `tooling/dependency-patches/` 中有来源、原始 tarball SHA-512 与许可证的本地源码修复。前者限制解析深度并拒绝递归 AST；后者在存储/重验证限制下拒绝 max-stale 或 stale-while-revalidate 绕过。私有包重命名并非验收依据：补充审计继续查询原始上游版本、打印公告、拒绝未登记的新 high/critical，并从实际 Forge、Electron 下载器及 Crawlee 依赖图执行安全回归。没有新增 ignore 或降低级别。
 
@@ -114,7 +114,7 @@ braces 3.0.3 与 http-cache-semantics 4.2.0 的公告尚无上游发布修复，
 
 | 验证             | 实际结果                                                                                                                              | 退出码与本轮 Artifact                               |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| 锁文件           | `bun --no-env-file install --frozen-lockfile --ignore-scripts` 通过；不变更锁文件                                                     | 0；`opt01-security-gates.txt` 的安装阶段            |
+| 锁文件           | `tsx install --frozen-lockfile --ignore-scripts` 通过；不变更锁文件                                                                   | 0；`opt01-security-gates.txt` 的安装阶段            |
 | 原审计与补充审计 | 1037 个包；8 项低于阈值，1 项原有 ignore；本地补丁 14 项/42 断言通过，Node 语法通过                                                   | 0；`opt01-security-recheck.txt`                     |
 | 许可证           | 1087 个当前锁图 npm 包、51 个 Python 包；两个补丁的上游来源、MIT/BSD-2-Clause 原文与 SHA-256 存在                                     | 0；`opt01-licenses.txt`、`opt01-node-licenses.json` |
 | Desktop 隔离测试 | 87 文件、432 项通过；约 63.2 秒                                                                                                       | 0；`opt01-desktop-test-serial.txt`                  |
@@ -123,7 +123,7 @@ braces 3.0.3 与 http-cache-semantics 4.2.0 的公告尚无上游发布修复，
 | 静态/架构        | 根 lint、format:check、architecture:deps、architecture:check、typecheck、git diff --check 通过；最后解析调整额外 ESLint/Prettier 通过 | 0；`opt01-static.txt`                               |
 | 构建             | Desktop 与 Cloud 全部构建通过；Portal 显示 Next.js 16.3.6；已有图表 chunk 提示仍在                                                    | 0；`opt01-builds.txt`                               |
 
-中间失败与处理：`bun audit fix --dry-run` 在 install 和 frozen install 通过后仍报告元数据不匹配，改为显式升级并复核锁文件；新增补丁测试的 require 解析无法访问 import-only 的 got-scraping，改用 Bun 的 ESM 解析，14 项通过；与多个构建/静态检查并行时采集测试 4 项超时，停止并行负载后单独 9 项与全套 432 项均通过，未放宽超时或改变业务断言。失败日志保留在 `opt01-security-gates.txt`、`opt01-cloud-test.txt`、`opt01-desktop-test.txt`。
+中间失败与处理：`pnpm audit fix --dry-run` 在 install 和 frozen install 通过后仍报告元数据不匹配，改为显式升级并复核锁文件；新增补丁测试的 require 解析无法访问 import-only 的 got-scraping，改用 Bun 的 ESM 解析，14 项通过；与多个构建/静态检查并行时采集测试 4 项超时，停止并行负载后单独 9 项与全套 432 项均通过，未放宽超时或改变业务断言。失败日志保留在 `opt01-security-gates.txt`、`opt01-cloud-test.txt`、`opt01-desktop-test.txt`。
 
 ### OPT02 采集预览与字段确认
 
@@ -148,8 +148,8 @@ braces 3.0.3 与 http-cache-semantics 4.2.0 的公告尚无上游发布修复，
 | 命令/检查                                                                                   | 退出码与本轮 Artifact                                            |
 | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | 初始领域回归 76 项                                                                          | 0；`opt02-regression.txt`，约 19 秒                              |
-| `bun --no-env-file run test` 最终 448 项                                                    | 0；`opt02-desktop-unit-final.txt`，约 37.1 秒                    |
-| `bun --no-env-file run desktop:test` 全套 12 项                                             | 0；`opt02-desktop-e2e-final.txt`，约 1.3 分钟                    |
+| `tsx run test` 最终 448 项                                                                  | 0；`opt02-desktop-unit-final.txt`，约 37.1 秒                    |
+| `tsx run desktop:test` 全套 12 项                                                           | 0；`opt02-desktop-e2e-final.txt`，约 1.3 分钟                    |
 | 安全环境中 Desktop 的 `test --grep 'reviews three\|stops Infinite'`，最终 2 项              | 0；`opt02-desktop-e2e-targeted-final.txt`，约 52.7 秒含构建/启动 |
 | 最终采集集成 10 项                                                                          | 0；`opt02-infinite-regression-final.txt`，约 3.6 秒              |
 | 根 typecheck、lint、format:check、client:check、architecture:deps、architecture:check、diff | 0；`opt02-static.txt`，397 模块、1139 条依赖，无违规             |
@@ -183,8 +183,8 @@ braces 3.0.3 与 http-cache-semantics 4.2.0 的公告尚无上游发布修复，
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | 领域回归（新增消失容器测试之前）                    | 84 项 / 10 文件通过；`opt03-domain-regression.txt`，约 13.1 秒                                            |
 | 诊断存储集成 / UI 恢复入口                          | 4 项 / 5 项通过；`opt03-storage-integration-final.txt`、`opt03-ui-recovery.txt`                           |
-| 最终 `bun --no-env-file run test`                   | 465 项 / 93 文件通过，含最新消失容器测试；`opt03-desktop-unit-final.txt`，约 60.2 秒                      |
-| 最终 `bun --no-env-file run desktop:test`           | 12 项通过；`opt03-desktop-e2e-final.txt`，约 1.5 分钟；其中新增诊断 UI 验收约 11.2 秒                     |
+| 最终 `tsx run test`                                 | 465 项 / 93 文件通过，含最新消失容器测试；`opt03-desktop-unit-final.txt`，约 60.2 秒                      |
+| 最终 `tsx run desktop:test`                         | 12 项通过；`opt03-desktop-e2e-final.txt`，约 1.5 分钟；其中新增诊断 UI 验收约 11.2 秒                     |
 | 根 typecheck、Lint、格式、client:check、架构与 diff | 均返回 0；`opt03-typecheck-final.txt`、`opt03-static-gates.txt`；403 模块、1159 条依赖，无违规            |
 | 清理核对                                            | 夹具端口 45100 已释放，诊断 SQLite 夹具、Electron profile 和单元测试临时目录均不存在；`opt03-cleanup.txt` |
 
@@ -208,7 +208,7 @@ Apple M4、macOS arm64、10 个逻辑 CPU、16 GiB 内存，Node 24.18.0。在�
 可复现入口（工作目录为仓库根目录，使用本轮已保存的原实现）：
 
 ```bash
-bun --no-env-file desktop/tooling/benchmarks/collection-resource.ts .artifacts/no-credentials-optimization/20261003T054244Z baseline
+tsx desktop/tooling/benchmarks/collection-resource.ts .artifacts/no-credentials-optimization/20261003T054244Z baseline
 ```
 
 **已实施的 Dataset 存储基础**：追加 `003-batch-ingestion` 前向 migration，未改动既有 migration 校验内容。`beginIngestion` 固定 run、task、规则/配置指纹、Dataset 设置和去重设置；`stageBatch` 将不超过 500 条的批次、校验和、Artifact key、去重键、记录和提交序号放入同一 SQLite 事务。同批次重放返回原接受数，不重新追加记录；规则/配置或重放内容变化拒绝复用。去重键保存在数据库，保留 hash、fields、none 行为；append 使用已提交接受数生成稳定记录序号，snapshot/upsert 保留同键最后值。
@@ -254,15 +254,15 @@ bun --no-env-file desktop/tooling/benchmarks/collection-resource.ts .artifacts/n
 本轮可复现命令（隔离环境由入口构造，工作目录为仓库根目录）：
 
 ```bash
-bun --no-env-file run test
-bun --no-env-file run desktop:test
-bun --no-env-file run typecheck
-bun --no-env-file run lint
-bun --no-env-file run architecture:deps
-bun --no-env-file run architecture:check
-bun --no-env-file run client:check
-bun --no-env-file desktop/tooling/benchmarks/collection-resource.ts .artifacts/no-credentials-optimization/20261003T054244Z/opt04-matched-comparison baseline
-bun --no-env-file desktop/tooling/benchmarks/collection-resource.ts .artifacts/no-credentials-optimization/20261003T054244Z/opt04-matched-comparison stream
+tsx run test
+tsx run desktop:test
+tsx run typecheck
+tsx run lint
+tsx run architecture:deps
+tsx run architecture:check
+tsx run client:check
+tsx desktop/tooling/benchmarks/collection-resource.ts .artifacts/no-credentials-optimization/20261003T054244Z/opt04-matched-comparison baseline
+tsx desktop/tooling/benchmarks/collection-resource.ts .artifacts/no-credentials-optimization/20261003T054244Z/opt04-matched-comparison stream
 ```
 
 `opt04-matched-comparison/opt04-baseline` 指向本轮原源码捕获目录；上述两个测量入口分别更新该比较目录下的报告，不能拿根目录最初基线报告当成它们本次生成的数据。重新运行前保留已有结果，测量时避免同时运行项目测试和构建。
@@ -334,17 +334,17 @@ SQLite 是持久 URL 队列，Crawlee 继续负责调度与导航。生产 HTTP/
 本阶段复现命令（仓库根目录，测试入口自动构造隔离环境）：
 
 ```bash
-bun --no-env-file run test
-bun --no-env-file run desktop:test
-bun --no-env-file run typecheck
-bun --no-env-file run lint
-bun --no-env-file run format:check
-bun --no-env-file run architecture:check
-bun --no-env-file run architecture:deps
-bun --no-env-file run client:check
+tsx run test
+tsx run desktop:test
+tsx run typecheck
+tsx run lint
+tsx run format:check
+tsx run architecture:check
+tsx run architecture:deps
+tsx run client:check
 ```
 
-迁移变更时先执行 `bun --no-env-file run architecture:generate`，本阶段入口返回 0；无需更改已应用的 migration。前阶段审查发现 Collection DELETE route 仅执行既有 `cleanup.clearTask` 与 Repository 删除，cancel route 仅登记取消并调用队列取消，保留的采集暂存依赖 handler 再次执行才能回收。下述阶段补齐这部分行为。
+迁移变更时先执行 `tsx run architecture:generate`，本阶段入口返回 0；无需更改已应用的 migration。前阶段审查发现 Collection DELETE route 仅执行既有 `cleanup.clearTask` 与 Repository 删除，cancel route 仅登记取消并调用队列取消，保留的采集暂存依赖 handler 再次执行才能回收。下述阶段补齐这部分行为。
 
 **取消、删除与持久清理阶段（2026-10-03）**：追加 `007-crawl-cleanup` 前向 migration，保留已应用的 004/005/006。清理请求保存 run/task 身份、原因、执行时间、重试次数和固定错误码；不依赖 Run 外键，因此删除 Task/Run/session 后仍然存在。取消请求与 Run 状态变更在同一 SQLite 事务登记，任务删除在同一事务检查 expected revision、为全部历史 Run 登记清理请求并执行 cascade。成功、取消与最终失败的既有 handler 清理入口也先登记请求，文件操作失败后不丢失回收依据。
 
@@ -373,7 +373,7 @@ bun --no-env-file run client:check
 
 本阶段已确认全部测试句柄退出；本轮清理/采集/暂存/资源夹具/单元测试/Electron profile 前缀均无剩余目录，45100 已释放，见 `opt04-cleanup-cleanup.json`。相对初始采样为 77 个文件变化、45 个新增代码/文档路径，573 个基线文件无新增缺失；仅复核已采样及明确新增代码路径，环境文件未读取或哈希，见 `delta-current.json`。HEAD 与 main 保持原值，未提交、推送、部署或终止其他进程。
 
-复现完整检查沿用前一阶段列出的命令；定向入口为 `bun --no-env-file run test desktop/packages/runtime/test/collection-cleanup.integration.test.ts desktop/packages/runtime/test/level2.integration.test.ts`。本阶段文档更新后重新运行格式和 diff，见 `opt04-cleanup-record-format-final.txt`、`opt04-cleanup-record-diff-final.txt`；两项退出码 0。
+复现完整检查沿用前一阶段列出的命令；定向入口为 `tsx run test desktop/packages/runtime/test/collection-cleanup.integration.test.ts desktop/packages/runtime/test/level2.integration.test.ts`。本阶段文档更新后重新运行格式和 diff，见 `opt04-cleanup-record-format-final.txt`、`opt04-cleanup-record-diff-final.txt`；两项退出码 0。
 
 **LocalQueue 与完整 TypeScript Runtime 进程恢复阶段（2026-10-03）**：补齐上一阶段保留的完成摘要窗口。Platform Core 增加 `JobCompletionRecoveryInput` 与 Repository 的 `retryJobCompletion`，LocalQueue 暴露 `retryCompletion`。该内部入口由 Collection 确认已有持久完成摘要或成功 Run 后调用；SQLite 事务核对原 job 的 owner、type、payload、attempt、failed 状态、空 lease、无取消请求及已耗尽的次数。通过后仅为同一个 job 增加一次完成机会，保留原 run/job 身份，并按 1 秒起、最高 60 秒的退避等待。重复或过期调用返回 null；LocalQueue 仍有该 job 的 handler 在途时拒绝重排。没有新增服务、依赖或 migration，也没有修改既有 migration。
 
@@ -402,7 +402,7 @@ Collection 的可恢复写入失败若已有固定指纹的完成摘要，保留
 
 本阶段所有测试句柄已退出。只读检查确认本轮 Queue/完成恢复、清理/采集/暂存/资源/单元测试/Electron profile 前缀均无剩余目录，45100 已释放，见 `opt04-queue-recovery-cleanup.json`。相对初始采样为 80 个文件变化、47 个明确新增代码/文档路径，573 个基线文件无新增缺失；环境文件未读取或哈希，HEAD/main 保持原值，见 `delta-current.json`。未提交、推送、部署或终止其他进程。
 
-复现命令沿用前一阶段的完整检查；定向恢复为 `bun --no-env-file run test desktop/packages/runtime/test/queue-recovery.integration.test.ts desktop/packages/runtime/test/collection-cleanup.integration.test.ts desktop/packages/capabilities/storage-sqlite/test/platform-repository.test.ts`。文档更新后重新运行格式与 diff，退出码均为 0，见 `opt04-queue-recovery-record-format-final.txt`、`opt04-queue-recovery-record-diff-final.txt`。
+复现命令沿用前一阶段的完整检查；定向恢复为 `tsx run test desktop/packages/runtime/test/queue-recovery.integration.test.ts desktop/packages/runtime/test/collection-cleanup.integration.test.ts desktop/packages/capabilities/storage-sqlite/test/platform-repository.test.ts`。文档更新后重新运行格式与 diff，退出码均为 0，见 `opt04-queue-recovery-record-format-final.txt`、`opt04-queue-recovery-record-diff-final.txt`。
 
 上述恢复阶段结束时，浏览器单 URL 动作进度、真实浏览器/Electron 宿主异常退出、警告保留与资源指标仍待补齐；以下记录本轮资源工作的进展。
 
@@ -442,7 +442,7 @@ RSS 方法沿用原基线：导入后只做一次初始 GC；父进程每 25 ms 
 | HTTP Runtime 测量         | 原始与当前各六次正常运行；0；最终 `comparison.json` 证明两个规模对两份原始基线均通过 80% 门槛，增量峰值 RSS 比例 1.350                                                                     |
 | 实际 Artifact/SQLite 测量 | 修复前后各六次正常运行且所有记录校验通过；0；修复后内存比例 1.444；完整原产品吞吐基线未测量，不冒充通过                                                                                    |
 
-复现测量使用 `bun --no-env-file desktop/tooling/benchmarks/collection-resource.ts <本轮测量目录> baseline`、`stream` 或 `pipeline`；目录内 `opt04-baseline` 指向不可变的本轮原始采集源码目录。诊断模式为 `stream profile`，仅运行 10 万条一次且使用独立文件名。完整回归命令沿用前述隔离入口；新增源码入口直接运行 Node，测试子进程使用环境允许列表，不加载用户环境文件或真实凭据。
+复现测量使用 `tsx desktop/tooling/benchmarks/collection-resource.ts <本轮测量目录> baseline`、`stream` 或 `pipeline`；目录内 `opt04-baseline` 指向不可变的本轮原始采集源码目录。诊断模式为 `stream profile`，仅运行 10 万条一次且使用独立文件名。完整回归命令沿用前述隔离入口；新增源码入口直接运行 Node，测试子进程使用环境允许列表，不加载用户环境文件或真实凭据。
 
 本阶段全部资源、单元测试与桌面 E2E 句柄已退出；只读检查确认九类本轮临时目录前缀无剩余目录，45100 可用，见 `opt04-resource-cleanup.json`。相对初始采样为 80 个文件变化、48 个明确新增代码/文档路径、573 个基线文件无新增缺失；环境文件未读取或哈希，HEAD/main 保持原值，见 `delta-current.json`。文档更新后格式与 diff 退出码均为 0，见 `opt04-resource-record-format-final.txt`、`opt04-resource-record-diff-final.txt`。没有暂存、提交、推送、部署、清理共享卷或终止其他进程。
 
@@ -466,9 +466,9 @@ RSS 方法沿用原基线：导入后只做一次初始 GC；父进程每 25 ms 
 
 首轮 30 项中普通用例 14 项通过，16 个新增进程用例失败：一项请求窗口越过了夹具 100 ms 动作等待、13 项完整数据一致但查询顺序不同，另两项 Chromium 终止后工作进程未退出。调整仅针对中断夹具的动作等待为 2000 ms，以便在未完成请求窗口内登记并终止进程；增加进程退出与请求等待的联动，记录比较保留所有内容与重复次数，未减少预期记录或统计。其后的聚焦运行仍证明浏览器已失败并关闭 Repository 后存在连接，不能归为通过。
 
-实际原因在 `proxy-chain@2.7.1` 的 HTTP 转发：下游在上游发送响应头之前关闭，尚未建立响应 pipeline，上游请求没有随之销毁。本阶段增加一个 8 行 Bun 补丁，只在响应未正常完成且下游已关闭时销毁上游请求并结束转发。保留原包名称、版本、Apache-2.0 许可及上游完整性；原 registry 审计仍能看到原包，没有新增 ignore。补丁声明位于根 `package.json` 与 `bun.lock`，说明见 `tooling/dependency-patches/README.md`。已验证冻结安装退出 0；移除唯一新增补丁声明后的锁文件 SHA-256 与上一资源阶段完全一致，证明没有顺带升级包版本，见 `opt04-proxy-patch-lock-comparison.json`。
+实际原因在 `proxy-chain@2.7.1` 的 HTTP 转发：下游在上游发送响应头之前关闭，尚未建立响应 pipeline，上游请求没有随之销毁。本阶段增加一个 8 行 Bun 补丁，只在响应未正常完成且下游已关闭时销毁上游请求并结束转发。保留原包名称、版本、Apache-2.0 许可及上游完整性；原 registry 审计仍能看到原包，没有新增 ignore。补丁声明位于根 `package.json` 与 `pnpm-lock.yaml`，说明见 `tooling/dependency-patches/README.md`。已验证冻结安装退出 0；移除唯一新增补丁声明后的锁文件 SHA-256 与上一资源阶段完全一致，证明没有顺带升级包版本，见 `opt04-proxy-patch-lock-comparison.json`。
 
-`bun patch` 的准备阶段在本机 isolated linker 下两次报 ENOENT，并临时移除了一个忽略的依赖安装目录。通过冻结安装恢复该目录，随后采用声明式补丁正常安装，不编辑 Bun 全局缓存或其他项目。原失败日志分别保留在 `opt04-proxy-patch-prepare.txt`、`opt04-proxy-patch-prepare-path.txt`，恢复、安装及冻结验证日志保留在同前缀文件。修复后的两个 Chromium 终止定向用例均自然退出、恢复为完整控制数据，退出 0，见 `opt04-browser-kill-patched-current.txt`。临时 async_hooks/资源栈诊断已移除，原诊断日志保留，不用强制退出掩盖连接问题。
+`pnpm patch` 的准备阶段在本机 isolated linker 下两次报 ENOENT，并临时移除了一个忽略的依赖安装目录。通过冻结安装恢复该目录，随后采用声明式补丁正常安装，不编辑 Bun 全局缓存或其他项目。原失败日志分别保留在 `opt04-proxy-patch-prepare.txt`、`opt04-proxy-patch-prepare-path.txt`，恢复、安装及冻结验证日志保留在同前缀文件。修复后的两个 Chromium 终止定向用例均自然退出、恢复为完整控制数据，退出 0，见 `opt04-browser-kill-patched-current.txt`。临时 async_hooks/资源栈诊断已移除，原诊断日志保留，不用强制退出掩盖连接问题。
 
 以下针对清理诊断代码、声明补丁且冻结安装后的代码运行，24 个明确非凭据源码路径的哈希保存在 `opt04-browser-round-source-hashes.json`。完整测试内新增浏览器套件 31 项全部通过，包含 14 个真正的采集进程 SIGKILL 窗口及两个 Chromium 终止窗口；累计已有 HTTP/Sitemap/Queue/Runtime 的 23 个窗口为 37 个采集进程 SIGKILL 窗口。
 
@@ -612,8 +612,8 @@ RSS 规模比例为 1.273，两个规模相对首次与相邻原始基线均通�
 | 检查                   | 命令/覆盖                                                                                                                                                                                                                                                                                                                                                | 实际退出码与记录                                                                                            |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | 规则/助手/Runtime 回归 | `desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/ai-assistance/test desktop/packages/ai-runtime/test desktop/packages/runtime/test/level2.integration.test.ts desktop/packages/runtime/test/openapi.test.ts desktop/packages/runtime/test/product-api.integration.test.ts desktop/packages/runtime/test/assistant.integration.test.ts` | 0；13 个文件、100 条测试通过，其中缓存 36 条；`opt05-rule-cache-stage1-final.txt/.json`，24.25 秒           |
-| 全工作区 TypeScript    | `bun --no-env-file run typecheck`                                                                                                                                                                                                                                                                                                                        | 0；`opt05-typecheck-stage1-final.txt`                                                                       |
-| 全库 ESLint            | `bun --no-env-file run lint`                                                                                                                                                                                                                                                                                                                             | 0；`opt05-lint-stage1-final.txt`                                                                            |
+| 全工作区 TypeScript    | `tsx run typecheck`                                                                                                                                                                                                                                                                                                                                      | 0；`opt05-typecheck-stage1-final.txt`                                                                       |
+| 全库 ESLint            | `tsx run lint`                                                                                                                                                                                                                                                                                                                                           | 0；`opt05-lint-stage1-final.txt`                                                                            |
 | Catalog 与生成客户端   | `architecture:generate/check`、`client:generate/check`                                                                                                                                                                                                                                                                                                   | 均 0；`opt05-catalog-verified.txt`、`opt05-client-generate-after-clear.txt`、`opt05-client-check-final.txt` |
 | 依赖边界               | `architecture:deps`                                                                                                                                                                                                                                                                                                                                      | 0；430 modules、1322 dependencies 无违例；`opt05-architecture-deps-current.txt`                             |
 | 格式与 diff            | 本阶段末尾 `format:check`、`git diff --check`                                                                                                                                                                                                                                                                                                            | 以 `opt05-record-format-final.txt`、`opt05-record-diff-final.txt` 的最终结果为准                            |
@@ -765,7 +765,7 @@ RSS 规模比例为 1.273，两个规模相对首次与相邻原始基线均通�
 
 **验证记录**：
 
-- 受影响业务回归：根目录执行 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts`，参数覆盖 AI 插件、AI Runtime、Browser/Crawler Runtime、Collection 运行诊断、Runtime 正式动作缓存、Level2、Product API、Assistant、OpenAPI 和 UI 诊断；退出 0，24 个文件、201 条通过，219.93 秒。原生报告 `opt05-composition-qualified-final.txt/.json`。此命令启动后补加 HTML 目标描述拒绝测试，因此其结果不包含这条新增测试。
+- 受影响业务回归：根目录执行 `tsx desktop/tooling/scripts/test-isolated.ts`，参数覆盖 AI 插件、AI Runtime、Browser/Crawler Runtime、Collection 运行诊断、Runtime 正式动作缓存、Level2、Product API、Assistant、OpenAPI 和 UI 诊断；退出 0，24 个文件、201 条通过，219.93 秒。原生报告 `opt05-composition-qualified-final.txt/.json`。此命令启动后补加 HTML 目标描述拒绝测试，因此其结果不包含这条新增测试。
 - 当前缓存专项复验：`rule-cache.test.ts` 与 `rule-cache-composition.test.ts`，使用同一隔离入口及 default/json Reporter；报告 `opt05-composition-cache-current.txt/.json`；退出 0，65 条通过，169.79 秒，其中组合验证 15 条。两次成功测试的用例并集为 202 条，不能把重复复验相加成 266 条。
 - 全工作区 `typecheck`、`lint`、`architecture:deps`、`architecture:check`、`client:check` 均退出 0；报告 `opt05-composition-typecheck-final.txt`、`opt05-composition-lint-final.txt`、`opt05-composition-architecture-deps.txt`、`opt05-composition-catalog-check.txt`、`opt05-composition-client-check.txt`。架构检查 438 modules、1368 dependencies，无违例；最后隐私检查与新增测试随后通过全工作区类型/Lint 复验，退出均为 0，报告 `opt05-composition-typecheck-current.txt`、`opt05-composition-lint-current.txt`。格式与 diff 最终结果见下文清理记录。
 - 该阶段未修改 UI，未重新运行 Electron E2E 或安装包；上阶段两条 Electron 路径的报告保留，OPT11 仍要求最终完整回归。当前指标来自实际 Mock 方法和本地规则夹具，不作为真实模型准确率、Token 或结算费用。
@@ -806,7 +806,7 @@ RSS 规模比例为 1.273，两个规模相对首次与相邻原始基线均通�
 **命令、退出码与计数**：报告位于 `.artifacts/no-credentials-optimization/20261003T054244Z/`。
 
 - 原生缓存测试的首个完整专项报告为 `opt05-stagehand-native-second.txt/.json`。其中 `stagehand-action-cache.test.ts` 的 15 条全部通过；同一命令的驱动文件默认悬停失败，故整个命令退出 1，不能记为整轮通过。
-- 最后定向验证使用 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts desktop/packages/browser-runtime/test/stagehand.test.ts desktop/packages/plugins/ai-assistance/test/stagehand-action-cache.test.ts -t 'real local Stagehand adapter|qualifies its native adapter'`，附加 default/json Reporter 与 outputFile；退出 0，驱动 12 条及新增的适配器区别测试 1 条通过，缓存文件其余 15 条跳过，76.07 秒。报告 `opt05-stagehand-driver-final.txt/.json`。此前通过的 15 条缓存测试未修改既有行为；两份报告验证用例并集为 28 条，不把跳过项或重复通过项相加。
+- 最后定向验证使用 `tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/browser-runtime/test/stagehand.test.ts desktop/packages/plugins/ai-assistance/test/stagehand-action-cache.test.ts -t 'real local Stagehand adapter|qualifies its native adapter'`，附加 default/json Reporter 与 outputFile；退出 0，驱动 12 条及新增的适配器区别测试 1 条通过，缓存文件其余 15 条跳过，76.07 秒。报告 `opt05-stagehand-driver-final.txt/.json`。此前通过的 15 条缓存测试未修改既有行为；两份报告验证用例并集为 28 条，不把跳过项或重复通过项相加。
 - 受影响业务回归使用同一隔离入口，覆盖 AI 插件、AI Runtime、Browser/Crawler Runtime、Collection 运行诊断、Runtime 正式动作缓存、Level2、Product API、Assistant、OpenAPI 和 UI 诊断；通过两个 exclude 参数排除上述原生 SDK 专项文件，避免重复计数；退出 0，24 个文件、202 条通过，221.15 秒。报告 `opt05-stagehand-regression-final.txt/.json`。本阶段已通过的不同用例合计 230 条；后续原生 hover 调整只影响 Stagehand 动作分支，该回归的 Playwright 分支未修改。
 - 全工作区 `typecheck` 与 `lint` 退出 0；最后测试调整后再次执行并退出 0，报告 `opt05-stagehand-typecheck-current-final.txt`、`opt05-stagehand-lint-current-final.txt`。`architecture:deps`、`architecture:check`、`client:check` 退出均为 0，对应 `opt05-stagehand-deps-final.txt`、`opt05-stagehand-catalog-final.txt`、`opt05-stagehand-client-final.txt`；架构检查 441 modules、1386 dependencies，无违例。
 - 未修改产品 UI、公共契约或迁移，本阶段未重跑 Electron E2E、打包或依赖审计；OPT11 仍要求最终验收。没有新依赖，没有真实模型、通知或公网发布。
@@ -847,10 +847,10 @@ RSS 规模比例为 1.273，两个规模相对首次与相邻原始基线均通�
 
 **验证命令与退出码**：证据均位于 `.artifacts/no-credentials-optimization/20261003T054244Z/`。
 
-- 专项最终命令为 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/ai-assistance/test/json-action-cache.test.ts --reporter=default --reporter=json --outputFile=.artifacts/no-credentials-optimization/20261003T054244Z/opt05-json-tests-final.json`，退出 0，17 项全部通过，22.68 秒；对应 `opt05-json-tests-final.txt/.json`。
+- 专项最终命令为 `tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/ai-assistance/test/json-action-cache.test.ts --reporter=default --reporter=json --outputFile=.artifacts/no-credentials-optimization/20261003T054244Z/opt05-json-tests-final.json`，退出 0，17 项全部通过，22.68 秒；对应 `opt05-json-tests-final.txt/.json`。
 - 业务回归采用同一隔离入口，选择上一阶段回归 JSON 中列明的 24 个文件，再加入新专项文件；覆盖 AI 插件、AI/Browser/Crawler Runtime、Collection 运行诊断、正式动作缓存、Level2、Product API、Assistant、OpenAPI 和 UI 诊断。退出 0，25 个文件、219 项通过，241.25 秒；对应 `opt05-json-regression-current.txt/.json`。专项最终复验用于确认测试夹具类型修正后的同一组 17 项，不能再与 219 项相加。
-- 全工作区 `bun --no-env-file run typecheck` 最终退出 0，报告 `opt05-json-typecheck-current-final.txt`。此前根 TypeScript 检查退出 0 不能替代各工作区的测试类型检查；完整检查发现的新夹具类型错误已修复，见下述失败记录。
-- 全工作区 `bun --no-env-file run lint` 退出 0，报告 `opt05-json-lint-final.txt`；夹具修正后对本阶段 4 个源文件再次 ESLint，退出 0，报告 `opt05-json-lint-current-final.txt`。
+- 全工作区 `tsx run typecheck` 最终退出 0，报告 `opt05-json-typecheck-current-final.txt`。此前根 TypeScript 检查退出 0 不能替代各工作区的测试类型检查；完整检查发现的新夹具类型错误已修复，见下述失败记录。
+- 全工作区 `tsx run lint` 退出 0，报告 `opt05-json-lint-final.txt`；夹具修正后对本阶段 4 个源文件再次 ESLint，退出 0，报告 `opt05-json-lint-current-final.txt`。
 - `architecture:deps`、`architecture:check`、`client:check` 全部退出 0，对应 `opt05-json-deps-final.txt`、`opt05-json-catalog-final.txt`、`opt05-json-client-final.txt`。依赖图为 443 modules、1399 dependencies，无违例。
 - 本阶段没有产品 UI 或依赖变更，未重跑 Electron E2E、打包和依赖审计；最终交付验收仍须在 OPT11 完成。Stagehand 原生 SDK 分支和专项未修改，上一阶段证据继续保留，不把它们算作本阶段重跑结果。
 
@@ -891,11 +891,11 @@ OPT05 下一步仍是 sitemap 资格、有效单页终止、其他分页边界�
 
 **验证命令与退出码**：报告位于 `.artifacts/no-credentials-optimization/20261003T054244Z/`。
 
-- 专项使用 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts`，明确选择 `runtime/test/assistant.integration.test.ts`、`plugins/ai-assistance/test/crawler-assistant.integration.test.ts`、`ui/test/assistant-cache.test.ts`（路径均在 `desktop/packages/` 下），附加 default/json Reporter；最终退出 0，3 个文件、14 项通过，3.78 秒，报告 `opt05-assistant-feedback-verified-final.txt/.json`。最终复验针对损坏缓存操作改用 Node 自带 SQLite 的测试修正，不能与前一版同名用例重复累加。
+- 专项使用 `tsx desktop/tooling/scripts/test-isolated.ts`，明确选择 `runtime/test/assistant.integration.test.ts`、`plugins/ai-assistance/test/crawler-assistant.integration.test.ts`、`ui/test/assistant-cache.test.ts`（路径均在 `desktop/packages/` 下），附加 default/json Reporter；最终退出 0，3 个文件、14 项通过，3.78 秒，报告 `opt05-assistant-feedback-verified-final.txt/.json`。最终复验针对损坏缓存操作改用 Node 自带 SQLite 的测试修正，不能与前一版同名用例重复累加。
 - 业务回归通过原隔离入口执行上一阶段 JSON 回归的 25 个文件，再加入 UI 新测试：退出 0，26 个文件、224 项通过，243.22 秒；`opt05-assistant-regression-final.txt/.json`。最新专项只更新其中同一个 Runtime 用例的损坏分支与计数说明，生产代码未改变；用例并集仍为 224 项。
-- 全工作区 `bun --no-env-file run typecheck` 最终退出 0，`opt05-assistant-typecheck-repaired-final.txt`。全工作区 `lint` 退出 0，`opt05-assistant-lint-final.txt`；最新两份测试再次 ESLint 退出 0，`opt05-assistant-lint-repaired-final.txt`。
+- 全工作区 `tsx run typecheck` 最终退出 0，`opt05-assistant-typecheck-repaired-final.txt`。全工作区 `lint` 退出 0，`opt05-assistant-lint-final.txt`；最新两份测试再次 ESLint 退出 0，`opt05-assistant-lint-repaired-final.txt`。
 - `architecture:deps`、`architecture:check`、`client:check` 均退出 0：`opt05-assistant-deps-final.txt`、`opt05-assistant-catalog-final.txt`、`opt05-assistant-client-final.txt`。依赖图 445 modules、1407 dependencies，无违例；客户端已通过正式生成命令更新。
-- `bun --no-env-file run desktop:test e2e/desktop.spec.ts` 退出 0，12 项通过，约 1.5 分钟；`opt05-assistant-electron-current.txt`。正式 Desktop 构建同步通过；既有大于 500 KB 的 chunk 提示仍保留，最终性能与打包验收属于后续任务。
+- `tsx run desktop:test e2e/desktop.spec.ts` 退出 0，12 项通过，约 1.5 分钟；`opt05-assistant-electron-current.txt`。正式 Desktop 构建同步通过；既有大于 500 KB 的 chunk 提示仍保留，最终性能与打包验收属于后续任务。
 
 **中间失败与处置**：
 
@@ -941,12 +941,12 @@ OPT05 仍需 sitemap 资格、有效单页终止、其他分页边界、detail �
 
 **检查入口与退出码**：Artifact 位于 `.artifacts/no-credentials-optimization/20261003T054244Z/`。
 
-- 原隔离入口 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts` 选择上一阶段 26 个文件，附加 default/json Reporter：退出 0，234 项通过，299.22 秒，`opt05-discovery-regression-final.txt/.json` 与 `opt05-discovery-regression-exit.json`。组合规则 25 项包含本阶段新增 10 项；原实际会话失效、私密值、失败/CAS 与助手回归继续通过。
+- 原隔离入口 `tsx desktop/tooling/scripts/test-isolated.ts` 选择上一阶段 26 个文件，附加 default/json Reporter：退出 0，234 项通过，299.22 秒，`opt05-discovery-regression-final.txt/.json` 与 `opt05-discovery-regression-exit.json`。组合规则 25 项包含本阶段新增 10 项；原实际会话失效、私密值、失败/CAS 与助手回归继续通过。
 - 最后只升级资格版本并新增旧版升级用例，重跑 `plugins/ai-assistance/test/rule-cache.test.ts`：退出 0，51 项通过，9.41 秒，`opt05-discovery-version-final.txt/.json`。与整轮回归重复的用例不相加。
 - `plugins/collection/test/browser-rounds.integration.test.ts` 通过同一入口按标题选择禁用终止、游标持久化和原记录上限：退出 0，3 项通过、29 项跳过，3.05 秒，`opt05-discovery-stream-final.txt/.json`。跳过项不计为本阶段通过；上述不同业务用例并集为 238 项、27 个文件。
 - 全工作区 typecheck/lint 退出 0，`opt05-discovery-typecheck-final.txt`、`opt05-discovery-lint-final.txt`。最终版本标记与断言调整后，完整 typecheck 再次退出 0，`opt05-discovery-typecheck-current-final.txt`；相关三文件 ESLint 退出 0，`opt05-discovery-lint-current-final.txt`。
 - architecture:deps、architecture:check、client:check 均退出 0，分别为 `opt05-discovery-deps-final.txt`、`opt05-discovery-catalog-final.txt`、`opt05-discovery-client-final.txt`；445 modules、1408 dependencies，无违例。公共 HTTP 契约与客户端未改变。
-- `bun --no-env-file run desktop:test e2e/rule-cache.spec.ts` 退出 0；最后工具版本改动后再次运行同一入口，退出 0，原有两项通过，约 1.3 分钟，`opt05-discovery-electron-current-final.txt`。正式 Desktop 构建同步通过，既有大 chunk 提示保留。用例验证编辑器的规则 Mock 2→0→2、命中数/原因与手动清理，以及默认草稿的动作缓存和清理；没有新增 sitemap 或详情配置值的整条 Electron 用例，不将 API/浏览器夹具称为这些完整桌面路径。两个 Electron 报告不能重复计数。
+- `tsx run desktop:test e2e/rule-cache.spec.ts` 退出 0；最后工具版本改动后再次运行同一入口，退出 0，原有两项通过，约 1.3 分钟，`opt05-discovery-electron-current-final.txt`。正式 Desktop 构建同步通过，既有大 chunk 提示保留。用例验证编辑器的规则 Mock 2→0→2、命中数/原因与手动清理，以及默认草稿的动作缓存和清理；没有新增 sitemap 或详情配置值的整条 Electron 用例，不将 API/浏览器夹具称为这些完整桌面路径。两个 Electron 报告不能重复计数。
 
 **中间失败**：
 
@@ -1045,9 +1045,9 @@ OPT06 进行中。确认已有 BrowserAction 的 `semanticGoal`/`expectedState` 
 **固定评测入口**：
 
 ```bash
-bun --no-env-file run ai:evaluate
+tsx run ai:evaluate
 # 可选：指定本轮报告位置；无需凭据
-bun --no-env-file run ai:evaluate --output=.artifacts/ai-evaluation/report.json
+tsx run ai:evaluate --output=.artifacts/ai-evaluation/report.json
 ```
 
 `desktop/tooling/evaluations/rule-repair-cases.ts` 固定 28 项身份与类别，版本 `repair-quality-v2`；`desktop/tooling/scripts/evaluate-rule-repair.ts` 调用既有隔离入口，不继承凭据环境。任何缺失、跳过、重复用例或缺失/非法计数均不能登记为通过。每例记录真实测试方法调用、候选/预览/激活检查次数、缓存请求/命中与耗时；报告保存相关源文件 SHA-256，运行前后变化则拒绝该轮有效性。输出带版本 JSON 和配套日志，默认创建独立 UUID 目录。
@@ -1091,9 +1091,9 @@ OPT06 已完成，主目标 OPT00 至 OPT11 尚未完成。前阶段的语义动
 **评测与实测指标**：固定夹具升级为 `repair-quality-v3`，44 个期望覆盖 22 个实际修复/质量/隐私场景、12 个 Agent 场景、6 个 HTTP/队列场景、4 个费用 UI 场景。执行命令为：
 
 ```sh
-bun --no-env-file run ai:evaluate --output=.artifacts/no-credentials-optimization/20261003T054244Z/opt06-cost-evaluation-final.json
-bun --no-env-file run ai:evaluate --output=.artifacts/no-credentials-optimization/20261003T054244Z/opt06-cost-evaluation-repeat.json
-bun --no-env-file run desktop:test e2e/assistant-cost.spec.ts
+tsx run ai:evaluate --output=.artifacts/no-credentials-optimization/20261003T054244Z/opt06-cost-evaluation-final.json
+tsx run ai:evaluate --output=.artifacts/no-credentials-optimization/20261003T054244Z/opt06-cost-evaluation-repeat.json
+tsx run desktop:test e2e/assistant-cost.spec.ts
 ```
 
 两次评测退出码均 0，44/44，源哈希完全相同且各次执行期间稳定，耗时 13.127 秒与 11.629 秒。实际 Provider 方法调用均 44：修复 20、规则分析 2、Agent 及队列 22。实际修复预览 16 次，8 次通过、8 次拒绝；候选与预览检查合计 37 次、拒绝 14 次；缓存夹具 3 次请求、2 次命中；激活请求 9 次、成功 1 次、拒绝 8 次。这些分母含故意失败与复验样本，是 **Mock/规则夹具** 指标，不能作为真实模型准确率或成本下降比例。真实模型 Token、实际费用和准确率均未测量；“实际结算”展示使用显式元数据夹具验证。
@@ -1158,13 +1158,13 @@ OPT07 进行中，尚无清洗能力完成声明。已读取 Dataset 契约/服�
 | Worker 全套        | `uv run pytest --junitxml=<Artifact>/opt07-worker-verified.xml`，退出 0；69 项通过，见 `opt07-worker-verified.log`                 | 六类确定结果、兼容第二个输入的配方复用、类型错误、源文件不变、取消/失败/资源清理、校验和与 HTTP 路径保护；包含原有 Worker 回归           |
 | Dataset/客户端回归 | 隔离 Vitest 7 文件 25 项通过，退出 0；`opt07-datasets-verified.json/.log`                                                          | 真实 Worker 与现有 Snapshot 服务/客户端、批次与仓库回归；跨语言执行 7 项 `cleaning-quality-v1` 金样及 35 组参数边界                      |
 | 当前持久化补充     | 隔离 Vitest `cleaning.repository.test.ts` 4 项，退出 0；`opt07-cleaning-repository-final.json/.log`                                | 版本不被覆盖、重开后持久化、逐步父关联、选择式撤销/重做、过期修订拒绝、原 Snapshot/记录/采集统计不变、第二步写入失败全事务回滚与行数约束 |
-| 类型与 Lint        | `bun --no-env-file run typecheck`、`lint`，退出均 0；`opt07-typecheck-current.log`、`opt07-lint-current.log`                       | 根项目及全部 workspace 类型；全仓 TypeScript Lint                                                                                        |
+| 类型与 Lint        | `tsx run typecheck`、`lint`，退出均 0；`opt07-typecheck-current.log`、`opt07-lint-current.log`                                     | 根项目及全部 workspace 类型；全仓 TypeScript Lint                                                                                        |
 | Python 规范        | `uv run ruff check src tests`、`ruff format --check src tests`，退出均 0                                                           | 19 个 Python 文件格式及当前源/测试静态检查                                                                                               |
 | 生成契约/架构      | `worker:client:check`、`client:check`、`architecture:check`，退出均 0；各 `opt07-*-check.log` 与 `opt07-architecture-verified.log` | Worker 生成契约、已有 HTTP 客户端一致；新增迁移已登记且架构目录已生成                                                                    |
 | 依赖边界           | `architecture:deps`，退出 0；`opt07-architecture-deps.log`                                                                         | 464 模块、1466 依赖，无跨边界违规                                                                                                        |
 | 桌面构建           | `desktop:build`，退出 0；`opt07-desktop-build.log`                                                                                 | 新模块和共享导出能打包；仍有原有大 chunk 提示，未声称性能改善                                                                            |
 
-Vitest 完整入口为 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/datasets/test desktop/packages/capabilities/analytics-worker-client/test --reporter=default --reporter=json --outputFile=<Artifact>/opt07-datasets-verified.json`；持久化补充仅选 `cleaning.repository.test.ts`。Artifact 根目录同执行上下文。25 项与补充 4 项存在重叠，不相加计为 29。SQLite 单元测试使用 Artifact 标识夹具；真实 Worker 结果和 SQLite 发布尚未连成清洗服务链，不能据此声称真实 Artifact 发布或端到端撤销已验收。
+Vitest 完整入口为 `tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/datasets/test desktop/packages/capabilities/analytics-worker-client/test --reporter=default --reporter=json --outputFile=<Artifact>/opt07-datasets-verified.json`；持久化补充仅选 `cleaning.repository.test.ts`。Artifact 根目录同执行上下文。25 项与补充 4 项存在重叠，不相加计为 29。SQLite 单元测试使用 Artifact 标识夹具；真实 Worker 结果和 SQLite 发布尚未连成清洗服务链，不能据此声称真实 Artifact 发布或端到端撤销已验收。
 
 **失败与修复**：保留 `opt07-contract-first` 的 Unicode 差异失败；修正两个解析器的长度语义后通过。第一次持久化测试缺本地 Zod 链接，完成 frozen-lockfile 安装后运行；第二次发现原始记录统计被派生 Snapshot 影响，修正统计查询后通过。相关失败仍保留在 `opt07-datasets-first`、`opt07-cleaning-repository-second`；原架构目录过期检查也保留，生成后重查通过。Python 全套的一项 statsmodels 时间频率推断警告来自既有 ARIMA 测试，不是清洗失败。
 
@@ -1196,7 +1196,7 @@ Vitest 完整入口为 `bun --no-env-file desktop/tooling/scripts/test-isolated.
 | 静态检查           | 全仓 typecheck、lint、format、架构目录、HTTP/Worker 客户端检查均 0 | `opt07-service-ui-*-final.log`。随后仅补充 UI 对 `METHOD_INCOMPATIBLE` 的说明和对应 E2E 断言，受影响 UI/Desktop 类型、两文件 Lint、全仓格式和实际 Electron 再通过；见 `opt07-ui-typecheck-final.log`、`opt07-ui-lint-final.log`、`opt07-service-ui-format-verified.log` |
 | 依赖边界与构建     | 475 模块、1521 依赖，违规 0；实际桌面构建通过                      | `opt07-service-ui-deps-final.log` 与最终 Electron 入口的构建输出。保留已有约 591 KB 图表 chunk 提示，未声称包体或加载性能改善                                                                                                                                           |
 
-相关 Vitest 命令为 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/datasets/test desktop/packages/capabilities/analytics-worker-client/test desktop/packages/capabilities/storage-sqlite/test desktop/packages/runtime/test/cleaning.integration.test.ts desktop/packages/runtime/test/openapi.test.ts desktop/packages/runtime/test/level2.integration.test.ts desktop/packages/client/test desktop/packages/ui/test/dataset-cleaning.test.ts --reporter=default --reporter=json --outputFile=<Artifact>/opt07-service-ui-regression-final.json`。桌面命令为 `bun --no-env-file run desktop:test e2e/cleaning.spec.ts`。静态命令为根 `typecheck`、`lint`、`format:check`、`architecture:check`、`architecture:deps`、`client:check`、`worker:client:check`；UI 补充类型命令为 `bun --no-env-file run --filter @zhiyun/ui --filter @zhiyun/desktop typecheck`。
+相关 Vitest 命令为 `tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/datasets/test desktop/packages/capabilities/analytics-worker-client/test desktop/packages/capabilities/storage-sqlite/test desktop/packages/runtime/test/cleaning.integration.test.ts desktop/packages/runtime/test/openapi.test.ts desktop/packages/runtime/test/level2.integration.test.ts desktop/packages/client/test desktop/packages/ui/test/dataset-cleaning.test.ts --reporter=default --reporter=json --outputFile=<Artifact>/opt07-service-ui-regression-final.json`。桌面命令为 `tsx run desktop:test e2e/cleaning.spec.ts`。静态命令为根 `typecheck`、`lint`、`format:check`、`architecture:check`、`architecture:deps`、`client:check`、`worker:client:check`；UI 补充类型命令为 `tsx run --filter @zhiyun/ui --filter @zhiyun/desktop typecheck`。
 
 **中间失败保留**：服务初次 Runtime 测试缺 SDK 测试依赖，增加 Runtime 的客户端 devDependency 并安装既有 workspace 链接；随后修正对未直接依赖的 shared 导入，沿用 contracts 再导出。类型检查分别发现可选参数显式 undefined 与生成类型的差异，已改为只传实际存在的属性；Lint 要求被捕获异常保留 cause，已修正。第一次 Electron 用例误取不存在的 Run.datasetId，第二次选择器同时匹配操作列表和表单，后续一轮在新输入选中前读取了旧 ID；依次改为查询来源 Dataset、精确匹配与等待实际选择变化。失败日志及上下文保留为 `opt07-service-*-first`、`opt07-runtime-client-second`、`opt07-ui-typecheck-first/second`、`opt07-cleaning-desktop-first/second/final`；当前最终成功日志没有覆盖这些失败。
 
@@ -1236,7 +1236,7 @@ Vitest 完整入口为 `bun --no-env-file desktop/tooling/scripts/test-isolated.
 | Worker 全套      | 73 项通过 / 0                                                                         | `opt08-worker-final.xml/.log`：原 69 项加 4 项完整大表、趋势桶、超过 100 条异常及空表 Schema、显式资源上限与图表编码。保留既有 ARIMA 时间频率推断警告                                                                    |
 | 静态与契约       | 根 typecheck、lint、format、Worker Lint、架构目录/依赖、HTTP 与 Worker 客户端检查均 0 | `opt08-backend-typecheck-passed.log`、`opt08-backend-lint-verified.log` 和各 `opt08-*-check*-final.log`、`opt08-worker-lint-final.log`；依赖检查为 480 模块、1546 依赖、0 违规                                           |
 
-TypeScript 命令为 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/analytics/test desktop/packages/runtime/test/analytics-lineage.integration.test.ts desktop/packages/runtime/test/cleaning.integration.test.ts desktop/packages/runtime/test/openapi.test.ts desktop/packages/runtime/test/level2.integration.test.ts desktop/packages/client/test --reporter=default --reporter=json --outputFile=<Artifact>/opt08-backend-regression-verified.json`；Python 为 Worker 目录下 `uv run pytest --junitxml=../../<Artifact>/opt08-worker-final.xml`。先前 6 项存储、20 项分析 Worker 和补充 8 项测试均与最终范围重叠，不另相加。字节数是当前样例读取边界的观测，不是加载时间、内存或整体性能结论；本轮尚未运行 OPT08 Electron E2E、桌面构建或打包验收。
+TypeScript 命令为 `tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/analytics/test desktop/packages/runtime/test/analytics-lineage.integration.test.ts desktop/packages/runtime/test/cleaning.integration.test.ts desktop/packages/runtime/test/openapi.test.ts desktop/packages/runtime/test/level2.integration.test.ts desktop/packages/client/test --reporter=default --reporter=json --outputFile=<Artifact>/opt08-backend-regression-verified.json`；Python 为 Worker 目录下 `uv run pytest --junitxml=../../<Artifact>/opt08-worker-final.xml`。先前 6 项存储、20 项分析 Worker 和补充 8 项测试均与最终范围重叠，不另相加。字节数是当前样例读取边界的观测，不是加载时间、内存或整体性能结论；本轮尚未运行 OPT08 Electron E2E、桌面构建或打包验收。
 
 **源码入口**：Analytics 的 `contracts/index.ts`、`application/index.ts`、新 `application/provenance.ts`、`persistence/sqlite/index.ts`、新 `results.ts` 与迁移 `002-result-lineage.ts`；HTTP/Plugin Descriptor、Runtime `openapi.ts`、客户端与架构生成目录；Worker `analytics.py`。新增测试为 `plugins/analytics/test/results.integration.test.ts`、`runtime/test/analytics-lineage.integration.test.ts` 与 `analytics-worker/tests/test_analysis_questions.py`。
 
@@ -1271,7 +1271,7 @@ TypeScript 命令为 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts
 
 **验证汇总**：合并分析后端、Runtime、客户端与 UI 的 TypeScript 回归 25 文件、89 项通过；显示修正后全部 UI 16 文件、61 项再次通过，属于上述 89 项的重复范围，不相加。最终 Electron 2 项通过、退出 0（分析约 46.3 s、清洗约 38.2 s）；构建随该命令完成。全仓 typecheck、lint、format、架构依赖（489 模块、1581 依赖、0 违规）、架构目录、HTTP 客户端和 Worker 客户端检查全部退出 0。Worker 73 项沿用上阶段未改动源码的实际报告，当前哈希核对保持有效；保留既有 ARIMA 频率警告。
 
-命令为 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts desktop/packages/ui/test desktop/packages/plugins/analytics/test desktop/packages/runtime/test/analytics-lineage.integration.test.ts desktop/packages/runtime/test/cleaning.integration.test.ts desktop/packages/runtime/test/openapi.test.ts desktop/packages/runtime/test/level2.integration.test.ts desktop/packages/client/test --reporter=default --reporter=json --outputFile=<Artifact>/opt08-ui-combined-final.json`；显示修正后 UI 使用同一隔离入口。桌面为 `bun --no-env-file run desktop:test e2e/analysis-questions.spec.ts e2e/cleaning.spec.ts`，每个测试自行创建本机动态端口夹具和独立临时 Profile，本地 Runtime nonce/token 由应用生成并只在 Renderer 闭包中使用，无外部凭据。
+命令为 `tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/ui/test desktop/packages/plugins/analytics/test desktop/packages/runtime/test/analytics-lineage.integration.test.ts desktop/packages/runtime/test/cleaning.integration.test.ts desktop/packages/runtime/test/openapi.test.ts desktop/packages/runtime/test/level2.integration.test.ts desktop/packages/client/test --reporter=default --reporter=json --outputFile=<Artifact>/opt08-ui-combined-final.json`；显示修正后 UI 使用同一隔离入口。桌面为 `tsx run desktop:test e2e/analysis-questions.spec.ts e2e/cleaning.spec.ts`，每个测试自行创建本机动态端口夹具和独立临时 Profile，本地 Runtime nonce/token 由应用生成并只在 Renderer 闭包中使用，无外部凭据。
 
 当前证据为 `opt08-ui-combined-final.json/.log`、`opt08-ui-mobile-regression.json/.log`、`opt08-ui-electron-mobile-final.log`、`opt08-ui-electron-report.html`、`opt08-ui-desktop-metrics.json`、`opt08-ui-cleaning-metrics.json` 和各 `opt08-ui-*-check*-final.log`/`opt08-ui-mobile-*.log`；截图为 `opt08-ui-zh-360.png`、`opt08-ui-en-360.png`、`opt08-ui-cleaning-regression-en-360.png`。图表 chunk 仍有大于 500 kB 的构建提示；体积观测登记在 `opt08-ui-build-metrics.json`，不是加载耗时或整体性能结论，后续 OPT10 仍须测量。
 
@@ -1297,7 +1297,7 @@ Electron 说明未签名 macOS 程序可能收到 `failed`，因此本机未签�
 
 **沿用现有调度器**：将 CollectionScheduler 按职责提取到 `application/scheduler.ts`，保持原队列、Active Run 约束与 cron。Main 监听 powerMonitor 睡眠/恢复并检查本机 online 状态，经既有 utility IPC 传递环境；Bootstrap 带初始状态，Supervisor 保留最新状态供重启使用。睡眠/离线时停止 cron，恢复按 `skip` 或 `run-once` 处理；周期观察也识别遗漏的时钟/睡眠间隔。相同恢复信号与正在执行的触发操作合并，已经补跑的时段不会再次补跑；配置签名包含 misfirePolicy。普通 cron 执行仍可用。入队失败后只取消本次创建且确认未入队的 Run；无法确认的队列状态交由已有恢复机制处理。
 
-**中间失败与修复**：首个条件测试未声明 Dataset 工作区测试依赖，补充 devDependency；夹具误用不存在的 tracked 模式，修正为已有 snapshot 模式。随后跨连接读不到监控事件，实际加载路径表明监控仍使用 better-sqlite3 12.11.1，而 Dataset/平台使用 13.0.3；驱动对齐后 33 项监控测试通过且事件可读。检查还发现共享同一数据库的 Recruitment 残留旧范围，亦对齐到项目已有 13.0.3，并纳入回归。安装只更新本地工作区依赖与锁文件，使用 `bun --no-env-file install --ignore-scripts`，没有引入新外部运行库。
+**中间失败与修复**：首个条件测试未声明 Dataset 工作区测试依赖，补充 devDependency；夹具误用不存在的 tracked 模式，修正为已有 snapshot 模式。随后跨连接读不到监控事件，实际加载路径表明监控仍使用 better-sqlite3 12.11.1，而 Dataset/平台使用 13.0.3；驱动对齐后 33 项监控测试通过且事件可读。检查还发现共享同一数据库的 Recruitment 残留旧范围，亦对齐到项目已有 13.0.3，并纳入回归。安装只更新本地工作区依赖与锁文件，使用 `tsx install --ignore-scripts`，没有引入新外部运行库。
 
 类型检查暴露测试中的 UUID 模板推断和 EventEmitter this 推断，已修正；Lint 的异常参数赋值和内联 import 类型亦修正，没有放宽检查。调度夹具第一版规则形状不符合现有 Schema，修正为有效 JSON rule 并补齐初始化失败清理。该次遗留的 4 个自有目录逐一核对创建时间、仅含测试 SQLite、1 个任务且 0 个规则后清理，见 `opt09-scheduler-fixture-cleanup.json`。中途完整回归加载了队列修复前的 Scheduler，新增入队故障断言失败；最终源码专项重跑 5 文件、15 项通过，完整回归随后再次执行。
 
@@ -1308,7 +1308,7 @@ Electron 说明未签名 macOS 程序可能收到 `failed`，因此本机未签�
 - 调度验证睡眠、离线、时钟间隔、初始离线、精确 cron 边界、持久化触发时间后的新实例启动、重复恢复信号、普通 cron 和入队失败；旧 Run 先取消成为终态后，重复恢复不会新增 Run。主进程环境观察器验证去重和清理。当前最终专项报告为 `opt09-foundation-repaired-tests.json/.log`。
 - 最终源码根 typecheck、lint、架构依赖/目录和 HTTP 客户端检查退出 0；架构依赖为 501 模块、1619 依赖、0 违规。格式检查退出 0，但本段文档追加后还须重新检查。完整回归和桌面构建的最终结果见下方登记。
 
-命令使用根隔离入口 `bun --no-env-file desktop/tooling/scripts/test-isolated.ts`，完整范围为监控、Collection、Recruitment 全部测试、两个 Desktop 通知/环境测试、Runtime Level2/OpenAPI 与客户端测试，JSON 输出 `opt09-foundation-combined-final.json`；修复专项同入口指定 HTTP、Scheduler、两个 Desktop 测试和 Level2。静态命令为根 `bun --no-env-file run typecheck`、`lint`、`format:check`、`architecture:deps`、`architecture:check`、`client:check`；构建为 `bun --no-env-file run desktop:build`。日志使用 `opt09-foundation-*` 前缀，前期失败日志保留。
+命令使用根隔离入口 `tsx desktop/tooling/scripts/test-isolated.ts`，完整范围为监控、Collection、Recruitment 全部测试、两个 Desktop 通知/环境测试、Runtime Level2/OpenAPI 与客户端测试，JSON 输出 `opt09-foundation-combined-final.json`；修复专项同入口指定 HTTP、Scheduler、两个 Desktop 测试和 Level2。静态命令为根 `tsx run typecheck`、`lint`、`format:check`、`architecture:deps`、`architecture:check`、`client:check`；构建为 `tsx run desktop:build`。日志使用 `opt09-foundation-*` 前缀，前期失败日志保留。
 
 **来源保护与未完成项**：当前登记 710 个源/测试/文档文件，本阶段新增 12 个文件、改动 24 个既有文件；这不包括本段执行记录更新。代码快照为 `opt09-foundation-source-code.json`，48 份已有 Worker/迁移哈希保护均通过，源码/基线无缺失。最终差量、验证期间哈希与资源清理在下方登记。
 
@@ -1466,14 +1466,14 @@ OS 文件缓存与调度未受控，宿主时间包含 Playwright 等待开销�
 
 **Runtime 决策**：按相同 build 参数再生成 metafile，3752 个输入模块，产物与实际测试构建逐字节一致。jsdom 直接贡献仍为 3238197 B，其工作区导入用途是同步 XPath 提取与校验；cssstyle、undici、parse5 的直接贡献同样未变。没有证明移除或延迟这些依赖能在保持公共同步 API、XPath 行为及打包边界的同时获得收益，因此保留必要能力，不做推测性 bundle 改造。Python gzip level 9/mtime 0 的组成报告为前 3943165 B、后 3943249 B，仅在这组报告内部比较。
 
-| 验证                     | 命令与实际结果                                                                                                                                                                                          | 证据                                                                                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UI/助手/Runtime 业务回归 | `bun --no-env-file desktop/tooling/scripts/test-isolated.ts desktop/packages/ui/test desktop/packages/plugins/ai-assistance/test desktop/packages/runtime/test`；41 文件、321 项通过，532.03 秒，退出 0 | `opt10-desktop-extraction-tests.log`                                                                                                                                       |
-| 规则历史与修复           | `bun --no-env-file desktop/tooling/scripts/test-e2e-isolated.ts development e2e/task-rule-history.spec.ts`；实际 Electron 最终 1 项通过，退出 0                                                         | `opt10-rule-history-e2e-third.log`、`opt10-rule-history.json`                                                                                                              |
-| 前后加载与随附构建       | 同一隔离入口执行 `e2e/loading-performance.spec.ts`，两个阶段各 1 项/3 个 Profile 通过，退出 0                                                                                                           | `opt10-desktop-loading-baseline-second.log`、`opt10-desktop-loading-after.log`、`opt10-loading-baseline.json`、`opt10-loading-after.json`、`opt10-loading-comparison.json` |
-| 依赖组成构建             | `bun --no-env-file <Artifact>/opt10-runtime-composition-after-build.ts`，退出 0，实际产物相等                                                                                                           | `opt10-runtime-composition-after.log`、`opt10-runtime-composition-after/summary.json`                                                                                      |
-| 受影响类型与 Lint        | UI、Assistant、Runtime、Desktop 类型通过；最终表单/文案/夹具类型与 Lint 再通过，均退出 0                                                                                                                | `opt10-desktop-extraction-types.log`、`opt10-desktop-extraction-lint.log`、`opt10-rule-history-types-final.log`、`opt10-rule-history-lint-final.log`                       |
-| Plugin/Profile 边界      | 架构目录通过，依赖检查 519 模块、1681 依赖、无违规，退出 0                                                                                                                                              | `opt10-desktop-extraction-architecture.log`、`opt10-desktop-extraction-deps-final.log`                                                                                     |
+| 验证                     | 命令与实际结果                                                                                                                                                                            | 证据                                                                                                                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UI/助手/Runtime 业务回归 | `tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/ui/test desktop/packages/plugins/ai-assistance/test desktop/packages/runtime/test`；41 文件、321 项通过，532.03 秒，退出 0 | `opt10-desktop-extraction-tests.log`                                                                                                                                       |
+| 规则历史与修复           | `tsx desktop/tooling/scripts/test-e2e-isolated.ts development e2e/task-rule-history.spec.ts`；实际 Electron 最终 1 项通过，退出 0                                                         | `opt10-rule-history-e2e-third.log`、`opt10-rule-history.json`                                                                                                              |
+| 前后加载与随附构建       | 同一隔离入口执行 `e2e/loading-performance.spec.ts`，两个阶段各 1 项/3 个 Profile 通过，退出 0                                                                                             | `opt10-desktop-loading-baseline-second.log`、`opt10-desktop-loading-after.log`、`opt10-loading-baseline.json`、`opt10-loading-after.json`、`opt10-loading-comparison.json` |
+| 依赖组成构建             | `tsx <Artifact>/opt10-runtime-composition-after-build.ts`，退出 0，实际产物相等                                                                                                           | `opt10-runtime-composition-after.log`、`opt10-runtime-composition-after/summary.json`                                                                                      |
+| 受影响类型与 Lint        | UI、Assistant、Runtime、Desktop 类型通过；最终表单/文案/夹具类型与 Lint 再通过，均退出 0                                                                                                  | `opt10-desktop-extraction-types.log`、`opt10-desktop-extraction-lint.log`、`opt10-rule-history-types-final.log`、`opt10-rule-history-lint-final.log`                       |
+| Plugin/Profile 边界      | 架构目录通过，依赖检查 519 模块、1681 依赖、无违规，退出 0                                                                                                                                | `opt10-desktop-extraction-architecture.log`、`opt10-desktop-extraction-deps-final.log`                                                                                     |
 
 **失败与处置**：保留首轮 Resource Timing 断言失败、旧 prompt 入口失败，以及修复表单隐式标签精确匹配失败。分别用 scriptParsed、界面内输入、明确 aria-label 修复；最终真实桌面完整通过。失败日志为 `opt10-desktop-loading-baseline.log`、`opt10-rule-history-e2e.log`、`opt10-rule-history-e2e-second.log`，失败 HTML/结果均另存，不覆盖为成功。
 
@@ -1525,7 +1525,7 @@ HTTP 10 万/1 万条增量 RSS 比为 1.332，小于 3；两档吞吐均不低�
 
 首轮公开 Electron 44.0.0 下载完成后，Forge package 退出 0。实际包已完成 Worker ready、动态采集 30 条、Dataset 读取、ready Snapshot 和分析成功检查，但旧的非精确“分析结果”标题同时匹配新增的“比较分析结果”，Playwright 严格定位拒绝两个元素；整条冒烟退出 1。首轮日志、HTML/结果和失败说明分别保留在 `opt11-desktop-package.log`、`opt11-packaged-first-{playwright-report,test-results}/`、`opt11-packaged-first-failure.json`。这里只修正测试为 `exact: true`，没有修改产品行为或放宽成功条件；Desktop 类型和该夹具 ESLint 均退出 0，见 `opt11-packaged-fixture-checks.json`。
 
-第二轮完整执行 `bun --no-env-file run test:smoke:desktop-package`，重新构建并打包当前应用，实际测试 1 项通过、退出 0，测试套件 53.0 秒，命令总耗时约 65.13 秒。应用明确 `app.isPackaged=true`，可执行文件在本次 `desktop/out/ZhiYun-darwin-arm64/ZhiYun.app/Contents/MacOS/ZhiYun`。从包内浏览器完成动态采集，Runtime API 读取全部 30 条 Dataset，输入 Snapshot 为 ready/30 条；包内 Worker ready/ok，分析为 succeeded，导出的 `data.profile` 结果 ID、Snapshot 和 Worker 版本一致；语料实际预览 20/30 条、构建并导出 30 条 JSONL。
+第二轮完整执行 `tsx run test:smoke:desktop-package`，重新构建并打包当前应用，实际测试 1 项通过、退出 0，测试套件 53.0 秒，命令总耗时约 65.13 秒。应用明确 `app.isPackaged=true`，可执行文件在本次 `desktop/out/ZhiYun-darwin-arm64/ZhiYun.app/Contents/MacOS/ZhiYun`。从包内浏览器完成动态采集，Runtime API 读取全部 30 条 Dataset，输入 Snapshot 为 ready/30 条；包内 Worker ready/ok，分析为 succeeded，导出的 `data.profile` 结果 ID、Snapshot 和 Worker 版本一致；语料实际预览 20/30 条、构建并导出 30 条 JSONL。
 
 结构化证据为 `opt11-packaged-smoke.json`，完整报告保存于 `opt11-packaged-final-{playwright-report,test-results}/`，成功日志为 `opt11-desktop-package-second.log`。包内 Worker 二进制 SHA256 `2f1f4e37e22fcebb31d11dd78d6e8d0c451ec0edd37aec7c511fe973d4bb39f0` 与本轮新 PyInstaller 产物相同。Main 的 packaged 分支只选择 Resources 内 Worker，浏览器目录也来自 Resources；鉴权只在测试闭包内使用，不借用开发 Worker 或正常用户数据。实际目录内非符号链接文件合计 1485723045 字节，属于未压缩 `.app`，不当作安装器下载体积；归档 hash 与路径见 `opt11-packaged-artifact-audit.json`。
 
@@ -1535,7 +1535,7 @@ HTTP 10 万/1 万条增量 RSS 比为 1.332，小于 3；两档吞吐均不低�
 
 ### 2026-10-04 OPT11 完成：最终桌面、逐项要求与资源核对
 
-当前 macOS 27 arm64 工作区的完整 `bun --no-env-file run test:e2e:desktop` 已退出 0，24 项/9 个文件全部通过，14.4 分钟；机器报告明确 expected 24、unexpected 0、flaky 0、skipped 0。完整 HTML/原始结果保存在 `opt11-desktop-final-{playwright-report,test-results}/`，原始嵌入报告 ZIP、报告元数据和八份 JSON 附件另存于 `opt11-desktop-final-report.zip`、`opt11-desktop-report-metadata.json`、`opt11-desktop-evidence/`。`opt11-desktop-acceptance-summary.json` 按实际附件核对下列行为：
+当前 macOS 27 arm64 工作区的完整 `tsx run test:e2e:desktop` 已退出 0，24 项/9 个文件全部通过，14.4 分钟；机器报告明确 expected 24、unexpected 0、flaky 0、skipped 0。完整 HTML/原始结果保存在 `opt11-desktop-final-{playwright-report,test-results}/`，原始嵌入报告 ZIP、报告元数据和八份 JSON 附件另存于 `opt11-desktop-final-report.zip`、`opt11-desktop-report-metadata.json`、`opt11-desktop-evidence/`。`opt11-desktop-acceptance-summary.json` 按实际附件核对下列行为：
 
 - 四类问题调用实际 Worker，保留原始/清洗输入与配方版本；550 行表格完整分页，兼容分支与比较保留父结果，图表加载和渲染失败均保留解释/表格。
 - 清洗七步覆盖六类受限操作、撤销/重做、第二个输入复用、类型拒绝与源 Artifact 不变；规则版本比较/回滚及修复验证后激活均通过实际界面。

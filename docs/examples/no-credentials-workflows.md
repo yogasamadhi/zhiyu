@@ -1,6 +1,6 @@
 # 无需外部凭据的本地优化验证指南
 
-这些样例使用本地网页、JSON、Mock AI、模拟支付和独立临时数据库。业务 Token、API Key、支付密钥与签名证书均不需要用户填写。命令从仓库根目录执行，前提是已安装 README 中列出的 Bun/Node/Python/uv、项目依赖及本地 Chromium；Cloud 验证另外需要本机 Docker。
+这些样例使用本地网页、JSON、Mock AI、模拟支付和独立临时数据库。业务 Token、API Key、支付密钥与签名证书均不需要用户填写。命令从仓库根目录执行，前提是已安装 README 中列出的 pnpm/Node/Python/uv、项目依赖及本地 Chromium；Cloud 验证另外需要本机 Docker。
 
 ## 手动体验内置样例
 
@@ -26,19 +26,19 @@
 例如只运行清洗与四类分析：
 
 ```bash
-bun --no-env-file run desktop:test e2e/cleaning.spec.ts e2e/analysis-questions.spec.ts
+tsx run desktop:test e2e/cleaning.spec.ts e2e/analysis-questions.spec.ts
 ```
 
 只运行规则历史与修复：
 
 ```bash
-bun --no-env-file run desktop:test e2e/task-rule-history.spec.ts
+tsx run desktop:test e2e/task-rule-history.spec.ts
 ```
 
 确定的清洗输入与预期输出见 `desktop/tooling/evaluations/cleaning-fixtures.json`。固定修复夹具见 `desktop/tooling/evaluations/rule-repair-cases.ts`，离线评测入口为：
 
 ```bash
-bun --no-env-file run ai:evaluate
+tsx run ai:evaluate
 ```
 
 评测报告固定夹具的验证、拒绝、调用与耗时，不证明真实网页覆盖率、模型准确率或线上费用。
@@ -46,8 +46,8 @@ bun --no-env-file run ai:evaluate
 ## Cloud 完整历史与商业回归
 
 ```bash
-bun --no-env-file run cloud:test
-bun --no-env-file run test:e2e:cloud
+tsx run cloud:test
+tsx run test:e2e:cloud
 ```
 
 入口自行创建随机 Docker Compose 项目、独立 PostgreSQL/Redis 与动态端口；数据库以 `_test` 或 `_e2e_test` 结尾，结束后清理自有资源。不要将它们改成连接开发或生产数据库的手动测试命令。
@@ -57,7 +57,7 @@ bun --no-env-file run test:e2e:cloud
 ## 首屏与图表加载观测
 
 ```bash
-bun --no-env-file run desktop:test e2e/loading-performance.spec.ts
+tsx run desktop:test e2e/loading-performance.spec.ts
 ```
 
 顺序启动三个新 Profile，每次真实采集 24 条 JSON 并由本地 Worker 完成分组分析。报告在 `desktop/test-results/` 下的 `loading-performance.json`，包含首屏、图表首绘、独立的数据准备时间、已解析脚本和相关 bundle 大小/hash。首页应没有 AnalysisChart 脚本，结果绘制后应出现它。
@@ -67,9 +67,9 @@ bun --no-env-file run desktop:test e2e/loading-performance.spec.ts
 ## 当前宿主的未签名包
 
 ```bash
-bun --no-env-file run worker:build
-bun --no-env-file run worker:smoke
-bun --no-env-file run test:smoke:desktop-package
+tsx run worker:build
+tsx run worker:smoke
+tsx run test:smoke:desktop-package
 ```
 
 最后一个入口过滤环境，构建并打包当前宿主应用，再用独立 Profile 运行本地动态采集、读取 Dataset、创建 ready Snapshot、完成 Worker 分析并导出结果。还会检查语料预览、构建和 30 条导出记录。报告为 `desktop/test-results/` 下的 `packaged-smoke.json`，结束时由测试清理 Profile；不替换已安装应用，也不使用开发者证书、公证、发布或部署。macOS 二进制可能包含本机 ad hoc 签名，它不需要用户提供证书。

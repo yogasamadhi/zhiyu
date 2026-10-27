@@ -47,7 +47,7 @@ const configRoot = [
   resolve(import.meta.dirname, 'config'),
 ].find((directory) => existsSync(resolve(directory, 'profiles/desktop-studio/cordis.yml')));
 if (!configRoot) throw new Error('Packaged Cordis profiles are missing');
-const profileIds = ['desktop-studio', 'identity-test', 'safe', 'test', 'e2e'];
+const profileIds = ['desktop-studio', 'dsh-studio', 'identity-test', 'safe', 'test', 'e2e'];
 const bundleIds = ['core-data', 'intelligence', 'identity-fixture', 'safe-core'];
 function readYaml(path: string): EntryOptions[] | PatchOptions[] {
   const rows = yaml.load(readFileSync(path, 'utf8'), { schema: entryListSchema });

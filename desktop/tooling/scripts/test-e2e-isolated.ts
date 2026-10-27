@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { testEnvironment } from '../../../tooling/scripts/test-environment.js';
 
 const mode = process.argv[2];
@@ -8,29 +9,20 @@ if (
   files.some((file) => !new RegExp(`^${directory}/[a-z0-9-]+\\.spec\\.ts$`).test(file))
 )
   throw new Error(
-    'Usage: bun --no-env-file desktop/tooling/scripts/test-e2e-isolated.ts development|packaged [e2e[-packaged]/name.spec.ts ...]',
+    'Usage: node desktop/tooling/scripts/test-e2e-isolated.ts development|packaged [e2e[-packaged]/name.spec.ts ...]',
   );
 const environment = testEnvironment(process.env);
 const tasks = mode === 'packaged' ? ['package', 'test:packaged'] : ['test'];
 for (const task of tasks) {
-  const child = Bun.spawn(
-    [
-      'bun',
-      '--no-env-file',
-      'run',
-      '--filter',
-      '@zhiyun/desktop',
-      task,
-      ...(task === 'package' ? [] : files),
-    ],
+  const child = spawnSync(
+    'pnpm',
+    ['--filter', '@zhiyun/desktop', task, ...(task === 'package' ? [] : files)],
     {
       env: environment,
-      stdin: 'inherit',
-      stdout: 'inherit',
-      stderr: 'inherit',
+      stdio: 'inherit',
     },
   );
-  const code = await child.exited;
+  const code = child.status ?? 1;
   if (code !== 0) {
     process.exitCode = code;
     break;

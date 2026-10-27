@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "paths": {
+      "@types/react": ["./node_modules/@types/react"],
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]
+    }
+  },
+  "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/shared/protocol.ts"]
+}

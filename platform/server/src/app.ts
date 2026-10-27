@@ -4,7 +4,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
-import { RedisClient } from 'bun';
+import Redis from 'ioredis';
 import {
   responseSchemas,
   cloudListResponseSchemas,
@@ -35,6 +35,7 @@ import {
   type Clock,
 } from './config.js';
 import { Auth, type Principal } from './auth.js';
+import { hashPassword } from './password.js';
 import { Billing } from './billing.js';
 import { AiGateway } from './ai.js';
 import { Worker } from './jobs.js';
@@ -58,12 +59,12 @@ export function createApp(options: { config?: Config; clock?: Clock } = {}) {
       if (!result.success) return c.json({ error: { code: 'INVALID_INPUT' } }, 400);
     },
   });
-  const redis = new RedisClient(config.CLOUD_REDIS_URL, {
-    connectionTimeout: 500,
+  const redis = new Redis(config.CLOUD_REDIS_URL, {
+    connectTimeout: 500,
     enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
   });
-  redis.onconnect = () => undefined;
-  redis.onclose = () => undefined;
+  redis.on('error', () => undefined);
   const principal = (c: Context<Env>) => c.get('principal');
   const user = (c: Context<Env>) => requireValue(principal(c)?.userId, 'USER_REQUIRED');
   const cookieName = (staff: boolean) => (staff ? 'zy_staff' : 'zy_user');
@@ -72,8 +73,8 @@ export function createApp(options: { config?: Config; clock?: Clock } = {}) {
       rateKey = `rate:${hash(keyValue)}:${slot}`;
     let n: number;
     try {
-      n = Number(await redis.send('INCR', [rateKey]));
-      if (n === 1) await redis.send('EXPIRE', [rateKey, '120']);
+      n = Number(await redis.incr(rateKey));
+      if (n === 1) await redis.expire(rateKey, 120);
     } catch {
       const [r] =
         await db.sql`insert into cloud_rate_limits(key,count,expires_at) values (${rateKey},1,${new Date(clock.now().getTime() + 120000)}) on conflict(key) do update set count=cloud_rate_limits.count+1 returning count`;
@@ -791,7 +792,7 @@ export function createApp(options: { config?: Config; clock?: Clock } = {}) {
     ['owner'],
     async (c, b) => {
       const secret = new OTPAuth.Secret({ size: 20 });
-      const passwordHash = await Bun.password.hash(b.password, { algorithm: 'argon2id' });
+      const passwordHash = await hashPassword(b.password);
       return db.sql.begin(async (tx) => {
         const [s] =
           await tx`insert into cloud_staff(email,password_hash,mfa_secret,role) values (${b.email},${passwordHash},${encrypt(secret.base32, config.CLOUD_MFA_KEY)},${b.role}) returning id`;
@@ -836,7 +837,7 @@ export function createApp(options: { config?: Config; clock?: Clock } = {}) {
     worker,
     config,
     close: async () => {
-      redis.close();
+      redis.disconnect();
       await db.close();
     },
   };

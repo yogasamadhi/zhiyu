@@ -22,7 +22,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      'bun --no-env-file platform/tooling/scripts/seed-e2e.ts && bun --no-env-file run-platform.ts --isolated-test --skip-install --skip-migrate',
+      'pnpm exec tsx platform/tooling/scripts/seed-e2e.ts && pnpm run platform:dev --isolated-test --skip-install --skip-migrate',
     cwd: '../..',
     url: portalOrigin,
     reuseExistingServer: false,

@@ -50,7 +50,7 @@ flowchart LR
 
 ## 2. Cordis 与 Profile
 
-Runtime 与 Renderer 分别创建独立的 DSH Cordis Context。版本来自固定提交的 `desktop/tooling/dependencies/vendor/deepseek-harness/vendor`；仅将 cosmokit、schemastery、cordis、loader、include、group、timer 和 logger-console 加入 workspace。主仓库构建运行产物和声明，不修改子模块源码。实现决策见 [ADR 0012](adr/0012-dsh-cordis-plugins.md)。
+Runtime 与 Renderer 分别创建独立的 DSH Cordis Context。版本来自固定提交的 `vendor/deepseek-harness/vendor`；仅将 cosmokit、schemastery、cordis、loader、include、group、timer 和 logger-console 加入 workspace。主仓库构建运行产物和声明，不修改子模块源码。实现决策见 [ADR 0012](adr/0012-dsh-cordis-plugins.md)。
 
 `@zhiyun/plugin-runtime` 负责启动审计和宿主适配，静态 catalog 保留所有权检查；服务提供、依赖等待、插件激活和资源释放直接由 Cordis 负责。业务插件通过 `apply(ctx, config)` 注册服务、路由和 Job Handler，通过 `inject` 消费公开服务契约，通过 Schemastery 校验配置。注册的 disposer、后台循环和资源关闭属于 `ctx.effect()`。`@zhiyun/runtime-contracts` 提供宿主契约和分阶段后台生命周期事件。
 

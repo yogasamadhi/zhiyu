@@ -5,15 +5,14 @@
   "type": "module",
   "exports": {
     "development": "./src/index.ts",
-    "bun": "./src/index.ts",
     "types": "./src/index.ts",
     "default": "./dist/index.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node --format esm --packages external && bun ../../../tooling/scripts/prepare-runtime-config.ts",
+    "build": "node ../../../../tooling/scripts/build-package.ts src/index.ts --outdir dist --target node --format esm --packages external && node ../../../tooling/scripts/prepare-runtime-config.ts",
     "typecheck": "tsc --noEmit",
-    "architecture:generate": "bun scripts/generate.ts",
-    "architecture:check": "bun scripts/generate.ts --check"
+    "architecture:generate": "tsx scripts/generate.ts",
+    "architecture:check": "tsx scripts/generate.ts --check"
   },
   "dependencies": {
     "@zhiyun/plugin-runtime": "workspace:*",

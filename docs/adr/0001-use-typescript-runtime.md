@@ -1,6 +1,8 @@
 # ADR 0001: Bun and TypeScript runtime
 
 > 后续调整（2026-09-10）：数据库与队列现已统一 SQLite；本文保留历史决策，当前部署以 [SQLite 统一存储记录](0010-unified-sqlite.md) 为准。
+>
+> 后续调整（工具链迁移）：依赖安装、脚本编排与构建改由 pnpm 11 与 Node.js 24 负责，Bun 不再是仓库工具链；本文保留当时的 Bun 决策记录。
 
 ## Status
 

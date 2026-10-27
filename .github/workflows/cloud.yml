@@ -19,18 +19,18 @@ jobs:
         ports: ['56379:6379']
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 1.4.0 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.22.0 }
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
-      - run: bun install --frozen-lockfile
-      - run: bun run cloud:migrate
-      - run: bun run cloud:check
-      - run: bun run cloud:test
-      - run: bun run cloud:build
-      - run: bun run architecture:deps
-      - run: bunx playwright install --with-deps chromium
-      - run: bun run cloud:e2e
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run cloud:migrate
+      - run: pnpm run cloud:check
+      - run: pnpm run cloud:test
+      - run: pnpm run cloud:build
+      - run: pnpm run architecture:deps
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run cloud:e2e
       - uses: actions/upload-artifact@v4
         if: always()
         with:

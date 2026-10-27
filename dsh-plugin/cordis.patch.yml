@@ -1,0 +1,4 @@
+- insert:
+    - id: zhiyun
+      name: dsh-zhiyun
+      config: {}

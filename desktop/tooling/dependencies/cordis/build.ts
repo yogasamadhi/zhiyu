@@ -1,10 +1,12 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { build } from 'esbuild';
 
-const root = resolve(import.meta.dir, '../../../..');
-const vendor = resolve(root, 'desktop/tooling/dependencies/vendor/deepseek-harness/vendor');
+const root = resolve(import.meta.dirname, '../../../..');
+const vendor = resolve(root, 'vendor/deepseek-harness/vendor');
 const packages = [
   'cosmokit',
   'schemastery',
@@ -22,18 +24,15 @@ const lock = JSON.parse(await readFile(resolve(vendor, '../../vendor.lock.json')
 const revision = lock.vendors.find(({ name }) => name === 'deepseek-harness')?.revision;
 if (!revision || !existsSync(resolve(vendor, 'cordis/src/index.ts')))
   throw new Error('Initialize the pinned DSH submodule: git submodule update --init --recursive');
-const git = Bun.spawn(['git', '-C', resolve(vendor, '..'), 'rev-parse', 'HEAD'], {
-  stdout: 'pipe',
-  stderr: 'pipe',
-});
-const actualRevision = (await new Response(git.stdout).text()).trim();
-if ((await git.exited) || actualRevision !== revision)
-  throw new Error('DSH checkout does not match vendor.lock.json');
+const actualRevision = execFileSync('git', ['-C', resolve(vendor, '..'), 'rev-parse', 'HEAD'], {
+  encoding: 'utf8',
+}).trim();
+if (actualRevision !== revision) throw new Error('DSH checkout does not match vendor.lock.json');
 const fingerprint = createHash('sha256')
   .update(revision)
   .update(await readFile(import.meta.filename))
-  .update(await readFile(resolve(import.meta.dir, 'browser-adapter.json')))
-  .update(await readFile(resolve(root, 'bun.lock')))
+  .update(await readFile(resolve(import.meta.dirname, 'browser-adapter.json')))
+  .update(await readFile(resolve(root, 'pnpm-lock.yaml')))
   .digest('hex');
 if (
   existsSync(resolve(root, '.artifacts/cordis/loader-browser.js')) &&
@@ -49,29 +48,33 @@ if (
   )
 )
   process.exit(0);
-const child = Bun.spawn(
-  ['bun', 'x', '--no-install', 'tsc', '-b', ...packages.map((name) => resolve(vendor, name))],
-  { cwd: root, stdin: 'inherit', stdout: 'inherit', stderr: 'inherit' },
+execFileSync(
+  process.execPath,
+  [
+    resolve(root, 'node_modules/typescript/bin/tsc'),
+    '-b',
+    ...packages.map((name) => resolve(vendor, name)),
+  ],
+  { cwd: root, stdio: 'inherit' },
 );
-if (await child.exited) throw new Error('Cordis declarations build failed');
 for (const name of packages) {
-  // Bun exports const enums at runtime. Match those exports in generated declarations
-  // so isolatedModules consumers do not need to compile vendor sources.
+  // The vendored packages export const enums at runtime. Match those exports in
+  // generated declarations so isolatedModules consumers do not compile vendor sources.
   await normalizeDeclarations(resolve(vendor, name, 'lib/types'));
   const entries = name === 'logger-console' ? ['index', 'browser'] : ['index'];
   for (const entry of entries) {
     for (const format of name === 'schemastery' ? (['esm', 'cjs'] as const) : (['esm'] as const)) {
-      const result = await Bun.build({
-        entrypoints: [resolve(vendor, name, `src/${entry}.ts`)],
+      await build({
+        entryPoints: [resolve(vendor, name, `src/${entry}.ts`)],
         tsconfig: resolve(root, 'tsconfig.base.json'),
         outdir: resolve(vendor, name, 'lib'),
-        naming: name === 'schemastery' ? `[name].${format === 'esm' ? 'mjs' : 'cjs'}` : '[name].js',
-        target: entry === 'browser' ? 'browser' : 'node',
+        entryNames: '[name]',
+        outExtension: { '.js': format === 'esm' ? '.mjs' : '.cjs' },
+        platform: entry === 'browser' ? 'browser' : 'node',
         format,
+        bundle: true,
         packages: 'external',
       });
-      if (!result.success)
-        throw new AggregateError(result.logs, `Cordis ${name}/${entry} build failed`);
     }
   }
 }
@@ -93,7 +96,7 @@ async function normalizeDeclarations(directory: string): Promise<void> {
 // receives plain manifests and retains script-src 'self'. Source hashes fail
 // closed on a vendor update so compatibility changes receive explicit review.
 const adapter = JSON.parse(
-  await readFile(resolve(import.meta.dir, 'browser-adapter.json'), 'utf8'),
+  await readFile(resolve(import.meta.dirname, 'browser-adapter.json'), 'utf8'),
 ) as { revision: string; sha256: Record<string, string> };
 if (adapter.revision !== revision)
   throw new Error('Review the Cordis browser adapter for the new vendor revision');
@@ -105,12 +108,13 @@ for (const [path, expected] of Object.entries(adapter.sha256)) {
   )
     throw new Error(`Cordis browser adapter source changed: ${path}`);
 }
-const browserLoader = await Bun.build({
-  entrypoints: [resolve(vendor, 'loader/src/index.ts')],
+await build({
+  entryPoints: [resolve(vendor, 'loader/src/index.ts')],
   outdir: resolve(root, '.artifacts/cordis'),
-  naming: 'loader-browser.js',
+  entryNames: 'loader-browser',
   format: 'esm',
-  target: 'browser',
+  platform: 'browser',
+  bundle: true,
   packages: 'external',
   tsconfig: resolve(root, 'tsconfig.base.json'),
   define: { 'process.env.CORDIS_SHARED': 'undefined' },
@@ -136,7 +140,5 @@ const browserLoader = await Bun.build({
     },
   ],
 });
-if (!browserLoader.success)
-  throw new AggregateError(browserLoader.logs, 'Cordis browser Loader build failed');
 
 await writeFile(stamp, JSON.stringify({ fingerprint, revision }));

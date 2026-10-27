@@ -17,7 +17,7 @@ if (process.argv.includes('--check')) {
   const current = await readFile(target, 'utf8').catch(() => '');
   if (current !== serialized) {
     process.stderr.write(
-      'Architecture catalog is out of date. Run bun run architecture:generate.\n',
+      'Architecture catalog is out of date. Run pnpm run architecture:generate.\n',
     );
     process.exit(1);
   }
@@ -33,7 +33,7 @@ const clientSerialized = await format(
 );
 if (process.argv.includes('--check')) {
   if ((await readFile(clientTarget, 'utf8').catch(() => '')) !== clientSerialized)
-    throw new Error('Client Cordis manifests are out of date. Run bun run architecture:generate.');
+    throw new Error('Client Cordis manifests are out of date. Run pnpm run architecture:generate.');
 } else {
   await mkdir(dirname(clientTarget), { recursive: true });
   await writeFile(clientTarget, clientSerialized);

@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 
-const icons = resolve(import.meta.dir, '../resources/icons');
+const icons = resolve(import.meta.dirname, '../resources/icons');
 await mkdir(icons, { recursive: true });
 const transparentSource = await readFile(resolve(icons, 'logo-transparent.png'));
 const trimmedLogo = await sharp(transparentSource)
@@ -59,7 +59,8 @@ for (const [filename, size] of [
   );
 }
 
-const png2icons = (await import('png2icons')).default as unknown as {
+const png2iconsModule = await import('png2icons');
+const png2icons = (png2iconsModule.default ?? png2iconsModule) as unknown as {
   createICNS(input: Buffer, interpolation?: number, shadow?: number): Buffer | null;
   createICO(input: Buffer, interpolation?: number, shadow?: number): Buffer | null;
   BICUBIC2: number;

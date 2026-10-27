@@ -13,7 +13,7 @@ it.each(['http://127.0.0.1:45100', 'http://localhost:45109'])(
   async (fixtureUrl) => {
     const output = await mkdtemp(join(tmpdir(), 'zhiyun-renderer-build-'));
     try {
-      await execute('bun', ['--bun', 'vite', 'build', '--outDir', output], {
+      await execute('pnpm', ['exec', 'vite', 'build', '--outDir', output], {
         cwd: desktopRoot,
         env: { ...process.env, NODE_ENV: 'production', VITE_FIXTURE_URL: fixtureUrl },
         timeout: 60_000,

@@ -36,10 +36,10 @@
 ## 可复现检查
 
 ```sh
-bun desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/ai-assistance/test desktop/packages/plugins/collection/test/drafts.integration.test.ts desktop/packages/runtime/test/assistant.integration.test.ts desktop/packages/runtime-gateway/test/authorization.test.ts
-bun run --filter @zhiyun/desktop build
-bun x playwright test -c desktop/playwright.config.ts -g assistant
-bun run release:verify
+tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/plugins/ai-assistance/test desktop/packages/plugins/collection/test/drafts.integration.test.ts desktop/packages/runtime/test/assistant.integration.test.ts desktop/packages/runtime-gateway/test/authorization.test.ts
+pnpm run --filter @zhiyun/desktop build
+pnpm exec playwright test -c desktop/playwright.config.ts -g assistant
+pnpm run release:verify
 ```
 
 `test-isolated.ts` 创建并清理临时 SQLite 数据目录。Desktop E2E 使用临时 user-data-dir。界面测试保存 360、768、1024、1440px 截图，执行 Axe、Escape 与焦点恢复检查；Electron 使用 Axe 的 legacy mode。
@@ -52,7 +52,7 @@ Web 测试文件共用同一独立数据库及一次性管理员初始化，因�
 
 ## 最终本机验证结果
 
-2026-09-10，在包含排队运行版本保护的最终代码上执行 `bun run release:verify`，**退出码 0**。
+2026-09-10，在包含排队运行版本保护的最终代码上执行 `pnpm run release:verify`，**退出码 0**。
 
 | 检查                                                                                 | 结果                                 |
 | ------------------------------------------------------------------------------------ | ------------------------------------ |
@@ -90,7 +90,7 @@ Web 测试文件共用同一独立数据库及一次性管理员初始化，因�
 
 本文上方的 PostgreSQL 相关结果是切换前的历史记录。当前所有端统一 SQLite，`test-isolated.ts` 使用临时 SQLite 数据目录；Redis/PostgreSQL 的驱动、测试分支和服务依赖均已移除。当前验证及既有数据迁移证据见 [SQLite 统一存储记录](../adr/0010-unified-sqlite.md)。
 
-SQLite 切换后完整 `bun run release:verify` 已通过：433 项 TypeScript、39 项 Python、9 项 Web、8 项 Desktop 和 1 项 macOS arm64 安装包测试。已停止旧 Redis/PostgreSQL 服务，迁移数据通过 54 张业务表、2697 条记录逐字段核验；Linux 与其他支持平台仍由对应 CI 验证。
+SQLite 切换后完整 `pnpm run release:verify` 已通过：433 项 TypeScript、39 项 Python、9 项 Web、8 项 Desktop 和 1 项 macOS arm64 安装包测试。已停止旧 Redis/PostgreSQL 服务，迁移数据通过 54 张业务表、2697 条记录逐字段核验；Linux 与其他支持平台仍由对应 CI 验证。
 
 ## 本轮用量、预估额度与离线修复评测（2026-10-04）
 
@@ -116,8 +116,8 @@ SQLite 切换后完整 `bun run release:verify` 已通过：433 项 TypeScript�
 固定的 `repair-quality-v3` 评测覆盖布局、分页移动、字段质量、无效动作、提示注入、敏感配置、工具授权、缓存与预算停止。修复候选先检查输出 Schema 和用户配置，再用本地当前页面验证字段及数据质量；成功复验后才允许显式激活新版本，失败复验会清除旧测试资格。报告中的通过率是 Mock/规则夹具的预期行为通过率。
 
 ```sh
-bun --no-env-file run ai:evaluate
-bun --no-env-file run desktop:test e2e/assistant-cost.spec.ts
+tsx run ai:evaluate
+tsx run desktop:test e2e/assistant-cost.spec.ts
 ```
 
 评测输出带夹具版本、逐例状态、调用数、耗时、修复验证/拒绝率、缓存命中率和源文件哈希的 JSON。桌面专项验证预算填写与请求载荷、历史恢复、未知费用、中英文与窄屏显示；预算的实际停止另由 Runtime 队列与 Mock Provider 集成用例验证。本轮命令、退出码和报告以 [无需外部凭据优化执行记录](../verification/zhiyun-no-credentials-optimization.md) 为准。

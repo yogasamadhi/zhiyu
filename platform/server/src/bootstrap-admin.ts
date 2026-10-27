@@ -2,6 +2,7 @@ import * as OTPAuth from 'otpauth';
 import { database } from './db.js';
 import { readConfig } from './config.js';
 import { encrypt } from './security.js';
+import { hashPassword } from './password.js';
 import { email, password } from '@zhiyun/cloud-contracts';
 const config = readConfig(),
   db = database(config.CLOUD_DATABASE_URL);
@@ -9,7 +10,7 @@ try {
   const address = email.parse(process.env.CLOUD_BOOTSTRAP_EMAIL),
     pass = password.parse(process.env.CLOUD_BOOTSTRAP_PASSWORD),
     secret = new OTPAuth.Secret({ size: 20 });
-  const digest = await Bun.password.hash(pass, { algorithm: 'argon2id' });
+  const digest = await hashPassword(pass);
   await db.sql.begin(async (tx) => {
     await tx`select pg_advisory_xact_lock(947154)`;
     if ((await tx`select 1 from cloud_staff`).length)

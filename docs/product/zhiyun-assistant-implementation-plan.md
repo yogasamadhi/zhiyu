@@ -303,9 +303,9 @@ UI 复用现有设计系统和国际化；覆盖 360/768/1024/1440px，关注侧
 分层检查：
 
 - 修改后优先运行相关 Vitest 文件、类型检查，以及受影响插件的集成测试；涉及数据库、队列的用例使用仓库隔离测试入口。
-- 协议或贡献变更运行 `bun run client:generate`、`bun run client:check`、`bun run architecture:generate`、`bun run architecture:check` 和 `bun run architecture:deps`。
-- 阶段出口运行 `bun run lint`、`bun run format:check`、`bun run typecheck`、`bun run test`、`bun run build`，以及对应 Web/Desktop E2E。
-- 最终运行仓库现有 `bun run release:verify`；沿用其 Docker、浏览器、uv 和打包前置条件。其他支持平台由 CI 验证，不用本机结果替代。
+- 协议或贡献变更运行 `pnpm run client:generate`、`pnpm run client:check`、`pnpm run architecture:generate`、`pnpm run architecture:check` 和 `pnpm run architecture:deps`。
+- 阶段出口运行 `pnpm run lint`、`pnpm run format:check`、`pnpm run typecheck`、`pnpm run test`、`pnpm run build`，以及对应 Web/Desktop E2E。
+- 最终运行仓库现有 `pnpm run release:verify`；沿用其 Docker、浏览器、uv 和打包前置条件。其他支持平台由 CI 验证，不用本机结果替代。
 - 脚本化 Provider 用于稳定回归；真实模型验证至少覆盖上述六条对话样稿，并记录模型和参数。没有可用凭据时保留待验证项，不能用 Mock 通过替代。
 
 ## 9. 用户验证与指标

@@ -13,7 +13,7 @@ export default defineConfig({
     // resources; serial files make the all-in-one PR gate deterministic across CI runners.
     fileParallelism: false,
     include: ['desktop/**/test/**/*.test.ts'],
-    exclude: [...configDefaults.exclude, 'desktop/tooling/dependencies/vendor/**'],
+    exclude: [...configDefaults.exclude, 'vendor/**'],
     coverage: { reporter: ['text', 'html'] },
   },
 });

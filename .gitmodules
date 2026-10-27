@@ -1,6 +1,6 @@
 [submodule "pi"]
-	path = desktop/tooling/dependencies/vendor/pi
+	path = vendor/pi
 	url = https://github.com/earendil-works/pi.git
 [submodule "deepseek-harness"]
-	path = desktop/tooling/dependencies/vendor/deepseek-harness
+	path = vendor/deepseek-harness
 	url = https://github.com/deepseek-ai/deepseek-harness.git

@@ -1,6 +1,20 @@
-import { expect, test } from 'bun:test';
+import { expect, test } from 'vitest';
 import { createRequire } from 'node:module';
-import { dirname } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
+// Import-only packages hide their entry points from the CommonJS resolver, so
+// the installed package directory is located in the dependency tree instead.
+function packageDirectory(name: string, from: string): string {
+  let directory = dirname(from);
+  for (;;) {
+    const candidate = join(directory, 'node_modules', name);
+    if (existsSync(join(candidate, 'package.json'))) return realpathSync(candidate);
+    const parent = dirname(directory);
+    if (parent === directory) throw new Error(`Cannot resolve ${name} from ${from}`);
+    directory = parent;
+  }
+}
 
 interface Braces {
   (pattern: string): string[];
@@ -43,9 +57,11 @@ const crawler = createRequire(
   new URL('../../../desktop/packages/crawler-runtime/package.json', import.meta.url),
 );
 // These consumers publish import-only exports; resolve their actual ESM graph.
-const scraperPath = Bun.resolveSync('got-scraping', dirname(crawler.resolve('@crawlee/core')));
-const crawlGotPath = Bun.resolveSync('got', dirname(scraperPath));
-const crawlCache = createRequire(Bun.resolveSync('cacheable-request', dirname(crawlGotPath)));
+const crawlerEntry = crawler.resolve('@crawlee/core');
+const scraperRoot = packageDirectory('got-scraping', crawlerEntry);
+const crawlGotRoot = packageDirectory('got', join(scraperRoot, 'package.json'));
+const crawlCacheRoot = packageDirectory('cacheable-request', join(crawlGotRoot, 'package.json'));
+const crawlCache = createRequire(join(crawlCacheRoot, 'package.json'));
 const CrawlCachePolicy = crawlCache('http-cache-semantics') as PolicyConstructor;
 
 test('actual Forge and download dependency graph resolves the documented local patches', () => {

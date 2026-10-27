@@ -5,12 +5,11 @@
   "type": "module",
   "exports": {
     "development": "./src/index.ts",
-    "bun": "./src/index.ts",
     "types": "./src/index.ts",
     "default": "./dist/index.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target browser --format esm --packages external",
+    "build": "node ../../../tooling/scripts/build-package.ts src/index.ts --outdir dist --target browser --format esm --packages external",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

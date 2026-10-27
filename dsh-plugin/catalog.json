@@ -1,0 +1,1031 @@
+[
+  {
+    "operationId": "previewDatasetCleaning",
+    "method": "POST",
+    "path": "/api/v2/datasets/{datasetId}/cleaning/preview",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "saveDatasetCleaningRecipe",
+    "method": "POST",
+    "path": "/api/v2/datasets/{datasetId}/cleaning/recipes",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "listDatasetCleaningRecipes",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/cleaning/recipes",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "getDatasetCleaningRecipe",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/cleaning/recipes/{recipeId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "applyDatasetCleaning",
+    "method": "POST",
+    "path": "/api/v2/datasets/{datasetId}/cleaning/sessions",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "listDatasetCleaningSessions",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/cleaning/sessions",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "getDatasetCleaningSession",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/cleaning/sessions/{sessionId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "selectDatasetCleaningStep",
+    "method": "POST",
+    "path": "/api/v2/datasets/{datasetId}/cleaning/sessions/{sessionId}/selection",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "getDatasetFields",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/fields",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "listDatasets",
+    "method": "GET",
+    "path": "/api/v2/datasets",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "getDataset",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "listDatasetRecords",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/records",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "listDatasetChanges",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/changes",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "diffDataset",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/diff",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "exportDataset",
+    "method": "POST",
+    "path": "/api/v2/datasets/{datasetId}/exports",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "createDatasetSnapshot",
+    "method": "POST",
+    "path": "/api/v2/datasets/{datasetId}/snapshots",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "listDatasetSnapshots",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/snapshots",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "getDatasetSnapshot",
+    "method": "GET",
+    "path": "/api/v2/datasets/{datasetId}/snapshots/{snapshotId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "listRunRecords",
+    "method": "GET",
+    "path": "/api/v2/runs/{runId}/records",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "exportRunRecords",
+    "method": "POST",
+    "path": "/api/v2/runs/{runId}/exports",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "queryDataApiRecords",
+    "method": "GET",
+    "path": "/api/v2/data/tasks/{taskId}/records",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "datasets"
+  },
+  {
+    "operationId": "startDraftLoginSession",
+    "method": "POST",
+    "path": "/api/v2/collection-drafts/{draftId}/browser-session/login",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "listCollectionDrafts",
+    "method": "GET",
+    "path": "/api/v2/collection-drafts",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "createCollectionDraft",
+    "method": "POST",
+    "path": "/api/v2/collection-drafts",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "getCollectionDraft",
+    "method": "GET",
+    "path": "/api/v2/collection-drafts/{draftId}",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "updateCollectionDraft",
+    "method": "PATCH",
+    "path": "/api/v2/collection-drafts/{draftId}",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "deleteCollectionDraft",
+    "method": "DELETE",
+    "path": "/api/v2/collection-drafts/{draftId}",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "previewCollectionDraft",
+    "method": "POST",
+    "path": "/api/v2/collection-drafts/{draftId}/preview",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "commitCollectionDraft",
+    "method": "POST",
+    "path": "/api/v2/collection-drafts/{draftId}/commit",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "createExampleDraft",
+    "method": "POST",
+    "path": "/api/v2/examples/{exampleId}/drafts",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "previewSchedule",
+    "method": "POST",
+    "path": "/api/v2/schedules/preview",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "previewInitialRule",
+    "method": "POST",
+    "path": "/api/v2/rules/preview",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "createTaskWithInitialRule",
+    "method": "POST",
+    "path": "/api/v2/tasks/initialize",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "listTasks",
+    "method": "GET",
+    "path": "/api/v2/tasks",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "createTask",
+    "method": "POST",
+    "path": "/api/v2/tasks",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "getTask",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "updateTask",
+    "method": "PUT",
+    "path": "/api/v2/tasks/{taskId}",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "deleteTask",
+    "method": "DELETE",
+    "path": "/api/v2/tasks/{taskId}",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "listRules",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}/rules",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "testRule",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/rules/test",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "createRule",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/rules",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "createRuleVersion",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/versions",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "diffRuleVersions",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/diff",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "rollbackRuleVersion",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/rollback",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "listRuleRepairProposals",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "startTaskLoginSession",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/browser-session/login",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "promptTaskCredential",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/credentials/{kind}",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "deleteTaskCredential",
+    "method": "DELETE",
+    "path": "/api/v2/tasks/{taskId}/credentials/{kind}",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "listRuns",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}/runs",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "createRun",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/runs",
+    "requiredPermission": "run.execute",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "getRun",
+    "method": "GET",
+    "path": "/api/v2/runs/{runId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "cancelRun",
+    "method": "POST",
+    "path": "/api/v2/runs/{runId}/cancel",
+    "requiredPermission": "run.execute",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "retryRun",
+    "method": "POST",
+    "path": "/api/v2/runs/{runId}/retry",
+    "requiredPermission": "run.execute",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "listRunLogs",
+    "method": "GET",
+    "path": "/api/v2/runs/{runId}/logs",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "listRunRequests",
+    "method": "GET",
+    "path": "/api/v2/runs/{runId}/requests",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "getRunDiagnostics",
+    "method": "GET",
+    "path": "/api/v2/runs/{runId}/diagnostics",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "clearRunDiagnostics",
+    "method": "DELETE",
+    "path": "/api/v2/runs/{runId}/diagnostics",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "createInspectionSession",
+    "method": "POST",
+    "path": "/api/v2/inspection-sessions",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "getInspectionScreenshot",
+    "method": "GET",
+    "path": "/api/v2/inspection-sessions/{sessionId}/screenshot",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "interactWithInspection",
+    "method": "POST",
+    "path": "/api/v2/inspection-sessions/{sessionId}/actions",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "selectInspectionElement",
+    "method": "POST",
+    "path": "/api/v2/inspection-sessions/{sessionId}/select",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "closeInspectionSession",
+    "method": "DELETE",
+    "path": "/api/v2/inspection-sessions/{sessionId}",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "collection"
+  },
+  {
+    "operationId": "clearRuleCache",
+    "method": "POST",
+    "path": "/api/v2/rules/cache/clear",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "analyzeDraftTaskRule",
+    "method": "POST",
+    "path": "/api/v2/rules/analyze",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "analyzeTaskRule",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/rule-analysis",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "explainRunFailure",
+    "method": "POST",
+    "path": "/api/v2/runs/{runId}/explain-failure",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "extractTaskWithAi",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/ai/extract",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "extractDraftTaskWithAi",
+    "method": "POST",
+    "path": "/api/v2/rules/ai-extract",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "createRuleRepairProposal",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "testRuleRepairProposal",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/test",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "applyRuleRepairProposal",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/apply",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "rejectRuleRepairProposal",
+    "method": "POST",
+    "path": "/api/v2/tasks/{taskId}/rules/{ruleId}/repair-proposals/{proposalId}/reject",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "promptAiProviderCredential",
+    "method": "POST",
+    "path": "/api/v2/ai/provider/credential/prompt",
+    "requiredPermission": "output.manage",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "deleteAiProviderCredential",
+    "method": "DELETE",
+    "path": "/api/v2/ai/provider/credential",
+    "requiredPermission": "output.manage",
+    "ownerPluginId": "ai-assistance"
+  },
+  {
+    "operationId": "listAnalysisMethods",
+    "method": "GET",
+    "path": "/api/v2/analytics/methods",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "listAnalysisRecipes",
+    "method": "GET",
+    "path": "/api/v2/analytics/recipes",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "createAnalysisRecipe",
+    "method": "POST",
+    "path": "/api/v2/analytics/recipes",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "getAnalysisRecipe",
+    "method": "GET",
+    "path": "/api/v2/analytics/recipes/{recipeId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "updateAnalysisRecipe",
+    "method": "PUT",
+    "path": "/api/v2/analytics/recipes/{recipeId}",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "deleteAnalysisRecipe",
+    "method": "DELETE",
+    "path": "/api/v2/analytics/recipes/{recipeId}",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "listAnalysisJobs",
+    "method": "GET",
+    "path": "/api/v2/analytics/jobs",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "createAnalysisJob",
+    "method": "POST",
+    "path": "/api/v2/analytics/jobs",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "getAnalysisJob",
+    "method": "GET",
+    "path": "/api/v2/analytics/jobs/{jobId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "cancelAnalysisJob",
+    "method": "POST",
+    "path": "/api/v2/analytics/jobs/{jobId}/cancel",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "retryAnalysisJob",
+    "method": "POST",
+    "path": "/api/v2/analytics/jobs/{jobId}/retry",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "getAnalysisResult",
+    "method": "GET",
+    "path": "/api/v2/analytics/results/{resultId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "getAnalysisResultPage",
+    "method": "GET",
+    "path": "/api/v2/analytics/results/{resultId}/collections/{section}/{collectionId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "branchAnalysisResult",
+    "method": "POST",
+    "path": "/api/v2/analytics/results/{resultId}/branches",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "compareAnalysisResults",
+    "method": "GET",
+    "path": "/api/v2/analytics/results/{leftId}/compare/{rightId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "exportAnalysisResult",
+    "method": "POST",
+    "path": "/api/v2/analytics/results/{resultId}/exports",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "analytics"
+  },
+  {
+    "operationId": "previewCorpus",
+    "method": "POST",
+    "path": "/api/v2/corpora/{corpusId}/preview",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "listCorpora",
+    "method": "GET",
+    "path": "/api/v2/corpora",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "createCorpus",
+    "method": "POST",
+    "path": "/api/v2/corpora",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "getCorpus",
+    "method": "GET",
+    "path": "/api/v2/corpora/{corpusId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "updateCorpus",
+    "method": "PUT",
+    "path": "/api/v2/corpora/{corpusId}",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "deleteCorpus",
+    "method": "DELETE",
+    "path": "/api/v2/corpora/{corpusId}",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "listCorpusRecipes",
+    "method": "GET",
+    "path": "/api/v2/corpora/{corpusId}/recipes",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "createCorpusRecipe",
+    "method": "POST",
+    "path": "/api/v2/corpora/{corpusId}/recipes",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "updateCorpusRecipe",
+    "method": "PUT",
+    "path": "/api/v2/corpora/{corpusId}/recipes/{recipeId}",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "deleteCorpusRecipe",
+    "method": "DELETE",
+    "path": "/api/v2/corpora/{corpusId}/recipes/{recipeId}",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "createCorpusBuild",
+    "method": "POST",
+    "path": "/api/v2/corpora/{corpusId}/builds",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "listCorpusBuilds",
+    "method": "GET",
+    "path": "/api/v2/corpus-builds",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "getCorpusBuild",
+    "method": "GET",
+    "path": "/api/v2/corpus-builds/{buildId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "cancelCorpusBuild",
+    "method": "POST",
+    "path": "/api/v2/corpus-builds/{buildId}/cancel",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "retryCorpusBuild",
+    "method": "POST",
+    "path": "/api/v2/corpus-builds/{buildId}/retry",
+    "requiredPermission": "analysis.write",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "listCorpusVersions",
+    "method": "GET",
+    "path": "/api/v2/corpora/{corpusId}/versions",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "getCorpusVersion",
+    "method": "GET",
+    "path": "/api/v2/corpora/{corpusId}/versions/{versionId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "exportCorpusVersion",
+    "method": "POST",
+    "path": "/api/v2/corpora/{corpusId}/versions/{versionId}/exports",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "corpus"
+  },
+  {
+    "operationId": "getTaskQualityPolicy",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}/quality-policy",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "monitoring"
+  },
+  {
+    "operationId": "updateTaskQualityPolicy",
+    "method": "PUT",
+    "path": "/api/v2/tasks/{taskId}/quality-policy",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "monitoring"
+  },
+  {
+    "operationId": "getTaskHealth",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}/health",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "monitoring"
+  },
+  {
+    "operationId": "listTaskQualityEvaluations",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}/quality-evaluations",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "monitoring"
+  },
+  {
+    "operationId": "listTaskHealth",
+    "method": "GET",
+    "path": "/api/v2/task-health",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "monitoring"
+  },
+  {
+    "operationId": "listTaskMonitoringAlerts",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}/monitoring-alerts",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "monitoring"
+  },
+  {
+    "operationId": "listTaskMonitoringAlertRuns",
+    "method": "GET",
+    "path": "/api/v2/tasks/{taskId}/monitoring-alerts/{alertId}/runs",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "monitoring"
+  },
+  {
+    "operationId": "dismissTaskMonitoringAlert",
+    "method": "DELETE",
+    "path": "/api/v2/tasks/{taskId}/monitoring-alerts/{alertId}",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "monitoring"
+  },
+  {
+    "operationId": "listOutputDestinations",
+    "method": "GET",
+    "path": "/api/v2/output-destinations",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "outputs"
+  },
+  {
+    "operationId": "createOutputDestination",
+    "method": "POST",
+    "path": "/api/v2/output-destinations",
+    "requiredPermission": "output.manage",
+    "ownerPluginId": "outputs"
+  },
+  {
+    "operationId": "getOutputDestination",
+    "method": "GET",
+    "path": "/api/v2/output-destinations/{destinationId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "outputs"
+  },
+  {
+    "operationId": "updateOutputDestination",
+    "method": "PUT",
+    "path": "/api/v2/output-destinations/{destinationId}",
+    "requiredPermission": "output.manage",
+    "ownerPluginId": "outputs"
+  },
+  {
+    "operationId": "deleteOutputDestination",
+    "method": "DELETE",
+    "path": "/api/v2/output-destinations/{destinationId}",
+    "requiredPermission": "output.manage",
+    "ownerPluginId": "outputs"
+  },
+  {
+    "operationId": "listDeliveryAttempts",
+    "method": "GET",
+    "path": "/api/v2/delivery-attempts",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "outputs"
+  },
+  {
+    "operationId": "retryDeliveryAttempt",
+    "method": "POST",
+    "path": "/api/v2/delivery-attempts/{attemptId}/retry",
+    "requiredPermission": "output.bind",
+    "ownerPluginId": "outputs"
+  },
+  {
+    "operationId": "testOutputDestination",
+    "method": "POST",
+    "path": "/api/v2/output-destinations/{destinationId}/test",
+    "requiredPermission": "output.manage",
+    "ownerPluginId": "outputs"
+  },
+  {
+    "operationId": "promptOutputCredential",
+    "method": "POST",
+    "path": "/api/v2/output-destinations/{destinationId}/credential/prompt",
+    "requiredPermission": "output.manage",
+    "ownerPluginId": "outputs"
+  },
+  {
+    "operationId": "getWorkspaceIdentity",
+    "method": "GET",
+    "path": "/api/v2/workspace",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "writeExperienceEvent",
+    "method": "POST",
+    "path": "/api/v2/experience/events",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getExperienceSummary",
+    "method": "GET",
+    "path": "/api/v2/experience/summary",
+    "requiredPermission": "workspace.manage",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getExperienceSettings",
+    "method": "GET",
+    "path": "/api/v2/experience/settings",
+    "requiredPermission": "workspace.manage",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "updateExperienceSettings",
+    "method": "PUT",
+    "path": "/api/v2/experience/settings",
+    "requiredPermission": "workspace.manage",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "clearExperienceEvents",
+    "method": "DELETE",
+    "path": "/api/v2/experience/events",
+    "requiredPermission": "workspace.manage",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getVersion",
+    "method": "GET",
+    "path": "/api/v2/version",
+    "requiredPermission": null,
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getRuntime",
+    "method": "GET",
+    "path": "/api/v2/runtime",
+    "requiredPermission": null,
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getRuntimeGraph",
+    "method": "GET",
+    "path": "/api/v2/runtime/graph",
+    "requiredPermission": null,
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getCapabilities",
+    "method": "GET",
+    "path": "/api/v2/capabilities",
+    "requiredPermission": null,
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getProductOpenApi",
+    "method": "GET",
+    "path": "/api/v2/openapi.json",
+    "requiredPermission": null,
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "streamDomainEvents",
+    "method": "GET",
+    "path": "/api/v2/events/domain",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "streamRealtimeEvents",
+    "method": "GET",
+    "path": "/api/v2/events/realtime",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "saveArtifactWithHost",
+    "method": "POST",
+    "path": "/api/v2/artifacts/{artifactId}/save",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getArtifactContent",
+    "method": "GET",
+    "path": "/api/v2/artifacts/{artifactId}/content",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getRuntimeSummary",
+    "method": "GET",
+    "path": "/api/v2/runtime/summary",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "getDesktopDiagnostics",
+    "method": "GET",
+    "path": "/api/v2/desktop/diagnostics",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "pauseScheduler",
+    "method": "POST",
+    "path": "/api/v2/scheduler/pause",
+    "requiredPermission": "workspace.manage",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "resumeScheduler",
+    "method": "POST",
+    "path": "/api/v2/scheduler/resume",
+    "requiredPermission": "workspace.manage",
+    "ownerPluginId": "platform"
+  },
+  {
+    "operationId": "listTaskTemplates",
+    "method": "GET",
+    "path": "/api/v2/task-templates",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "templates"
+  },
+  {
+    "operationId": "getTaskTemplate",
+    "method": "GET",
+    "path": "/api/v2/task-templates/{templateId}",
+    "requiredPermission": "workspace.read",
+    "ownerPluginId": "templates"
+  },
+  {
+    "operationId": "instantiateTaskTemplate",
+    "method": "POST",
+    "path": "/api/v2/task-templates/{templateId}/instantiate",
+    "requiredPermission": "task.write",
+    "ownerPluginId": "templates"
+  }
+]

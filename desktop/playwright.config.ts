@@ -12,7 +12,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   webServer: {
-    command: 'exec bun --no-env-file src/server.ts',
+    command: 'exec tsx src/server.ts',
     cwd: fixtureRoot,
     url: 'http://127.0.0.1:45100/products',
     reuseExistingServer: false,

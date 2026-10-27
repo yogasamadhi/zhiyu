@@ -6,31 +6,27 @@
   "exports": {
     ".": {
       "development": "./src/index.ts",
-      "bun": "./src/index.ts",
       "types": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./local-notifications": {
       "types": "./src/local-notifications.ts",
       "development": "./src/local-notifications.ts",
-      "bun": "./src/local-notifications.ts",
       "default": "./dist/local-notifications.js"
     },
     "./manifest": {
       "types": "./src/manifest.ts",
       "development": "./src/manifest.ts",
-      "bun": "./src/manifest.ts",
       "default": "./dist/manifest.js"
     },
     "./types": {
       "types": "./src/types.ts",
       "development": "./src/types.ts",
-      "bun": "./src/types.ts",
       "default": "./dist/types.js"
     }
   },
   "scripts": {
-    "build": "bun build ./src/index.ts ./src/local-notifications.ts ./src/manifest.ts ./src/types.ts --root src --outdir dist --target node --format esm --packages external",
+    "build": "node ../../../../tooling/scripts/build-package.ts ./src/index.ts ./src/local-notifications.ts ./src/manifest.ts ./src/types.ts --root src --outdir dist --target node --format esm --packages external",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

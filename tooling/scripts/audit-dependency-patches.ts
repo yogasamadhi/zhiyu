@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 interface Provenance {
   name: string;
@@ -11,7 +12,7 @@ interface Advisory {
   title: string;
   url: string;
 }
-const root = resolve(import.meta.dir, '../..');
+const root = resolve(import.meta.dirname, '../..');
 const names = ['braces', 'http-cache-semantics'];
 const provenance: Provenance[] = [];
 for (const name of names) {
@@ -41,22 +42,26 @@ for (const item of provenance) {
     );
   }
 }
-const child = Bun.spawn(
-  ['bun', '--no-env-file', 'test', 'platform/tooling/tests/dependency-patches.test.ts'],
-  { cwd: root, stdin: 'ignore', stdout: 'inherit', stderr: 'inherit' },
+const child = spawnSync(
+  'vitest',
+  [
+    'run',
+    '--config',
+    'vitest.platform.config.ts',
+    'platform/tooling/tests/dependency-patches.test.ts',
+  ],
+  { cwd: root, stdio: 'ignore' },
 );
-const code = await child.exited;
-if (code !== 0) throw new Error('Local dependency security regression failed');
+if (child.status !== 0) throw new Error('Local dependency security regression failed');
 for (const file of [
   'braces/index.js',
   'braces/lib/parse.js',
   'braces/lib/validate-tree.js',
   'http-cache-semantics/index.js',
 ]) {
-  const syntax = Bun.spawn(['node', '--check', resolve(root, 'tooling/dependency-patches', file)], {
-    stdout: 'inherit',
-    stderr: 'inherit',
+  const syntax = spawnSync('node', ['--check', resolve(root, 'tooling/dependency-patches', file)], {
+    stdio: 'inherit',
   });
-  if ((await syntax.exited) !== 0) throw new Error(`Invalid dependency patch JavaScript: ${file}`);
+  if (syntax.status !== 0) throw new Error(`Invalid dependency patch JavaScript: ${file}`);
 }
 console.log('Local dependency patches verified; upstream advisories remain documented');

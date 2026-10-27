@@ -13,7 +13,7 @@
 - 删除旧浏览器工作台、独立 API 和其专用 `packages/config`；该配置包原来只有 API 应用使用。
 - 移除 Headless/Web 启动命令、静态网站托管、Linux tar/image、专用 Compose/反向代理示例和冒烟脚本。
 - CI/Release 删除 Headless 作业；通用质量检查保留运行时测试，桌面矩阵执行桌面 E2E 与真实打包回归，商业平台工作流继续验证 Portal/Admin/Server。
-- `bun run dev` / `desktop:dev` 只启动 Electron 和本地夹具；`cloud:dev` 启动商业平台。`test:e2e` 指向桌面，`test:e2e:cloud` 指向商业网站。
+- `pnpm run dev` / `desktop:dev` 只启动 Electron 和本地夹具；`cloud:dev` 启动商业平台。`test:e2e` 指向桌面，`test:e2e:cloud` 指向商业网站。
 - 本地客户端按 `desktop-studio` OpenAPI 生成；旧 Headless Profile 替换为明确的 `identity-test` 内部授权测试配置，不提供启动或发布入口。通用宿主兼容类型和权限插件保留，以避免无关的协议/身份重构。
 - 历史 ADR 和验收记录保留当时事实，并标记已被本决策替代；当前 README、架构和部署手册按四个应用更新。
 

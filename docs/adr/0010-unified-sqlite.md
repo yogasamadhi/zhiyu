@@ -10,7 +10,7 @@
 
 作业、租约、取消、幂等和执行结果保存在 SQLite，进程内调度器按资源类别执行任务。一个数据目录对应一个 Runtime，本轮不引入共享磁盘或多副本部署。
 
-当前 better-sqlite3 驱动在本机 Bun 1.4.0 直接运行时触发原生模块崩溃；Node.js 24 下的真实 SQLite 测试通过。因此 Bun 继续负责依赖、脚本和构建，Headless 源码通过 Node.js + tsx 启动；Linux 发行包内置 Node.js 24、JavaScript bundle 和原生 SQLite 模块。Desktop 继续使用 Electron utilityProcess。
+当前 better-sqlite3 驱动在本机 Bun 1.4.0 直接运行时触发原生模块崩溃；Node.js 24 下的真实 SQLite 测试通过。因此依赖、脚本和构建统一由 pnpm 负责，Headless 源码通过 Node.js + tsx 启动；Linux 发行包内置 Node.js 24、JavaScript bundle 和原生 SQLite 模块。Desktop 继续使用 Electron utilityProcess。
 
 ## 数据与兼容
 
@@ -36,8 +36,8 @@
 - Python Worker：39 项通过。
 - Web 端到端：9 项通过；Desktop 端到端：8 项通过。
 - macOS arm64 自包含安装包：1 项通过，实际完成动态采集与分析。
-- `bun run release:verify` 完整通过；此轮运行时 Redis/PostgreSQL 容器均已停止。
+- `pnpm run release:verify` 完整通过；此轮运行时 Redis/PostgreSQL 容器均已停止。
 - Node API bundle：实际完成 SQLite 初始化、管理员创建、重启后登录及静态 Web 服务验证。
-- `bun run dev:headless`：API、Web 和自定义 SQLite 数据目录实际启动验证通过。
+- `pnpm run dev:headless`：API、Web 和自定义 SQLite 数据目录实际启动验证通过。
 - 部署 Compose 配置、备份恢复脚本语法、Linux 包脚本类型检查通过。
 - Linux x64 发行包和 Compose 备份恢复由对应 CI 作业验证；本机为 macOS arm64，不将其他平台视为已验证。

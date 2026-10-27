@@ -1,19 +1,19 @@
-FROM oven/bun:1.4.0 AS bun
 FROM node:24-bookworm-slim AS build
-COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /workspace
+RUN corepack enable
 COPY . .
-RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile --ignore-scripts
-RUN bun run cloud:build
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm run cloud:build
 
-FROM bun AS server
+FROM node:24-bookworm-slim AS server
 WORKDIR /app
-COPY --from=build --chown=bun:bun /workspace/platform/server/dist ./dist
-COPY --from=build --chown=bun:bun /workspace/platform/server/migrations ./migrations
+COPY --from=build --chown=node:node /workspace/platform/server/dist ./dist
+COPY --from=build --chown=node:node /workspace/platform/server/migrations ./migrations
 ENV CLOUD_PORT=3200
 EXPOSE 3200
-USER bun
-CMD ["bun", "dist/start.js"]
+USER node
+CMD ["node", "dist/start.js"]
 
 FROM node:24-bookworm-slim AS portal
 WORKDIR /workspace

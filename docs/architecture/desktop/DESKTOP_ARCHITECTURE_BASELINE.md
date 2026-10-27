@@ -99,7 +99,7 @@ Arbitrary absolute filesystem path
 
 ## 3.3 Core Runtime
 
-Core Runtime 是独立服务进程，可以使用 Bun 与 Electron Node 共同支持的 Node-compatible API，但不得依赖系统 Node 才能启动。它必须：
+Core Runtime 是独立服务进程，使用 Node.js 与 Electron Node 共同支持的 Node-compatible API，但不得依赖系统 Node 才能启动。它必须：
 
 ```text
 不 import Electron
@@ -281,10 +281,10 @@ Engine supervision
 
 # 9. Runtime 兼容基线
 
-Bun 1.4.0 是安装、开发、构建、测试、生成、打包以及 Headless/Server Runtime 的唯一工具链和执行环境。Desktop Runtime 由 Electron `utilityProcess` 承载并使用 Electron 内嵌 Node；不得要求或探测系统 Node。
+pnpm 11 与 Node.js 24 是安装、开发、构建、测试、生成、打包以及 Headless/Server Runtime 的唯一工具链和执行环境。Desktop Runtime 由 Electron `utilityProcess` 承载并使用 Electron 内嵌 Node；不得要求或探测系统 Node。
 
 ```text
-Headless / Server = Bun 1.4.0
+Headless / Server = Node.js 24
 Desktop Runtime   = Electron embedded Node
 System Node       = forbidden dependency
 ```

@@ -350,3 +350,21 @@ function identityRequiredResponse(): Response {
     { status: 410 },
   );
 }
+
+describe('injected transport workspace boundaries', () => {
+  it('does not dispatch an old mutation through a replacement workspace while connecting', async () => {
+    let release!: (value: Response) => void;
+    const waiting = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    const client = new ZhiYunClient();
+    client.setTransport({ fetch: vi.fn(() => waiting) });
+    const request = client.request('/api/v2/tasks', { method: 'POST', body: '{}' });
+    const rejected = expect(request).rejects.toBe('Product transport changed');
+    const replacement = vi.fn(async () => Response.json({}));
+    client.setTransport({ fetch: replacement });
+    release(Response.json({ mode: 'desktop' }));
+    await rejected;
+    expect(replacement).not.toHaveBeenCalled();
+  });
+});

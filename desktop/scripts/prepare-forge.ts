@@ -1,10 +1,11 @@
 import { cp, mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
-const desktopRoot = resolve(import.meta.dir, '..');
+const desktopRoot = resolve(import.meta.dirname, '..');
 const workspaceRoot = resolve(desktopRoot, '..');
 const stagingRoot = resolve(desktopRoot, '.forge-app');
-await run(['bun', 'run', 'compliance:licenses'], workspaceRoot, 'Compliance license collection');
+await run(['pnpm', 'run', 'compliance:licenses'], workspaceRoot, 'Compliance license collection');
 await rm(stagingRoot, { recursive: true, force: true });
 await mkdir(stagingRoot, { recursive: true });
 await cp(resolve(desktopRoot, 'dist'), resolve(stagingRoot, 'dist'), { recursive: true });
@@ -23,7 +24,7 @@ const workerSource = resolve(
 );
 if (!(await stat(workerSource).catch(() => undefined))?.isDirectory()) {
   throw new Error(
-    `Packaged Analytics Worker is missing: ${workerSource}. Run bun run worker:build.`,
+    `Packaged Analytics Worker is missing: ${workerSource}. Run pnpm run worker:build.`,
   );
 }
 await mkdir(resolve(stagingRoot, 'analytics-worker', workerTarget), { recursive: true });
@@ -54,18 +55,22 @@ await writeFile(
   ),
 );
 await run(
-  ['bun', 'install', '--ignore-scripts', '--linker=hoisted'],
+  [
+    'pnpm',
+    'install',
+    '--ignore-scripts',
+    '--node-linker=hoisted',
+    '--ignore-workspace',
+    '--config.confirmModulesPurge=false',
+  ],
   stagingRoot,
   'Forge staging dependency install',
 );
 
-async function run(command: string[], cwd: string, label: string): Promise<void> {
-  const child = Bun.spawn(command, {
+function run(command: string[], cwd: string, label: string): void {
+  const child = spawnSync(command[0]!, command.slice(1), {
     cwd,
-    stdin: 'inherit',
-    stdout: 'inherit',
-    stderr: 'inherit',
+    stdio: 'inherit',
   });
-  const exitCode = await child.exited;
-  if (exitCode !== 0) throw new Error(`${label} exited with ${exitCode}`);
+  if (child.status !== 0) throw new Error(`${label} exited with ${child.status ?? 'unknown'}`);
 }

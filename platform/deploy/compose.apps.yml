@@ -3,7 +3,7 @@ services:
   migrate:
     build: { context: ../.., dockerfile: platform/deploy/Dockerfile, target: server }
     image: zhiyun-cloud-server:local
-    command: [bun, dist/migrate.js]
+    command: [node, dist/migrate.js]
     env_file: .env
     depends_on:
       postgres: { condition: service_healthy }
@@ -17,16 +17,16 @@ services:
       test:
         [
           CMD,
-          bun,
+          node,
           -e,
-          "const r=await fetch('http://localhost:3200/api/cloud/v1/health');process.exit(r.ok?0:1)",
+          "(async()=>{const r=await fetch('http://localhost:3200/api/cloud/v1/health');process.exit(r.ok?0:1)})()",
         ]
       interval: 15s
       timeout: 5s
       retries: 3
   worker:
     image: zhiyun-cloud-server:local
-    command: [bun, dist/worker.js]
+    command: [node, dist/worker.js]
     env_file: .env
     restart: unless-stopped
     depends_on:

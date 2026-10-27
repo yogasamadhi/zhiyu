@@ -21,7 +21,7 @@ if (process.argv.includes('--check')) {
   const current = await readFile(target, 'utf8').catch(() => '');
   if (current !== output) {
     console.error(
-      'Worker OpenAPI client types are out of date. Run: bun run worker:client:generate',
+      'Worker OpenAPI client types are out of date. Run: pnpm run worker:client:generate',
     );
     process.exit(1);
   }

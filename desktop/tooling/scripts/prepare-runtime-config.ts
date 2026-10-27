@@ -1,6 +1,6 @@
 import { cp, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-const desktop = resolve(import.meta.dir, '../..');
+const desktop = resolve(import.meta.dirname, '../..');
 const source = resolve(desktop, 'packages/profiles/catalog/config');
 for (const path of [
   'packages/runtime/dist/profiles',

@@ -1,15 +1,20 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { join } from 'node:path';
-import { createAiProvider, HostedAiProvider } from '@zhiyun/ai-runtime';
+import { createAiProvider, HostedAiProvider, type AiUsage } from '@zhiyun/ai-runtime';
 import {
   AnalyticsWorkerClient,
   type AnalyticsWorkerPrivateBootstrap,
 } from '@zhiyun/analytics-worker-client';
 import { LocalArtifactStore } from '@zhiyun/artifact-store';
 import { CrawlerRuntime } from '@zhiyun/crawler-runtime';
-import type { HostCapabilities, SchedulingEnvironment } from '@zhiyun/contracts';
+import type {
+  AiProvider,
+  CredentialStore,
+  HostCapabilities,
+  SchedulingEnvironment,
+} from '@zhiyun/contracts';
 import { HostCredentialStore } from '@zhiyun/platform';
-import { JobHandlerRegistry } from '@zhiyun/platform-core';
+import { JobHandlerRegistry, type EnqueueJobInput } from '@zhiyun/platform-core';
 import { SqliteAiConversationRepository } from '@zhiyun/plugin-ai-assistance';
 import { SqliteAnalysisRepository } from '@zhiyun/plugin-analytics';
 import { SqliteCollectionRepository } from '@zhiyun/plugin-collection';
@@ -40,6 +45,14 @@ export interface DesktopRuntimeInputs {
   };
   openApiDocument: unknown;
   identity?: { options: IdentityServiceOptions; secureCookies?: boolean };
+  /** Capability adapters supplied by hosts that do not use Electron. */
+  credentialStore?: CredentialStore;
+  /** Capture host operation facts when enqueuing and restore them for durable execution. */
+  jobContext?: {
+    capture(): Record<string, unknown>;
+    run(context: Record<string, unknown>, work: () => Promise<void>): Promise<void>;
+  };
+  aiProvider?: AiProvider | ((onUsage: (usage: AiUsage) => Promise<void>) => AiProvider);
 }
 
 /** Internal infrastructure plugin: production adapters are created inside Cordis. */
@@ -70,34 +83,68 @@ export function buildDesktopRuntime(inputs: DesktopRuntimeInputs, options: Level
         corpus: own(new SqliteCorpusRepository(databasePath)),
         aiAssistance: own(new SqliteAiConversationRepository(databasePath)),
       };
-      const handlers = new JobHandlerRegistry();
+      class ScopedHandlers extends JobHandlerRegistry {
+        override register(input: Parameters<JobHandlerRegistry['register']>[0]) {
+          return super.register(
+            inputs.jobContext
+              ? {
+                  ...input,
+                  handler: (context) =>
+                    inputs.jobContext!.run(
+                      (context.job.payload.__hostContext as Record<string, unknown>) ?? {},
+                      () => input.handler(context),
+                    ),
+                }
+              : input,
+          );
+        }
+      }
+      class ScopedQueue extends LocalPlatformJobQueue {
+        override enqueue(input: EnqueueJobInput) {
+          return super.enqueue(
+            inputs.jobContext
+              ? {
+                  ...input,
+                  payload: { ...input.payload, __hostContext: inputs.jobContext.capture() },
+                }
+              : input,
+          );
+        }
+      }
+      const handlers = new ScopedHandlers();
       const jobs = own(
-        new LocalPlatformJobQueue(platform, handlers, {
+        new ScopedQueue(platform, handlers, {
           capacities: { 'browser-heavy': 1, 'python-heavy': 1, io: 1, delivery: 1 },
         }),
       );
-      const credentialStore = new HostCredentialStore(inputs.hostBaseUrl, inputs.hostToken);
+      const credentialStore =
+        inputs.credentialStore ?? new HostCredentialStore(inputs.hostBaseUrl, inputs.hostToken);
       const hosted = new HostedAiProvider(inputs.hostedAi.request, inputs.hostedAi.configuration);
-      const ai = createAiProvider({
-        ...(inputs.ai?.baseUrl && inputs.ai.model && inputs.ai.apiKeyRef
-          ? {
-              baseUrl: inputs.ai.baseUrl,
-              model: inputs.ai.model,
-              apiKey: () => credentialStore.resolve<string>(inputs.ai!.apiKeyRef!),
-            }
-          : {}),
-        onUsage: async (usage) => {
-          await platform
-            .appendEvent({
-              type: 'ai.request.completed',
-              producerPluginId: 'ai-assistance',
-              aggregateType: usage.taskId ? 'task' : 'runtime',
-              aggregateId: usage.taskId ?? inputs.host.metadata.runtimeId,
-              payload: { ...usage },
-            })
-            .catch(() => undefined);
-        },
-      });
+      const onUsage = async (usage: AiUsage) => {
+        await platform
+          .appendEvent({
+            type: 'ai.request.completed',
+            producerPluginId: 'ai-assistance',
+            aggregateType: usage.taskId ? 'task' : 'runtime',
+            aggregateId: usage.taskId ?? inputs.host.metadata.runtimeId,
+            payload: { ...usage },
+          })
+          .catch(() => undefined);
+      };
+      const ai =
+        (typeof inputs.aiProvider === 'function'
+          ? inputs.aiProvider(onUsage)
+          : inputs.aiProvider) ??
+        createAiProvider({
+          ...(inputs.ai?.baseUrl && inputs.ai.model && inputs.ai.apiKeyRef
+            ? {
+                baseUrl: inputs.ai.baseUrl,
+                model: inputs.ai.model,
+                apiKey: () => credentialStore.resolve<string>(inputs.ai!.apiKeyRef!),
+              }
+            : {}),
+          onUsage,
+        });
       let worker: AnalyticsWorkerClient | undefined;
       if (inputs.analyticsWorker) {
         try {

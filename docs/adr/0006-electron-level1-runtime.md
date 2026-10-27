@@ -16,4 +16,4 @@ AI Provider 迁移到 TypeScript。凭据、保存对话框、通知、外链和
 
 ## Consequence
 
-安装包在干净系统不依赖 Bun、Node、Python、Docker、PostgreSQL 或 Redis。Runtime 可以独立崩溃恢复，Web 与 Desktop 复用 UI 和 Client。代价是需要维护 Electron ABI rebuild、Chromium 平台资源与双 Repository conformance。
+安装包在干净系统不依赖 pnpm、Node、Python、Docker、PostgreSQL 或 Redis。Runtime 可以独立崩溃恢复，Web 与 Desktop 复用 UI 和 Client。代价是需要维护 Electron ABI rebuild、Chromium 平台资源与双 Repository conformance。

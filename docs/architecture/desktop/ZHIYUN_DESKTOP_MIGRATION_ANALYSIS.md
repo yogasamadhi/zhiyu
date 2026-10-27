@@ -494,13 +494,13 @@ packages/ui
 建议命令：
 
 ```text
-bun run dev                 # 默认启动桌面应用
-bun run dev:headless        # 显式启动 Headless/Web
-bun run desktop:dev
-bun run desktop:build
-bun run desktop:package
-bun run desktop:make
-bun run desktop:test
+pnpm run dev                 # 默认启动桌面应用
+pnpm run dev:headless        # 显式启动 Headless/Web
+pnpm run desktop:dev
+pnpm run desktop:build
+pnpm run desktop:package
+pnpm run desktop:make
+pnpm run desktop:test
 ```
 
 安装包必须包含：

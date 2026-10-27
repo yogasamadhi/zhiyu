@@ -6,38 +6,33 @@
   "exports": {
     ".": {
       "development": "./src/index.ts",
-      "bun": "./src/index.ts",
       "types": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./manifest": {
       "types": "./src/manifest.ts",
       "development": "./src/manifest.ts",
-      "bun": "./src/manifest.ts",
       "default": "./dist/manifest.js"
     },
     "./types": {
       "types": "./src/types.ts",
       "development": "./src/types.ts",
-      "bun": "./src/types.ts",
       "default": "./dist/types.js"
     },
     "./policy": {
       "types": "./src/policy.ts",
       "development": "./src/policy.ts",
-      "bun": "./src/policy.ts",
       "default": "./dist/policy.js"
     },
     "./client": {
       "types": "./src/client/index.tsx",
       "browser": "./src/client/index.tsx",
       "development": "./src/client/index.tsx",
-      "bun": "./src/client/index.tsx",
       "default": "./dist/client/index.js"
     }
   },
   "scripts": {
-    "build": "bun build ./src/client/index.tsx ./src/index.ts ./src/manifest.ts ./src/policy.ts ./src/types.ts --root src --outdir dist --target node --format esm --packages external",
+    "build": "node ../../../../tooling/scripts/build-package.ts ./src/client/index.tsx ./src/index.ts ./src/manifest.ts ./src/policy.ts ./src/types.ts --root src --outdir dist --target node --format esm --packages external",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

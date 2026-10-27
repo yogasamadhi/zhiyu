@@ -1,4 +1,5 @@
-import { test, expect } from 'bun:test';
+import { test, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import {
@@ -38,10 +39,12 @@ test('destructive database targets require local hosts, exact suffixes and safe 
     'postgresql://localhost/zhiyun_test',
     'postgres://[::1]/zhiyun_test',
   ])
-    expect(assertTestDatabase(url).pathname).toEndWith('_test');
-  expect(assertTestDatabase('postgres://localhost/zhiyun_123_e2e_test', 'e2e').pathname).toEndWith(
-    '_e2e_test',
-  );
+    expect(assertTestDatabase(url).pathname.endsWith('_test')).toBe(true);
+  expect(
+    assertTestDatabase('postgres://localhost/zhiyun_123_e2e_test', 'e2e').pathname.endsWith(
+      '_e2e_test',
+    ),
+  ).toBe(true);
   for (const url of [
     'postgres://localhost/zhiyun_cloud',
     'postgres://localhost/postgres',
@@ -58,7 +61,12 @@ test('destructive database targets require local hosts, exact suffixes and safe 
 });
 
 test('safe port preflight refuses an occupied port and leaves its listener alive', async () => {
-  const server = createServer((socket) => socket.end('still alive'));
+  const server = createServer((socket) => {
+    // The preflight probe aborts the connection on purpose; the reset must not
+    // surface as an unhandled socket error.
+    socket.on('error', () => undefined);
+    socket.end('still alive');
+  });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Test listener unavailable');
@@ -76,16 +84,16 @@ test('safe port preflight refuses an occupied port and leaves its listener alive
 });
 
 test('E2E seed rejects a development database before trying any connection', async () => {
-  const child = Bun.spawn(['bun', '--no-env-file', 'platform/tooling/scripts/seed-e2e.ts'], {
-    cwd: resolve(import.meta.dir, '../../..'),
+  const child = spawnSync('pnpm', ['exec', 'tsx', 'platform/tooling/scripts/seed-e2e.ts'], {
+    cwd: resolve(import.meta.dirname, '../../..'),
     env: {
       ...testEnvironment(process.env),
       CLOUD_DATABASE_URL: 'postgres://fixture:fixture@127.0.0.1:1/zhiyun_cloud',
     },
-    stdout: 'pipe',
-    stderr: 'pipe',
+    encoding: 'utf8',
   });
-  const [code, output] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+  const code = child.status;
+  const output = child.stderr ?? '';
   expect(code).not.toBe(0);
   expect(output).toContain('Test database must be a local PostgreSQL *_e2e_test database');
   expect(output).not.toContain('ECONNREFUSED');

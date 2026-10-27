@@ -13,15 +13,15 @@ jobs:
         with: { submodules: recursive }
       - uses: actions/setup-node@v4
         with: { node-version: '24' }
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 1.4.0 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.22.0 }
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: python -m pip install uv==0.11.14
-      - run: bun install --frozen-lockfile
-      - run: bun run worker:sync
-      - run: bun run browser:install
-      - run: bun run release:verify
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run worker:sync
+      - run: pnpm run browser:install
+      - run: pnpm run release:verify
 
   signed-installers:
     needs: release-verify
@@ -41,16 +41,16 @@ jobs:
         with: { submodules: recursive }
       - uses: actions/setup-node@v4
         with: { node-version: '24' }
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 1.4.0 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.22.0 }
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: python -m pip install uv==0.11.14
-      - run: bun install --frozen-lockfile
-      - run: bun run dependency:audit
-      - run: bun run worker:sync
-      - run: bun run worker:build
-      - run: bun run worker:smoke
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run dependency:audit
+      - run: pnpm run worker:sync
+      - run: pnpm run worker:build
+      - run: pnpm run worker:smoke
       - name: Require macOS signing and notarization credentials
         if: runner.os == 'macOS'
         shell: bash
@@ -75,11 +75,11 @@ jobs:
           test -n "$WINDOWS_CERTIFICATE_PASSWORD"
           printf '%s' "$WINDOWS_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/zhiyun-signing.pfx"
           echo "WINDOWS_CERTIFICATE_FILE=$RUNNER_TEMP/zhiyun-signing.pfx" >> "$GITHUB_ENV"
-      - run: bun run desktop:browser
-      - run: bun run desktop:test
-      - run: bun run desktop:package -- --arch=${{ matrix.arch }}
-      - run: bun run --filter @zhiyun/desktop test:packaged
-      - run: bun run desktop:make -- --arch=${{ matrix.arch }}
+      - run: pnpm run desktop:browser
+      - run: pnpm run desktop:test
+      - run: pnpm run desktop:package -- --arch=${{ matrix.arch }}
+      - run: pnpm --filter @zhiyun/desktop test:packaged
+      - run: pnpm run desktop:make -- --arch=${{ matrix.arch }}
         env:
           MAC_CODESIGN_IDENTITY: ${{ secrets.MAC_CODESIGN_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}

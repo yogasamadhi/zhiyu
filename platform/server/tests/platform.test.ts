@@ -1,10 +1,11 @@
-import { beforeAll, afterAll, beforeEach, test, expect } from 'bun:test';
+import { beforeAll, afterAll, beforeEach, test, expect } from 'vitest';
 import { createApp } from '../src/app.js';
 import { readConfig } from '../src/config.js';
 import { migrate } from '../src/migrate.js';
 import { database } from '../src/db.js';
 import { calendarMonth } from '../src/billing.js';
 import { encrypt, secret, hash, decrypt } from '../src/security.js';
+import { hashPassword } from '../src/password.js';
 import * as OTPAuth from 'otpauth';
 import type { Principal } from '../src/auth.js';
 import { assertTestDatabase } from '../../../tooling/scripts/test-environment.js';
@@ -336,7 +337,7 @@ test('CSRF, ownership and user/staff identity boundaries', async () => {
 });
 test('staff TOTP mandatory, replay rejected, encrypted seed reversible', async () => {
   const seed = new OTPAuth.Secret({ size: 20 }),
-    passwordHash = await Bun.password.hash('staff-test-password');
+    passwordHash = await hashPassword('staff-test-password');
   await db.sql`insert into cloud_staff(email,password_hash,mfa_secret,role) values ('staff@example.com',${passwordHash},${encrypt(seed.base32, config.CLOUD_MFA_KEY)},'owner')`;
   expect(decrypt(encrypt(seed.base32, config.CLOUD_MFA_KEY), config.CLOUD_MFA_KEY)).toBe(
     seed.base32,

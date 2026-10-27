@@ -57,7 +57,7 @@ platform/
     src/worker.ts          云端后台任务进程
     src/schema.ts          完整 Drizzle 表结构
     migrations/            经审阅的 SQL 迁移
-    tests/                 Bun + 真实 PostgreSQL 集成测试
+    tests/                 Node.js + 真实 PostgreSQL 集成测试
   packages/
     cloud-contracts/       Zod 输入、公开 DTO、OpenAPI 文件
     cloud-client/          OpenAPI 生成类型、公开 HTTP 客户端
@@ -94,7 +94,7 @@ Portal 的同源代理只转发选定请求头，屏蔽 `/admin`；Next.js 不�
 - 身份验证前不会绑定到现有用户，更不会根据相同邮箱或手机号自动合并账户。
 - 挑战随机 6 位、10 分钟有效、最多 5 次尝试、每身份每小时最多 6 次签发。失败次数独立提交，不能因事务回滚清零。
 - 验证码摘要、使用时间和尝试次数在 PostgreSQL；开发测试收件箱保存短期测试码，Worker 清理到期记录。
-- 密码使用 Bun Argon2id；新密码最少 12 位；重置密码撤销原用户会话。
+- 密码使用 Node.js Argon2id；新密码最少 12 位；重置密码撤销原用户会话。
 - 普通浏览器会话有效期 24 小时；会话令牌仅保存摘要，用户可撤销单个会话。
 - 阿里云短信、SMTP 发送适配器默认关闭。真实凭据完全由服务器环境注入，未进行真实发送验收。
 

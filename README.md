@@ -45,26 +45,26 @@ Python Worker 不访问产品数据库、不持有产品凭据、不接受任意
 
 ## 桌面开发
 
-开发环境需要 Bun 1.4、Node.js 24、Python 3.12 与 uv；最终 Desktop 安装包不要求用户安装 Bun、Node、Python、uv、Docker、PostgreSQL 或 Redis。
+开发环境需要 pnpm 11、Node.js 24、Python 3.12 与 uv；最终 Desktop 安装包不要求用户安装 pnpm、Node、Python、uv、Docker、PostgreSQL 或 Redis。
 
 ```bash
-bun install
-bun run desktop:browser
-bun run-desktop.ts
+pnpm install
+pnpm run desktop:browser
+pnpm run dev
 ```
 
-`run-desktop.ts`（也可用 `bun run dev` / `bun run desktop:dev`）检查 Bun 依赖、同步 Python 环境并构建桌面应用，随后启动 Electron、Renderer 和本地测试站点。使用 `--skip-install` 可跳过依赖同步。`FIXTURE_PORT`、`DESKTOP_RENDERER_PORT` 可指定端口；退出启动器会停止该次启动的整个进程树。
+`run_desktop.py`（也可用 `pnpm run dev` / `pnpm run desktop:dev`）检查 pnpm 依赖、同步 Python 环境并构建桌面应用，随后启动 Electron、Renderer 和本地测试站点。使用 `--skip-install` 可跳过依赖同步。`FIXTURE_PORT`、`DESKTOP_RENDERER_PORT` 可指定端口；退出启动器会停止该次启动的整个进程树。
 
 常用命令：
 
 ```bash
-bun run desktop:build
-bun run desktop:test
-bun run worker:build
-bun run worker:smoke
-bun run desktop:package
-bun run test:smoke:desktop-package
-bun run desktop:make
+pnpm run desktop:build
+pnpm run desktop:test
+pnpm run worker:build
+pnpm run worker:smoke
+pnpm run desktop:package
+pnpm run test:smoke:desktop-package
+pnpm run desktop:make
 ```
 
 Desktop 启动顺序是 Host Capability Server → Analytics Worker Supervisor → Core Runtime Supervisor → Renderer。Worker onedir 位于安装资源的 `analytics-worker/{platform}-{arch}`，Chromium 位于 ASAR 外的 Playwright 资源目录。
@@ -76,13 +76,13 @@ Desktop 启动顺序是 Host Capability Server → Analytics Worker Supervisor �
 
 ## 官网、管理后台与云端开发
 
-产品代码按运行边界分为两组：`desktop/` 是 Electron 桌面软件及其本地运行时，`platform/portal` 是 Next.js 官网与账户中心，`platform/admin` 是 React 管理后台，`platform/server` 是 Bun/Hono 商业服务及 Worker。
+产品代码按运行边界分为两组：`desktop/` 是 Electron 桌面软件及其本地运行时，`platform/portal` 是 Next.js 官网与账户中心，`platform/admin` 是 React 管理后台，`platform/server` 是 Node.js/Hono 商业服务及 Worker。
 
 ```bash
-bun run-platform.ts --infra
+pnpm run platform:dev -- --infra
 ```
 
-`--infra` 先通过 Docker Compose 启动本地 PostgreSQL 和 Redis。基础设施已就绪时直接执行 `bun run-platform.ts`（也可用 `bun run platform:dev` / `bun run cloud:dev`）。启动器检查 Bun 依赖、应用数据库迁移，按顺序启动 Server API、云端后台任务、Portal 和 Admin；`--skip-install`、`--skip-migrate` 分别跳过依赖检查和迁移。
+`--infra` 先通过 Docker Compose 启动本地 PostgreSQL 和 Redis。基础设施已就绪时直接执行 `pnpm run platform:dev`（也可用 `pnpm run cloud:dev`）。启动器检查 pnpm 依赖、应用数据库迁移，按顺序启动 Server API、云端后台任务、Portal 和 Admin；`--skip-install`、`--skip-migrate` 分别跳过依赖检查和迁移。
 
 两个入口均支持 `--help`，从脚本位置定位仓库，并读取根目录的环境文件；终端环境变量优先。平台启动前会停止占用 Server、Portal、Admin 目标端口的进程，然后使用配置的固定端口，并同步默认代理地址和登录 Origin。Ctrl+C 会停止本次启动的 Server、Worker、Portal、Admin 及其子进程；Docker 数据库保持运行。桌面入口仍会在默认端口占用时选择邻近可用端口。
 
@@ -116,27 +116,27 @@ Desktop Renderer 不具备长期凭据、数据库、Python Client 或业务 IPC
 ## 验证
 
 ```bash
-bun run lint
-bun run format:check
-bun run architecture:deps
-bun run architecture:check
-bun run client:check
-bun run worker:client:check
-bun run typecheck
-bun run test
-bun run worker:test
-bun run build
-bun run dependency:audit
-bun run compliance:licenses
-bun run test:e2e:cloud
-bun run test:e2e:desktop
-bun run test:smoke:desktop-package
-bun run release:verify
+pnpm run lint
+pnpm run format:check
+pnpm run architecture:deps
+pnpm run architecture:check
+pnpm run client:check
+pnpm run worker:client:check
+pnpm run typecheck
+pnpm run test
+pnpm run worker:test
+pnpm run build
+pnpm run dependency:audit
+pnpm run compliance:licenses
+pnpm run test:e2e:cloud
+pnpm run test:e2e:desktop
+pnpm run test:smoke:desktop-package
+pnpm run release:verify
 ```
 
 ## 工作区
 
-桌面与商业平台代码按运行位置聚合，根目录只保留两个产品域、文档与通用工程文件：
+桌面与商业平台代码按运行位置聚合，根目录保留两个产品域、第三方源码、文档与通用工程文件：
 
 ```text
 desktop/                 Electron 应用根目录
@@ -146,19 +146,22 @@ desktop/                 Electron 应用根目录
 platform/
   portal/                 Next.js 官网与账户中心
   admin/                  React 管理后台
-  server/                 Bun/Hono 商业 API、后台任务与数据库迁移
+  server/                 Node.js/Hono 商业 API、后台任务与数据库迁移
   packages/               cloud-contracts、cloud-client、cloud-ui
   deploy/                 容器、HTTPS 路由和环境示例
   tooling/                契约、E2E 种子、备份恢复脚本
+vendor/                   Pi 与 DeepSeek Harness 上游 Git 子模块
 docs/                     架构、产品、技术决策和验收记录
 tooling/                  两端共用的开发进程管理与许可证脚本
-run-desktop.ts            Desktop 开发启动器
-run-platform.ts           Platform 开发启动器
+  scripts/                TypeScript 工具（打包、lint、许可证）
+  python/                 根启动器的 Python 支撑模块
+run_desktop.py            Desktop 开发启动器（Python）
+run_platform.py           Platform 开发启动器（Python）
 ```
 
 `node_modules/` 是安装依赖；`.data/` 保存开发数据及迁出的旧数据，`.artifacts/` 保存日志、截图、测试报告和许可证清单。各应用自己的 `dist/`、`.next/`、`out/` 继续位于应用内部。目录说明见 [仓库布局](docs/architecture/REPOSITORY_LAYOUT.md)。
 
-Desktop 在 `desktop/tooling/dependencies/vendor/` 中通过 Git submodule 保留 Pi 和 DeepSeek Harness 上游源码，提交由父仓库固定。克隆时使用 `git clone --recurse-submodules`，已有 checkout 执行 `git submodule update --init --recursive`。初始化、更新和工程边界见 [Vendor 说明](desktop/tooling/dependencies/vendor/README.md)。
+Desktop 在 `vendor/` 中通过 Git submodule 保留 Pi 和 DeepSeek Harness 上游源码，提交由父仓库固定。克隆时使用 `git clone --recurse-submodules`，已有 checkout 执行 `git submodule update --init --recursive`。初始化、更新和工程边界见 [Vendor 说明](vendor/README.md)。
 
 1.0 不建设 Level 3 Extension Host、第三方插件/SDK/Marketplace、热加载、独立 Analytics 微服务、Celery/Kafka/NATS、向量数据库、Embedding 或 RAG。
 

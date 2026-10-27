@@ -22,5 +22,5 @@
 .artifacts
 .data
 storage
-desktop/tooling/dependencies/vendor/pi
-desktop/tooling/dependencies/vendor/deepseek-harness
+vendor/pi
+vendor/deepseek-harness

@@ -148,7 +148,7 @@ Desktop 测试沿用 `desktop/tooling/scripts/test-isolated.ts` 的临时数据�
 
 **依据**：[Next.js 安全公告](https://github.com/vercel/next.js/security/advisories/GHSA-vcvr-r3jv-pc5j)、[Fastify 安全公告](https://github.com/fastify/fastify/security/advisories/GHSA-p68q-wchp-6fh7)。未发现 `next/og` 或 `ImageResponse` 的使用，只能说明尚未观察到该触发路径，不能替代升级。
 
-**主要入口**：根与各工作区 `package.json`、`bun.lock`、Worker `pyproject.toml` 与 `uv.lock`、`tooling/scripts/generate-node-licenses.ts`。
+**主要入口**：根与各工作区 `package.json`、`pnpm-lock.yaml`、Worker `pyproject.toml` 与 `uv.lock`、`tooling/scripts/generate-node-licenses.ts`。
 
 **验收条件**：原有审计命令通过，且没有新增 ignore、降低审计级别或隐藏公告；现有三项 ignore 的理由与适用范围逐项登记，能够移除时移除。类型、受影响测试和 Desktop/Cloud 构建通过；许可证清单与锁定依赖一致。网络审计不可用只记为未验证，不以离线推断代替通过。
 
@@ -270,8 +270,8 @@ Desktop 测试沿用 `desktop/tooling/scripts/test-isolated.ts` 的临时数据�
 Desktop 的业务测试优先使用隔离入口，例如：
 
 ```bash
-bun desktop/tooling/scripts/test-isolated.ts desktop/packages/crawler-runtime/test
-bun desktop/tooling/scripts/test-isolated.ts desktop/packages/runtime/test
+tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/crawler-runtime/test
+tsx desktop/tooling/scripts/test-isolated.ts desktop/packages/runtime/test
 ```
 
 性能测试必须确认实际收集到对应用例；存在 `test:performance` 脚本不表示已有本计划所需的 10 万条压力夹具。
@@ -281,21 +281,21 @@ bun desktop/tooling/scripts/test-isolated.ts desktop/packages/runtime/test
 以下命令从仓库根目录执行。已有 `release:verify` 可以汇总其中大部分检查，但它不包含 Cloud 数据库测试、E2E 与安装包冒烟，不能单独作为全部验收。
 
 ```bash
-bun run lint
-bun run worker:lint
-bun run format:check
-bun run architecture:deps
-bun run architecture:check
-bun run client:check
-bun run worker:client:check
-bun run cloud:contract:check
-bun run typecheck
-bun run cloud:check
-bun run test
-bun run worker:test
-bun run build
-bun run dependency:audit
-bun run compliance:licenses
+pnpm run lint
+pnpm run worker:lint
+pnpm run format:check
+pnpm run architecture:deps
+pnpm run architecture:check
+pnpm run client:check
+pnpm run worker:client:check
+pnpm run cloud:contract:check
+pnpm run typecheck
+pnpm run cloud:check
+pnpm run test
+pnpm run worker:test
+pnpm run build
+pnpm run dependency:audit
+pnpm run compliance:licenses
 git diff --check
 ```
 
@@ -306,12 +306,12 @@ git diff --check
 先由 OPT00 建立专属测试 PostgreSQL/Redis、空闲端口、临时桌面数据目录和显式 Mock 配置，再执行：
 
 ```bash
-bun run cloud:test
-bun run test:e2e:cloud
-bun run test:e2e:desktop
-bun run worker:build
-bun run worker:smoke
-bun run test:smoke:desktop-package
+pnpm run cloud:test
+pnpm run test:e2e:cloud
+pnpm run test:e2e:desktop
+pnpm run worker:build
+pnpm run worker:smoke
+pnpm run test:smoke:desktop-package
 ```
 
 这些命令不是可以对默认开发环境直接复制的无条件操作。执行者须把 Cloud 测试与 E2E 的连接变量都指向本轮专属 `_test` 数据库；核对 `CLOUD_E2E_DATABASE_URL`、测试文件读取的数据库变量、Redis 与启动器的实际地址。Mock 配置必须明确，不能从真实 `.env` 继承 Provider 或消息通道。

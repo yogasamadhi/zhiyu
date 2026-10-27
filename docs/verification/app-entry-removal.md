@@ -38,24 +38,24 @@ Server 在后续整理中迁入 `platform/server/`，本地 Python 进程迁入 
 
 环境：macOS 26.6.2 arm64、Bun 1.4.0、Node 24，使用本地隔离数据库与临时桌面配置。
 
-| 命令                                                      | 结果                                                       |
-| --------------------------------------------------------- | ---------------------------------------------------------- |
-| `bun install --frozen-lockfile`                           | 通过；旧应用和专用配置包已从工作区锁文件移除               |
-| `bun run test`                                            | **87 个文件、432 项通过**                                  |
-| `bun run test:integration`                                | **5 个文件、24 项通过**；属于上行的子集                    |
-| `bun run desktop:test`                                    | **11 项通过**，包含迁入的 3 项场景                         |
-| `bun run cloud:test`                                      | **25 项通过，93 个断言**，真实 PostgreSQL                  |
-| `bun run cloud:build`                                     | Server、Portal、Admin 构建通过                             |
-| `bun run cloud:e2e`                                       | **2 项浏览器测试通过**；默认跳过打包桌面专项，专项另行执行 |
-| `bun run desktop:package`                                 | macOS arm64 `.app` 构建通过                                |
-| `bun run typecheck`、`bun run lint`                       | 全仓库通过                                                 |
-| `bun run client:check`、`bun run cloud:check`             | 本地与云端契约一致，云端类型检查通过                       |
-| `bun run architecture:deps`、`bun run architecture:check` | 无依赖违规，Catalog 一致；376 个模块、1074 条依赖          |
-| `bun run format:check`、`git diff --check`                | 通过                                                       |
+| 命令                                                        | 结果                                                       |
+| ----------------------------------------------------------- | ---------------------------------------------------------- |
+| `pnpm install --frozen-lockfile`                            | 通过；旧应用和专用配置包已从工作区锁文件移除               |
+| `pnpm run test`                                             | **87 个文件、432 项通过**                                  |
+| `pnpm run test:integration`                                 | **5 个文件、24 项通过**；属于上行的子集                    |
+| `pnpm run desktop:test`                                     | **11 项通过**，包含迁入的 3 项场景                         |
+| `pnpm run cloud:test`                                       | **25 项通过，93 个断言**，真实 PostgreSQL                  |
+| `pnpm run cloud:build`                                      | Server、Portal、Admin 构建通过                             |
+| `pnpm run cloud:e2e`                                        | **2 项浏览器测试通过**；默认跳过打包桌面专项，专项另行执行 |
+| `pnpm run desktop:package`                                  | macOS arm64 `.app` 构建通过                                |
+| `pnpm run typecheck`、`pnpm run lint`                       | 全仓库通过                                                 |
+| `pnpm run client:check`、`pnpm run cloud:check`             | 本地与云端契约一致，云端类型检查通过                       |
+| `pnpm run architecture:deps`、`pnpm run architecture:check` | 无依赖违规，Catalog 一致；376 个模块、1074 条依赖          |
+| `pnpm run format:check`、`git diff --check`                 | 通过                                                       |
 
 打包后另行执行两项验证，均使用本次重新生成的 `.app`：
 
-- `bun run --filter @zhiyun/desktop test:packaged`：**1 项通过**，安装目录内完成动态采集与分析。
-- `CLOUD_DESKTOP_E2E=true bun run cloud:e2e desktop-commercial.spec.ts`：**1 项通过**，完成 PKCE 登录、模拟购买、托管助手、BYOK 切换、设备解绑与退出；此项单独执行，未将默认跳过算作通过。
+- `pnpm run --filter @zhiyun/desktop test:packaged`：**1 项通过**，安装目录内完成动态采集与分析。
+- `CLOUD_DESKTOP_E2E=true pnpm run cloud:e2e desktop-commercial.spec.ts`：**1 项通过**，完成 PKCE 登录、模拟购买、托管助手、BYOK 切换、设备解绑与退出；此项单独执行，未将默认跳过算作通过。
 
 测试日志保留在忽略提交的 `.artifacts/app-entry-removal/`，不将历史运行结果当作本次通过的证据。GitHub 工作流仅完成本地配置检查，本轮未推送触发远程 CI；Windows/macOS x64 打包不在本机验证范围。未执行公网部署或真实外部支付/消息/模型联调。

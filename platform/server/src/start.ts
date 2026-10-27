@@ -1,14 +1,20 @@
+import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
 const cloud = createApp();
-const server = Bun.serve({
-  port: cloud.config.CLOUD_PORT,
-  hostname: '0.0.0.0',
-  fetch: cloud.app.fetch,
-  idleTimeout: 120,
-});
-console.info(`Cloud API listening on http://localhost:${server.port}`);
+const server = serve(
+  {
+    fetch: cloud.app.fetch,
+    port: cloud.config.CLOUD_PORT,
+    hostname: '0.0.0.0',
+  },
+  (info) => {
+    console.info(`Cloud API listening on http://localhost:${info.port}`);
+  },
+);
 async function stop() {
-  await server.stop();
+  await new Promise<void>((done) => {
+    server.close(() => done());
+  });
   await cloud.close();
   process.exit(0);
 }

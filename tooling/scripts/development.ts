@@ -1,9 +1,17 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
 import { createConnection, createServer } from 'node:net';
-import { resolve } from 'node:path';
-import { parseEnv } from 'node:util';
+import { delimiter, resolve } from 'node:path';
+import { execFile, spawn } from 'node:child_process';
+import { parseEnv, promisify } from 'node:util';
 
-export const workspaceRoot = resolve(import.meta.dir, '../..');
+const execFileAsync = promisify(execFile);
+
+export const workspaceRoot = resolve(import.meta.dirname, '../..');
+
+export const sleep = (milliseconds: number): Promise<void> =>
+  new Promise((done) => {
+    setTimeout(done, milliseconds);
+  });
 
 export function readFlags(allowed: string[], help: string): Set<string> {
   const flags = new Set(process.argv.slice(2).filter((argument) => argument !== '--'));
@@ -33,8 +41,26 @@ export function developmentEnvironment(): NodeJS.ProcessEnv {
   return { ...environment, NODE_ENV: mode, ...process.env };
 }
 
+export function whichCommand(command: string): string | undefined {
+  const extensions =
+    process.platform === 'win32' ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT').split(';') : [''];
+  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
+    if (!directory) continue;
+    for (const extension of extensions) {
+      const candidate = resolve(directory, `${command}${extension}`);
+      try {
+        accessSync(candidate, constants.X_OK);
+        return candidate;
+      } catch {
+        continue;
+      }
+    }
+  }
+  return undefined;
+}
+
 export function requireCommand(command: string): void {
-  if (!Bun.which(command)) throw new Error(`缺少 ${command}，请安装后重试。`);
+  if (!whichCommand(command)) throw new Error(`缺少 ${command}，请安装后重试。`);
 }
 
 function acceptsConnections(host: string, port: number): Promise<boolean> {
@@ -80,25 +106,23 @@ interface PortOwner {
 }
 
 async function commandOutput(command: string[]): Promise<{ stdout: string; exitCode: number }> {
-  const child = Bun.spawn(command, {
-    cwd: workspaceRoot,
-    env: process.env,
-    stdin: 'ignore',
-    stdout: 'pipe',
-    stderr: 'pipe',
-  });
-  const [stdout, , exitCode] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
-  return { stdout, exitCode };
+  try {
+    const { stdout } = await execFileAsync(command[0]!, command.slice(1), {
+      cwd: workspaceRoot,
+      env: process.env,
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    return { stdout, exitCode: 0 };
+  } catch (error) {
+    const failure = error as { stdout?: string; stderr?: string; code?: number };
+    return { stdout: failure.stdout ?? '', exitCode: failure.code ?? 1 };
+  }
 }
 
 async function listeningProcesses(port: number): Promise<number[]> {
   let result: { stdout: string; exitCode: number };
   if (process.platform === 'win32') {
-    const powershell = Bun.which('powershell.exe') ?? Bun.which('pwsh.exe');
+    const powershell = whichCommand('powershell.exe') ?? whichCommand('pwsh.exe');
     if (!powershell) throw new Error(`端口 ${port} 已占用，但找不到 PowerShell 来定位进程。`);
     result = await commandOutput([
       powershell,
@@ -108,11 +132,11 @@ async function listeningProcesses(port: number): Promise<number[]> {
       `Get-NetTCPConnection -State Listen -LocalPort ${port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique`,
     ]);
   } else {
-    const lsof = Bun.which('lsof');
+    const lsof = whichCommand('lsof');
     if (lsof) {
       result = await commandOutput([lsof, '-nP', '-t', '-a', `-iTCP:${port}`, '-sTCP:LISTEN']);
     } else {
-      const fuser = Bun.which('fuser');
+      const fuser = whichCommand('fuser');
       if (!fuser) throw new Error(`端口 ${port} 已占用，但找不到 lsof 或 fuser 来定位进程。`);
       result = await commandOutput([fuser, '-n', 'tcp', String(port)]);
     }
@@ -179,7 +203,7 @@ async function waitForFreePort(port: number, timeoutMs: number): Promise<boolean
     } else {
       freeSince = undefined;
     }
-    await Bun.sleep(100);
+    await sleep(100);
   }
   return false;
 }
@@ -234,8 +258,10 @@ interface Service {
   allowCleanExit?: boolean;
 }
 
+type ManagedChild = ReturnType<typeof spawn>;
+
 export class DevelopmentProcesses {
-  private children = new Set<ReturnType<typeof Bun.spawn>>();
+  private children = new Set<ManagedChild>();
   private shutdownPromise: Promise<never> | undefined;
 
   constructor(private readonly environment: NodeJS.ProcessEnv) {
@@ -248,16 +274,10 @@ export class DevelopmentProcesses {
   private spawn(service: Service) {
     if (this.shutdownPromise) throw new Error('启动器正在停止。');
     console.log(`→ ${service.name}`);
-    const command =
-      this.environment.NODE_ENV === 'test' && service.command[0] === 'bun'
-        ? ['bun', '--no-env-file', ...service.command.slice(1)]
-        : service.command;
-    const child = Bun.spawn(command, {
+    const child = spawn(service.command[0]!, service.command.slice(1), {
       cwd: service.cwd ?? workspaceRoot,
-      env: { ...this.environment, BUN_FEATURE_FLAG_NO_ORPHANS: '1' },
-      stdin: 'inherit',
-      stdout: 'inherit',
-      stderr: 'inherit',
+      env: { ...this.environment },
+      stdio: 'inherit',
       // Own process groups include watch/build grandchildren, never unrelated services.
       detached: true,
       windowsHide: true,
@@ -266,16 +286,22 @@ export class DevelopmentProcesses {
     return child;
   }
 
+  private exited(child: ManagedChild): Promise<number> {
+    return new Promise((done) => {
+      child.once('exit', (code) => done(code ?? 0));
+    });
+  }
+
   async step(name: string, command: string[], cwd = workspaceRoot): Promise<void> {
     const child = this.spawn({ name, command, cwd });
-    const exitCode = await child.exited;
+    const exitCode = await this.exited(child);
     if (exitCode !== 0) throw new Error(`${name}失败，退出码 ${exitCode}。`);
     this.children.delete(child);
   }
 
   start(service: Service): void {
     const child = this.spawn(service);
-    void child.exited.then((exitCode) => {
+    void this.exited(child).then((exitCode) => {
       if (this.shutdownPromise) return;
       const expected = service.allowCleanExit && exitCode === 0;
       if (!expected) console.error(`${service.name} 意外退出，退出码 ${exitCode}。`);
@@ -295,25 +321,26 @@ export class DevelopmentProcesses {
       } catch {
         // A listening socket does not imply that the application has finished starting.
       }
-      await Bun.sleep(300);
+      await sleep(300);
     }
     if (this.shutdownPromise) await this.shutdownPromise;
     throw new Error(`${name} 未在 ${timeoutMs / 1000} 秒内就绪：${url}`);
   }
 
-  private async signal(child: ReturnType<typeof Bun.spawn>, signal: NodeJS.Signals) {
+  private async signal(child: ManagedChild, signal: NodeJS.Signals) {
     try {
       if (process.platform === 'win32') {
         if (child.exitCode === null)
-          await Bun.spawn(
-            ['taskkill', '/PID', String(child.pid), '/T', ...(signal === 'SIGKILL' ? ['/F'] : [])],
-            {
-              stdout: 'ignore',
-              stderr: 'ignore',
-            },
-          ).exited;
+          await new Promise<void>((done) => {
+            const killer = spawn(
+              'taskkill',
+              ['/PID', String(child.pid), '/T', ...(signal === 'SIGKILL' ? ['/F'] : [])],
+              { stdio: 'ignore' },
+            );
+            killer.once('exit', () => done());
+          });
       } else {
-        process.kill(-child.pid, signal);
+        process.kill(-child.pid!, signal);
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ESRCH')
@@ -321,10 +348,10 @@ export class DevelopmentProcesses {
     }
   }
 
-  private processTreeAlive(child: ReturnType<typeof Bun.spawn>): boolean {
+  private processTreeAlive(child: ManagedChild): boolean {
     if (process.platform === 'win32') return child.exitCode === null;
     try {
-      process.kill(-child.pid, 0);
+      process.kill(-child.pid!, 0);
       return true;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false;
@@ -332,14 +359,11 @@ export class DevelopmentProcesses {
     }
   }
 
-  private async waitForProcessTrees(
-    children: Array<ReturnType<typeof Bun.spawn>>,
-    timeoutMs: number,
-  ): Promise<boolean> {
+  private async waitForProcessTrees(children: ManagedChild[], timeoutMs: number): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       if (children.every((child) => !this.processTreeAlive(child))) return true;
-      await Bun.sleep(100);
+      await sleep(100);
     }
     return children.every((child) => !this.processTreeAlive(child));
   }

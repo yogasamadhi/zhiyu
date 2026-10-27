@@ -124,6 +124,12 @@ export interface RuntimeBridge {
   onBootstrapChanged(listener: (bootstrap: RuntimeBootstrap) => void): () => void;
 }
 
+/** Alternate authenticated carrier for embedded hosts; HTTP remains the default. */
+export interface ProductTransport {
+  fetch(path: string, init?: RequestInit): Promise<Response>;
+  saveArtifact?(artifact: { id: string; filename: string }): Promise<void>;
+}
+
 declare global {
   interface Window {
     zhiyunRuntime?: RuntimeBridge;
@@ -403,6 +409,7 @@ function isMutation(method: string): boolean {
 }
 
 export class ZhiYunClient {
+  private transport: ProductTransport | undefined;
   private bootstrap: RuntimeBootstrap = defaultBootstrap();
   private token: string | undefined;
   private connectPromise: Promise<void> | undefined;
@@ -424,6 +431,28 @@ export class ZhiYunClient {
     if (bridge) {
       bridge.onBootstrapChanged((bootstrap) => this.setBootstrap(bootstrap));
     }
+  }
+
+  setTransport(transport: ProductTransport | undefined): void {
+    this.controller.abort('Product transport changed');
+    this.controller = new AbortController();
+    this.transport = transport;
+    this.token = undefined;
+    this.connectPromise = undefined;
+    this.authenticationMode = undefined;
+    this.etags.clear();
+    this.eventCursor = 0;
+    this.eventLoop = undefined;
+    this.realtimeLoop = undefined;
+    for (const listener of this.runtimeResetListeners) listener();
+    if (transport && this.domainListeners.size) void this.startDomainEvents();
+    if (transport && this.realtimeListeners.size) void this.startRealtimeEvents();
+  }
+
+  private fetchProduct(path: string, init?: RequestInit): Promise<Response> {
+    return this.transport
+      ? this.transport.fetch(path, init)
+      : fetch(`${this.bootstrap.baseUrl}${path}`, init);
   }
 
   onConnectionState(listener: ConnectionListener): () => void {
@@ -497,8 +526,22 @@ export class ZhiYunClient {
   async connect(): Promise<void> {
     if (this.token || this.authenticationMode === 'workspace-cookie') return;
     if (this.connectPromise) return this.connectPromise;
+    const controller = this.controller;
     this.connectPromise = (async () => {
       this.emitConnection({ status: 'connecting' });
+      if (this.transport) {
+        const response = await this.transport.fetch('/api/v2/runtime', {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw await this.toError(response);
+        const metadata = (await response.json()) as RuntimeMetadata;
+        controller.signal.throwIfAborted();
+        this.token = 'host-managed';
+        this.authenticationMode = 'runtime-token';
+        this.mode = 'headless';
+        this.emitConnection({ status: 'connected', metadata });
+        return;
+      }
       if (this.bridge) this.bootstrap = await this.bridge.getBootstrap();
       const sessionCredentials: RequestCredentials = this.bridge ? 'omit' : 'include';
       let response = await fetch(`${this.bootstrap.baseUrl}/api/v2/session`, {
@@ -510,7 +553,7 @@ export class ZhiYunClient {
             ? { adminToken: this.adminToken }
             : { nonce: this.bootstrap.sessionNonce },
         ),
-        signal: this.controller.signal,
+        signal: controller.signal,
       });
       if (response.status === 401 && !this.bridge && typeof window !== 'undefined') {
         const entered = window.prompt('请输入 ZhiYun 管理员 Token');
@@ -521,7 +564,7 @@ export class ZhiYunClient {
             headers: { 'content-type': 'application/json' },
             credentials: sessionCredentials,
             body: JSON.stringify({ adminToken: entered }),
-            signal: this.controller.signal,
+            signal: controller.signal,
           });
         }
       }
@@ -548,6 +591,7 @@ export class ZhiYunClient {
       this.mode = result.runtime.mode;
       this.emitConnection({ status: 'connected', metadata: result.runtime });
     })().catch((error) => {
+      if (controller !== this.controller) throw error;
       this.connectPromise = undefined;
       this.emitConnection({
         status: 'degraded',
@@ -559,7 +603,9 @@ export class ZhiYunClient {
   }
 
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const controller = this.controller;
     await this.connect();
+    controller.signal.throwIfAborted();
     const method = (init.method ?? 'GET').toUpperCase();
     const headers = new Headers(init.headers);
     if (this.authenticationMode === 'runtime-token') {
@@ -579,16 +625,15 @@ export class ZhiYunClient {
         this.etags.get(resourcePath) ?? (taskPath ? this.etags.get(taskPath) : undefined);
       if (etag && !headers.has('if-match')) headers.set('if-match', etag);
     }
-    const response = await fetch(`${this.bootstrap.baseUrl}${path}`, {
+    const response = await this.fetchProduct(path, {
       ...init,
       method,
       headers,
       credentials: this.requestCredentials(),
       cache: 'no-store',
-      signal: init.signal
-        ? AbortSignal.any([this.controller.signal, init.signal])
-        : this.controller.signal,
+      signal: init.signal ? AbortSignal.any([controller.signal, init.signal]) : controller.signal,
     });
+    controller.signal.throwIfAborted();
     if (!response.ok) {
       this.clearWorkspaceSessionIfUnauthorized(response);
       throw await this.toError(response);
@@ -2191,6 +2236,8 @@ export class ZhiYunClient {
     artifactRef: string,
     artifact: Pick<ArtifactDescriptor, 'id' | 'filename'>,
   ): Promise<void> {
+    if (this.transport?.saveArtifact)
+      return this.transport.saveArtifact({ id: artifactRef, filename: artifact.filename });
     if (this.mode === 'desktop') {
       await this.request(`/api/v2/artifacts/${artifactRef}/save`, { method: 'POST' });
     } else {
@@ -2202,14 +2249,11 @@ export class ZhiYunClient {
     artifact: Pick<ArtifactDescriptor, 'id' | 'filename'>,
   ): Promise<void> {
     await this.connect();
-    const response = await fetch(
-      `${this.bootstrap.baseUrl}/api/v2/artifacts/${artifact.id}/content`,
-      {
-        headers: this.authenticationHeaders(),
-        credentials: this.requestCredentials(),
-        signal: this.controller.signal,
-      },
-    );
+    const response = await this.fetchProduct(`/api/v2/artifacts/${artifact.id}/content`, {
+      headers: this.authenticationHeaders(),
+      credentials: this.requestCredentials(),
+      signal: this.controller.signal,
+    });
     if (!response.ok) {
       this.clearWorkspaceSessionIfUnauthorized(response);
       throw await this.toError(response);
@@ -2248,17 +2292,19 @@ export class ZhiYunClient {
 
   private async startDomainEvents(): Promise<void> {
     if (this.eventLoop) return this.eventLoop;
+    const controller = this.controller;
     this.eventLoop = (async () => {
       let attempt = 0;
-      while (this.domainListeners.size > 0 && !this.controller.signal.aborted) {
+      while (this.domainListeners.size > 0 && !controller.signal.aborted) {
         try {
           await this.connect();
-          const response = await fetch(
-            `${this.bootstrap.baseUrl}/api/v2/events/domain?after=${this.eventCursor}`,
+          if (controller.signal.aborted) break;
+          const response = await this.fetchProduct(
+            `/api/v2/events/domain?after=${this.eventCursor}`,
             {
               headers: this.authenticationHeaders(),
               credentials: this.requestCredentials(),
-              signal: this.controller.signal,
+              signal: controller.signal,
             },
           );
           if (!response.ok || !response.body) {
@@ -2270,7 +2316,7 @@ export class ZhiYunClient {
           let buffer = '';
           while (true) {
             const { value, done } = await reader.read();
-            if (done) break;
+            if (done || controller.signal.aborted) break;
             buffer += value;
             let boundary = buffer.indexOf('\n\n');
             while (boundary >= 0) {
@@ -2289,28 +2335,30 @@ export class ZhiYunClient {
             }
           }
         } catch {
-          if (this.controller.signal.aborted) break;
+          if (controller.signal.aborted) break;
           attempt += 1;
           this.emitConnection({ status: 'reconnecting', attempt });
           await new Promise((resolve) => setTimeout(resolve, Math.min(8_000, 500 * 2 ** attempt)));
         }
       }
-      this.eventLoop = undefined;
+      if (controller === this.controller) this.eventLoop = undefined;
     })();
     return this.eventLoop;
   }
 
   private async startRealtimeEvents(): Promise<void> {
     if (this.realtimeLoop) return this.realtimeLoop;
+    const controller = this.controller;
     this.realtimeLoop = (async () => {
       let attempt = 0;
-      while (this.realtimeListeners.size > 0 && !this.controller.signal.aborted) {
+      while (this.realtimeListeners.size > 0 && !controller.signal.aborted) {
         try {
           await this.connect();
-          const response = await fetch(`${this.bootstrap.baseUrl}/api/v2/events/realtime`, {
+          if (controller.signal.aborted) break;
+          const response = await this.fetchProduct('/api/v2/events/realtime', {
             headers: this.authenticationHeaders(),
             credentials: this.requestCredentials(),
-            signal: this.controller.signal,
+            signal: controller.signal,
           });
           if (!response.ok || !response.body) {
             this.clearWorkspaceSessionIfUnauthorized(response);
@@ -2321,7 +2369,7 @@ export class ZhiYunClient {
           let buffer = '';
           while (true) {
             const { value, done } = await reader.read();
-            if (done) break;
+            if (done || controller.signal.aborted) break;
             buffer += value;
             let boundary = buffer.indexOf('\n\n');
             while (boundary >= 0) {
@@ -2339,12 +2387,12 @@ export class ZhiYunClient {
             }
           }
         } catch {
-          if (this.controller.signal.aborted) break;
+          if (controller.signal.aborted) break;
           attempt += 1;
           await new Promise((resolve) => setTimeout(resolve, Math.min(8_000, 500 * 2 ** attempt)));
         }
       }
-      this.realtimeLoop = undefined;
+      if (controller === this.controller) this.realtimeLoop = undefined;
     })();
     return this.realtimeLoop;
   }

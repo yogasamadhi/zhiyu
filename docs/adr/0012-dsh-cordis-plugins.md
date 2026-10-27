@@ -6,7 +6,7 @@ Accepted，取代 ADR 0007 中自研 Kernel 的实现选择。
 
 ## Decision
 
-直接使用 DSH 子模块固定提交 `5badb15009ae1756c3afe0ae0cef1faafc290ccc` 的八个 vendor workspace：cosmokit、schemastery、cordis、loader、include、group、timer、logger-console。不安装整个 DSH，不混用其他 Cordis 发行版，不迁入 DSH 业务插件、Agent 或插件市场。
+直接使用 DSH 子模块固定提交 `22ddee3792402c3e70ec5f86a63c3e3e895a2f60` 的八个 vendor workspace：cosmokit、schemastery、cordis、loader、include、group、timer、logger-console。不安装整个 DSH，不混用其他 Cordis 发行版，不迁入 DSH 业务插件、Agent 或插件市场。
 
 Runtime 和 Renderer 各自创建 Cordis Context 与 Loader。业务插件提供真实 apply/Service、Schemastery Config 和 inject；服务构造、HTTP/Job Handler 注册、后台工作和 disposer 由所属插件管理。宿主资源适配为内部 Cordis 插件，`buildLevel2Runtime()` 继续接受已有测试和进程适配器。
 

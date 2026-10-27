@@ -52,7 +52,7 @@ Level 2 大型封闭项目架构
 - Renderer 通过 HTTP / SSE 调用 Runtime，不使用业务 IPC；
 - Electron Main 只负责宿主能力、应用生命周期和进程监督；
 - Desktop 默认使用 SQLite，Headless 使用 PostgreSQL；
-- Runtime 可由 Electron `utilityProcess` 或 Bun Headless 独立启动；
+- Runtime 可由 Electron `utilityProcess` 或 Node.js Headless 独立启动；
 - Runtime 不依赖 Electron 才能运行；
 - Python、Playwright Browser 等外部进程不拥有产品业务状态。
 
@@ -463,7 +463,7 @@ Dataset Snapshot
 
 ### 10.1 TypeScript 侧
 
-- Bun Workspaces：安装、开发、构建、测试和 Headless Runtime；
+- pnpm Workspaces：安装、开发、构建、测试和 Headless Runtime；
 - TypeScript strict mode；
 - Electron + `utilityProcess`：Desktop Host 和独立 Runtime；
 - Fastify：Runtime Gateway；
@@ -736,7 +736,7 @@ Desktop 当前已经包含 Electron 和 Playwright Chromium，Python 科学计�
 - 删除 Python package 中的 tests、cache、开发元数据和未使用资源；
 - 各平台单独构建和签名，不发布通用跨平台 Worker；
 - Worker version、Python version 和 dependency lock 写入诊断信息；
-- 安装包在没有 Bun、Node、Python、uv、Docker、PostgreSQL 和 Redis 的干净机器上验收。
+- 安装包在没有 pnpm、Node、Python、uv、Docker、PostgreSQL 和 Redis 的干净机器上验收。
 
 ## 16. 明确不采用
 

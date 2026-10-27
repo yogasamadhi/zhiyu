@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -25,7 +26,7 @@ if (
   argument.some((value) => !value.startsWith('--output=') || !value.endsWith('.json'))
 )
   throw new Error(
-    'Usage: bun --no-env-file desktop/tooling/scripts/evaluate-rule-repair.ts [--output=path.json]',
+    'Usage: tsx desktop/tooling/scripts/evaluate-rule-repair.ts [--output=path.json]',
   );
 const output = resolve(
   root,
@@ -50,10 +51,11 @@ try {
   const sourceHashes = await sourceSnapshot();
   const rawReport = join(directory, 'vitest.json');
   const files = [...new Set(repairEvaluationCases.map((item) => item.file))];
-  const child = Bun.spawn(
+  const child = spawnSync(
+    'pnpm',
     [
-      'bun',
-      '--no-env-file',
+      'exec',
+      'tsx',
       'desktop/tooling/scripts/test-isolated.ts',
       ...files,
       '--reporter=default',
@@ -63,16 +65,13 @@ try {
     {
       cwd: root,
       env: testEnvironment(process.env),
-      stdin: 'inherit',
-      stdout: 'pipe',
-      stderr: 'pipe',
+      stdio: ['inherit', 'pipe', 'pipe'],
+      encoding: 'utf8',
     },
   );
-  const [exitCode, stdout, stderr] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-  ]);
+  const exitCode = child.status ?? 1;
+  const stdout = child.stdout ?? '';
+  const stderr = child.stderr ?? '';
   let raw: VitestReport | null = null;
   try {
     raw = JSON.parse(await readFile(rawReport, 'utf8')) as VitestReport;

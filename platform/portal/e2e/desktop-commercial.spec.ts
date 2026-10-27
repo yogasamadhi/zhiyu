@@ -11,7 +11,7 @@ test('packaged Electron PKCE login, simulated purchase, hosted assistant, BYOK a
 }) => {
   test.skip(
     process.env.CLOUD_DESKTOP_E2E !== 'true' || process.platform !== 'darwin',
-    'Run CLOUD_DESKTOP_E2E=true bun run cloud:e2e after desktop:package on macOS',
+    'Run CLOUD_DESKTOP_E2E=true pnpm run cloud:e2e after desktop:package on macOS',
   );
   test.setTimeout(120000);
   const root = resolve(import.meta.dirname, '../../..'),

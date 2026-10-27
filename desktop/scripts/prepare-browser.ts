@@ -1,14 +1,13 @@
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
-const desktopRoot = resolve(import.meta.dir, '..');
+const desktopRoot = resolve(import.meta.dirname, '..');
 const browserDirectory = resolve(desktopRoot, 'resources/playwright');
 await rm(browserDirectory, { recursive: true, force: true });
-const child = Bun.spawn(['bunx', 'playwright', 'install', 'chromium'], {
+const child = spawnSync('pnpm', ['exec', 'playwright', 'install', 'chromium'], {
   cwd: desktopRoot,
   env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: browserDirectory },
-  stdin: 'inherit',
-  stdout: 'inherit',
-  stderr: 'inherit',
+  stdio: 'inherit',
 });
-process.exit(await child.exited);
+process.exit(child.status ?? 1);

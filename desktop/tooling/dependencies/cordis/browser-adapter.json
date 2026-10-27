@@ -1,5 +1,5 @@
 {
-  "revision": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+  "revision": "22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
   "sha256": {
     "loader/src/config/utils.ts": "d85b8ac1693af4667e9c0395cd1d6b15ec28387073a81f0d00bd38d909a05f8e",
     "loader/src/internal.ts": "35a50d597fed58656a11e3c5294fdf99524ed8c106739b4fab522a288eefa877"

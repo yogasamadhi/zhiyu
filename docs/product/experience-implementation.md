@@ -34,9 +34,9 @@
 | 本机 Desktop 打包烟测                                            | macOS arm64 通过；启动打包目录内的 Electron、Chromium 和 PyInstaller Worker，采集 30 行、分析并保存 JSON、语料预览 20 行、完整构建并保存 30 行 JSONL |
 | 可访问性/尺寸                                                    | 360、768、1024、1440px；核心 8 个工作区及数据结果页没有整页横向溢出；axe WCAG 2A/AA/2.1AA；窄屏 Escape/焦点恢复、中英文切换、连接对话框焦点          |
 
-复跑入口：先启动 `docker compose up -d`，然后运行 `bun run release:verify`。该入口包括 lint、格式、类型、架构、客户端一致性、Python/TypeScript 测试、构建、依赖审计、许可证清单、Web/Desktop E2E 和本机打包烟测。需要安装仓库要求的 Bun、uv、浏览器与打包依赖；Web/API 测试脚本创建并清理独立临时数据库。若同时运行两端 E2E，可为 Web 设置 `E2E_FIXTURE_PORT=45101`，避免与 Desktop 固定的 45100 端口冲突。
+复跑入口：先启动 `docker compose up -d`，然后运行 `pnpm run release:verify`。该入口包括 lint、格式、类型、架构、客户端一致性、Python/TypeScript 测试、构建、依赖审计、许可证清单、Web/Desktop E2E 和本机打包烟测。需要安装仓库要求的 pnpm、uv、浏览器与打包依赖；Web/API 测试脚本创建并清理独立临时数据库。若同时运行两端 E2E，可为 Web 设置 `E2E_FIXTURE_PORT=45101`，避免与 Desktop 固定的 45100 端口冲突。
 
-无限滚动专项额外串行重复 3 次通过。复跑可使用 `E2E_FIXTURE_PORT=45101 bun desktop/tooling/scripts/test-isolated.ts --grep 'Infinite Scroll' --repeat-each=3 --workers=1`；这里固定单 Worker，避免多个重复用例同时初始化同一测试实例的管理员账号。
+无限滚动专项额外串行重复 3 次通过。复跑可使用 `E2E_FIXTURE_PORT=45101 tsx desktop/tooling/scripts/test-isolated.ts --grep 'Infinite Scroll' --repeat-each=3 --workers=1`；这里固定单 Worker，避免多个重复用例同时初始化同一测试实例的管理员账号。
 
 ## 在验证中修复的实际问题
 
@@ -50,7 +50,7 @@
 - 创建请求幂等重放返回旧草稿状态，导致再次创建时恢复已提交或已删除草稿；现在恢复前读取最新状态，并在提交后清理创建入口标识。
 - 无限滚动触发点已处于视口内时不再触发加载；现在先让触发点离开视口再滚动到底部，连续确认内容稳定后停止，并新增真实浏览器回归用例。
 - 运行结果已完成而任务状态尚未刷新时，详情偶尔停止轮询；现在同时依据任务和运行状态继续查询。
-- 开发启动器注入 `VITE_FIXTURE_URL` 后，任务编辑器和输出页把开发地址保留在生产包中，触发 Desktop 构建检查。两处现在使用编译期条件移除生产包中的开发配置；保留原构建检查。新增 2 项真实 Vite 构建测试覆盖默认和备用端口，与原有 2 项开发样例测试一并通过；UI/Desktop 类型检查、相关 lint/格式检查及当时的 `bun run.ts --skip-install` 实际启动通过。当前等价入口为 `bun run-desktop.ts --skip-install`。此补充回归不计入上表此前的 478 项全量测试结果。
+- 开发启动器注入 `VITE_FIXTURE_URL` 后，任务编辑器和输出页把开发地址保留在生产包中，触发 Desktop 构建检查。两处现在使用编译期条件移除生产包中的开发配置；保留原构建检查。新增 2 项真实 Vite 构建测试覆盖默认和备用端口，与原有 2 项开发样例测试一并通过；UI/Desktop 类型检查、相关 lint/格式检查及当时的 `bun run.ts --skip-install` 实际启动通过。当前等价入口为 `pnpm run dev --skip-install`。此补充回归不计入上表此前的 478 项全量测试结果。
 
 ## 验证边界与运行环境说明
 

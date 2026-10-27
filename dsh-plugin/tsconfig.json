@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "types": ["node"], "allowImportingTsExtensions": true },
+  "include": ["src/host/**/*.ts", "src/shared/**/*.ts"],
+  "exclude": ["node_modules", "lib"]
+}

@@ -1,51 +1,56 @@
 import { copyFile, mkdir, readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { build } from 'esbuild';
 
-const desktopRoot = resolve(import.meta.dir, '..');
+const desktopRoot = resolve(import.meta.dirname, '..');
 const workspaceRoot = resolve(desktopRoot, '..');
 
-async function run(command: string[], cwd = workspaceRoot): Promise<void> {
-  const child = Bun.spawn(command, { cwd, stdin: 'inherit', stdout: 'inherit', stderr: 'inherit' });
-  const exitCode = await child.exited;
-  if (exitCode !== 0) throw new Error(`${command.join(' ')} exited with ${exitCode}`);
+function run(command: string[], cwd = workspaceRoot): void {
+  const child = spawnSync(command[0]!, command.slice(1), {
+    cwd,
+    stdio: 'inherit',
+  });
+  if (child.status !== 0)
+    throw new Error(`${command.join(' ')} exited with ${child.status ?? 'unknown'}`);
 }
 
-await run(['bun', 'run', 'vendor:prepare']);
+run(['pnpm', 'run', 'vendor:prepare']);
 for (const workspace of ['@zhiyun/shared', '@zhiyun/contracts', '@zhiyun/client', '@zhiyun/ui']) {
-  await run(['bun', 'run', '--filter', workspace, 'build']);
+  run(['pnpm', '--filter', workspace, 'build']);
 }
-await run(['bun', 'run', '--filter', '@zhiyun/runtime', 'build']);
-const result = await Bun.build({
-  entrypoints: [resolve(desktopRoot, 'src/main.ts')],
+run(['pnpm', '--filter', '@zhiyun/runtime', 'build']);
+await build({
+  entryPoints: [resolve(desktopRoot, 'src/main.ts')],
   outdir: resolve(desktopRoot, 'dist'),
-  target: 'node',
+  platform: 'node',
   format: 'esm',
-  packages: 'bundle',
+  bundle: true,
   external: ['electron'],
   sourcemap: 'external',
+  logLevel: 'warning',
 });
-if (!result.success) throw new AggregateError(result.logs, 'Electron Main/Preload build failed');
-const preloadResult = await Bun.build({
-  entrypoints: [
-    resolve(desktopRoot, 'src/preload.ts'),
-    resolve(desktopRoot, 'src/credential-preload.ts'),
-  ],
+await build({
+  entryPoints: {
+    preload: resolve(desktopRoot, 'src/preload.ts'),
+    'credential-preload': resolve(desktopRoot, 'src/credential-preload.ts'),
+  },
   outdir: resolve(desktopRoot, 'dist'),
-  naming: '[name].cjs',
-  target: 'node',
+  entryNames: '[name]',
+  outExtension: { '.js': '.cjs' },
+  platform: 'node',
   format: 'cjs',
-  packages: 'bundle',
+  bundle: true,
   external: ['electron'],
   sourcemap: 'external',
+  logLevel: 'warning',
 });
-if (!preloadResult.success)
-  throw new AggregateError(preloadResult.logs, 'Electron Preload build failed');
 await mkdir(resolve(desktopRoot, 'dist/runtime'), { recursive: true });
 await copyFile(
   resolve(desktopRoot, 'packages/runtime/dist/utility-entry.js'),
   resolve(desktopRoot, 'dist/runtime/utility-entry.js'),
 );
-await run(['bun', '--bun', 'vite', 'build'], desktopRoot);
+run(['pnpm', 'exec', 'vite', 'build'], desktopRoot);
 
 const rendererRoot = resolve(desktopRoot, 'dist/renderer');
 for (const file of await rendererFiles(rendererRoot)) {

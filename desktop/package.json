@@ -5,15 +5,15 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "bun scripts/dev.ts",
-    "build": "bun scripts/generate-icons.ts && bun scripts/build.ts",
-    "package": "bun run build && bun scripts/prepare-forge.ts && electron-forge package .forge-app",
-    "make": "bun run build && bun scripts/prepare-forge.ts && bun scripts/prepare-maker-native.ts && electron-forge make .forge-app",
-    "test": "bun run build && playwright test -c playwright.config.ts",
+    "dev": "tsx scripts/dev.ts",
+    "build": "tsx scripts/generate-icons.ts && tsx scripts/build.ts",
+    "package": "pnpm run build && tsx scripts/prepare-forge.ts && electron-forge package .forge-app",
+    "make": "pnpm run build && tsx scripts/prepare-forge.ts && tsx scripts/prepare-maker-native.ts && electron-forge make .forge-app",
+    "test": "pnpm run build && playwright test -c playwright.config.ts",
     "test:packaged": "playwright test -c playwright.packaged.config.ts",
     "typecheck": "tsc --noEmit",
-    "icons": "bun scripts/generate-icons.ts",
-    "browser:prepare": "bun scripts/prepare-browser.ts"
+    "icons": "tsx scripts/generate-icons.ts",
+    "browser:prepare": "tsx scripts/prepare-browser.ts"
   },
   "dependencies": {
     "@zhiyun/analytics-worker-client": "workspace:*",

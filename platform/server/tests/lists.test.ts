@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, test } from 'bun:test';
+import { afterAll, beforeAll, expect, test } from 'vitest';
 import { cloudListOptions, type CloudListPath, type CloudListPage } from '@zhiyun/cloud-contracts';
 import { createApp } from '../src/app.js';
 import { readConfig } from '../src/config.js';

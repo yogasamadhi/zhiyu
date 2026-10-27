@@ -1,0 +1,69 @@
+packages:
+  - desktop
+  - dsh-plugin
+  - desktop/packages/*
+  - desktop/packages/plugins/*
+  - desktop/packages/capabilities/*
+  - desktop/packages/profiles/*
+  - desktop/tooling/fixtures
+  - platform/admin
+  - platform/portal
+  - platform/packages/*
+  - platform/server
+  - vendor/deepseek-harness/vendor/cosmokit
+  - vendor/deepseek-harness/vendor/schemastery
+  - vendor/deepseek-harness/vendor/cordis
+  - vendor/deepseek-harness/vendor/loader
+  - vendor/deepseek-harness/vendor/include
+  - vendor/deepseek-harness/vendor/group
+  - vendor/deepseek-harness/vendor/timer
+  - vendor/deepseek-harness/vendor/logger-console
+
+overrides:
+  '@electron/rebuild': 4.2.0
+  '@sapphire/shapeshift': 3.9.7
+  tmp: 0.2.7
+  js-yaml: 4.3.2
+  extract-zip: npm:@electron-internal/extract-zip@1.0.5
+  adm-zip: 0.6.1
+  'brace-expansion@^1': 1.1.21
+  'brace-expansion@^2': 2.1.7
+  'brace-expansion@^5': 5.0.12
+  'fast-uri@^3': 3.1.8
+  'fast-uri@^4': 4.1.5
+  'undici@^6': 6.28.1
+  'undici@^7': 7.29.1
+  # The browser fingerprint packages decide the injected viewport metrics that
+  # the crawler pagination relies on. Keep the reviewed versions.
+  fingerprint-generator: 2.1.88
+  fingerprint-injector: 2.1.88
+  braces: file:./tooling/dependency-patches/braces
+  http-cache-semantics: file:./tooling/dependency-patches/http-cache-semantics
+
+patchedDependencies:
+  proxy-chain@2.7.1: tooling/dependency-patches/proxy-chain@2.7.1.patch
+
+# Build scripts run only for packages the project trusts. pnpm blocks every
+# other install script, so each remaining candidate is denied explicitly.
+allowBuilds:
+  better-sqlite3: true
+  electron: true
+  esbuild: true
+  msgpackr-extract: true
+  playwright: true
+  sharp: true
+  '@deepseek-ai/dsh-subprocess-local': false
+  '@google/genai': false
+  electron-winstaller: false
+  fs-xattr: false
+  koffi: false
+  macos-alias: false
+  node-pty: false
+  protobufjs: false
+
+# Registry advisories that the project tracks explicitly. The image-size ICNS
+# parser advisory stays listed until the packaging dependency is replaced.
+audit:
+  level: high
+  ignore:
+    - GHSA-w3rx-r6r6-pgpr

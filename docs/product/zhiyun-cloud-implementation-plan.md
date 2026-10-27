@@ -30,18 +30,18 @@
 ## 三、从空库运行
 
 ```bash
-bun install --frozen-lockfile
-bun run cloud:infra
-bun run cloud:migrate
-bun run cloud:dev
+pnpm install --frozen-lockfile
+pnpm run cloud:infra
+pnpm run cloud:migrate
+pnpm run cloud:dev
 ```
 
-默认访问 Portal `http://localhost:3100`、Admin `http://localhost:3101`。API 为 `http://localhost:3200/api/cloud/v1`。这些命令独立于 `bun run dev` / Electron 启动；桌面本地功能不需要先启动云数据库。
+默认访问 Portal `http://localhost:3100`、Admin `http://localhost:3101`。API 为 `http://localhost:3200/api/cloud/v1`。这些命令独立于 `pnpm run dev` / Electron 启动；桌面本地功能不需要先启动云数据库。
 
 使用安全的终端环境设置 `CLOUD_BOOTSTRAP_EMAIL`、`CLOUD_BOOTSTRAP_PASSWORD`，然后运行：
 
 ```bash
-bun run --filter @zhiyun/cloud-server admin:create
+pnpm run --filter @zhiyun/cloud-server admin:create
 ```
 
 导入命令输出的一次性 TOTP 注册 URI，登录 Admin，按以下顺序完成测试准备：
@@ -72,16 +72,16 @@ bun run --filter @zhiyun/cloud-server admin:create
 ### 可复现命令
 
 ```bash
-bun run cloud:check
-bun run cloud:test
-bun run cloud:build
-bun run architecture:deps
-bun run cloud:e2e
-bunx vitest run desktop/packages/ai-runtime/test desktop/packages/plugins/ai-assistance/test/provider-catalog.test.ts desktop/packages/plugins/ai-assistance/test/pi-adapter.test.ts
-bun run desktop:test
-bun run desktop:package
-bun run --filter @zhiyun/desktop test:packaged
-CLOUD_DESKTOP_E2E=true bun run cloud:e2e
+pnpm run cloud:check
+pnpm run cloud:test
+pnpm run cloud:build
+pnpm run architecture:deps
+pnpm run cloud:e2e
+pnpm exec vitest run desktop/packages/ai-runtime/test desktop/packages/plugins/ai-assistance/test/provider-catalog.test.ts desktop/packages/plugins/ai-assistance/test/pi-adapter.test.ts
+pnpm run desktop:test
+pnpm run desktop:package
+pnpm run --filter @zhiyun/desktop test:packaged
+CLOUD_DESKTOP_E2E=true pnpm run cloud:e2e
 ```
 
 最后一条在 macOS 上使用实际打包的 `.app`，需要先执行 `desktop:package`。它校验 `app.isPackaged`，通过独立浏览器完成真实本地 PKCE 流程，验证加密凭证文件、模拟购买、托管助手、手动 BYOK、解绑与退出。CI 的 Linux Web 作业跳过这一 macOS 专项，不能把跳过当作通过。

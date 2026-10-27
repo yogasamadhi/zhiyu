@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.client.json",
+  "include": [
+    "src/workbench/**/*.tsx",
+    "src/client/transport.ts",
+    "src/shared/protocol.ts",
+    "src/workbench/**/*.d.ts"
+  ]
+}

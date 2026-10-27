@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import ts from 'typescript';
 
 interface PackageManifest {
   name?: string;
@@ -26,20 +25,15 @@ interface PackageLicense {
   upstream?: { name: string; version: string };
 }
 
-const workspaceRoot = resolve(import.meta.dir, '../..');
+const workspaceRoot = resolve(import.meta.dirname, '../..');
 const outputPath = resolve(
   process.argv[2] ?? resolve(workspaceRoot, '.artifacts/compliance/node.json'),
 );
 const visitedDirectories = new Set<string>();
 const packages = new Map<string, PackageLicense>();
 const lockedPackages = new Set<string>();
-const lockResult = ts.parseConfigFileTextToJson(
-  'bun.lock',
-  await readFile(resolve(workspaceRoot, 'bun.lock'), 'utf8'),
-);
-if (lockResult.error) throw new Error('Cannot collect licenses from an invalid bun.lock');
-const lock = lockResult.config as { packages: Record<string, [string, ...unknown[]]> };
-for (const [identifier] of Object.values(lock.packages)) {
+const lockText = await readFile(resolve(workspaceRoot, 'pnpm-lock.yaml'), 'utf8');
+for (const identifier of lockedIdentifiers(lockText)) {
   const separator = identifier.lastIndexOf('@');
   const name = identifier.slice(0, separator);
   const version = identifier.slice(separator + 1);
@@ -55,7 +49,7 @@ for (const [identifier] of Object.values(lock.packages)) {
 }
 
 await scanNodeModules(resolve(workspaceRoot, 'node_modules'));
-await scanBunStore(resolve(workspaceRoot, 'node_modules/.bun'));
+await scanPackageStore(resolve(workspaceRoot, 'node_modules/.pnpm'));
 const entries = [...packages.values()].sort(
   (left, right) => left.name.localeCompare(right.name) || left.version.localeCompare(right.version),
 );
@@ -92,11 +86,31 @@ async function scanNodeModules(nodeModulesPath: string): Promise<void> {
   }
 }
 
-async function scanBunStore(storePath: string): Promise<void> {
+async function scanPackageStore(storePath: string): Promise<void> {
   const entries = await readdir(storePath, { withFileTypes: true }).catch(() => []);
   for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-    if (entry.isDirectory()) await scanNodeModules(resolve(storePath, entry.name, 'node_modules'));
+    if (!entry.isDirectory()) continue;
+    await scanNodeModules(resolve(storePath, entry.name, 'node_modules'));
   }
+}
+
+// The pnpm lockfile records resolved packages as `name@version` keys inside the
+// top-level `packages` section. The section is read as text so the license
+// collector keeps working without an additional YAML runtime dependency.
+function lockedIdentifiers(lockText: string): string[] {
+  const start = /^packages:\s*$/m.exec(lockText);
+  if (!start) throw new Error('Cannot collect licenses from an invalid pnpm-lock.yaml');
+  const rest = lockText.slice(start.index + start[0].length);
+  const end = /^\S/m.exec(rest);
+  const section = end ? rest.slice(0, end.index) : rest;
+  const identifiers: string[] = [];
+  for (const line of section.split('\n')) {
+    const match = /^ {2}'?(.+?)'?:$/.exec(line);
+    if (match) identifiers.push(match[1]!);
+  }
+  if (!identifiers.length)
+    throw new Error('Cannot collect licenses from an invalid pnpm-lock.yaml');
+  return identifiers;
 }
 
 async function visitPackage(packagePath: string): Promise<void> {

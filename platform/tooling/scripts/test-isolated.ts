@@ -1,3 +1,5 @@
+import { spawn, type ChildProcess } from 'node:child_process';
+import type { Readable } from 'node:stream';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -6,45 +8,51 @@ import {
   availableTestPort,
   testEnvironment,
 } from '../../../tooling/scripts/test-environment.js';
-import { portAvailable } from '../../../tooling/scripts/development.js';
+import { portAvailable, sleep } from '../../../tooling/scripts/development.js';
 
 const mode = process.argv[2];
 if (!['unit', 'e2e', 'all'].includes(mode ?? '') || process.argv.length !== 3)
-  throw new Error(
-    'Usage: bun --no-env-file platform/tooling/scripts/test-isolated.ts unit|e2e|all',
-  );
+  throw new Error('Usage: node platform/tooling/scripts/test-isolated.ts unit|e2e|all');
 
-const root = resolve(import.meta.dir, '../../..');
+const root = resolve(import.meta.dirname, '../../..');
 const identifier = crypto.randomUUID().replaceAll('-', '');
 const project = `zhiyun-test-${identifier}`;
 const temporary = await mkdtemp(join(tmpdir(), 'zhiyun-cloud-test-'));
 const environment = testEnvironment(process.env);
-const children = new Set<ReturnType<typeof Bun.spawn>>();
+const children = new Set<ChildProcess>();
 let interrupted = false;
 let cleaning = false;
 let composeStarted = false;
 let exitCode = 1;
 const applicationPorts: number[] = [];
 
-async function signal(child: ReturnType<typeof Bun.spawn>, force = false): Promise<void> {
+function exited(child: ChildProcess): Promise<number> {
+  return new Promise((done) => {
+    child.once('exit', (code) => done(code ?? 0));
+  });
+}
+
+async function signal(child: ChildProcess, force = false): Promise<void> {
   try {
     if (process.platform === 'win32') {
-      if (child.exitCode === null)
-        await Bun.spawn(['taskkill', '/PID', String(child.pid), '/T', ...(force ? ['/F'] : [])], {
-          env: environment,
-          stdout: 'ignore',
-          stderr: 'ignore',
-        }).exited;
-    } else process.kill(-child.pid, force ? 'SIGKILL' : 'SIGTERM');
+      if (child.exitCode === null) {
+        const killer = spawn(
+          'taskkill',
+          ['/PID', String(child.pid), '/T', ...(force ? ['/F'] : [])],
+          { env: environment, stdio: 'ignore' },
+        );
+        await exited(killer);
+      }
+    } else process.kill(-child.pid!, force ? 'SIGKILL' : 'SIGTERM');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
   }
 }
 
-function alive(child: ReturnType<typeof Bun.spawn>): boolean {
+function alive(child: ChildProcess): boolean {
   if (process.platform === 'win32') return child.exitCode === null;
   try {
-    process.kill(-child.pid, 0);
+    process.kill(-child.pid!, 0);
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false;
@@ -52,13 +60,13 @@ function alive(child: ReturnType<typeof Bun.spawn>): boolean {
   }
 }
 
-async function stop(child: ReturnType<typeof Bun.spawn>): Promise<void> {
+async function stop(child: ChildProcess): Promise<void> {
   if (!alive(child)) return;
   await signal(child);
   const deadline = Date.now() + 10_000;
-  while (alive(child) && Date.now() < deadline) await Bun.sleep(100);
+  while (alive(child) && Date.now() < deadline) await sleep(100);
   if (alive(child)) await signal(child, true);
-  await child.exited;
+  await exited(child);
 }
 
 const interrupt = () => {
@@ -69,28 +77,34 @@ const interrupt = () => {
 process.on('SIGINT', interrupt);
 process.on('SIGTERM', interrupt);
 
-async function forward(stream: ReadableStream<Uint8Array>, destination: NodeJS.WriteStream) {
+async function collect(stream: Readable | null): Promise<string> {
+  if (!stream) return '';
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function forward(stream: Readable | null, destination: NodeJS.WriteStream): Promise<string> {
+  if (!stream) return '';
   for await (const chunk of stream) destination.write(chunk);
   return '';
 }
 
 async function run(command: string[], capture = false, cleanup = false): Promise<string> {
   if (interrupted && !cleanup) throw new Error('Isolated tests interrupted');
-  const child = Bun.spawn(command, {
+  const child = spawn(command[0]!, command.slice(1), {
     cwd: root,
     env: environment,
-    stdin: 'ignore',
-    stdout: 'pipe',
-    stderr: 'pipe',
+    stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
     windowsHide: true,
   });
   children.add(child);
   try {
     const [output, , code] = await Promise.all([
-      capture ? new Response(child.stdout).text() : forward(child.stdout, process.stdout),
+      capture ? collect(child.stdout) : forward(child.stdout, process.stdout),
       forward(child.stderr, process.stderr),
-      child.exited,
+      exited(child),
     ]);
     if (code !== 0) throw new Error(`${command[0]} ${command[1]} exited with code ${code}`);
     return output.trim();
@@ -140,8 +154,7 @@ try {
   });
   console.log(`Isolated test run ${identifier}; owned Compose project ${project}`);
   if (mode === 'unit' || mode === 'all') {
-    await run(['bun', '--no-env-file', 'test', 'platform/tooling/tests']);
-    await run(['bun', '--no-env-file', 'test', 'platform/server/tests']);
+    await run(['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.platform.config.ts']);
   }
   if (mode === 'e2e' || mode === 'all') {
     const ports = new Set<number>();
@@ -158,10 +171,8 @@ try {
       CLOUD_DATABASE_URL: e2eDatabase,
     });
     await run([
-      'bun',
-      '--no-env-file',
-      'x',
-      '--no-install',
+      'pnpm',
+      'exec',
       'playwright',
       'test',
       '--config',
